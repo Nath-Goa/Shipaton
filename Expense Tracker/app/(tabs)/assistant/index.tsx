@@ -13,11 +13,11 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
 import { badgeInfo } from '@/constants/badges';
 import { spacing } from '@/constants/theme';
-import { TIER_FEATURES } from '@/constants/subscription';
+import { TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
-import { sendChatMessage } from '@/services/ai/client';
+import { hasSharedFallback, sendChatMessage } from '@/services/ai/client';
 import { buildAnalystSystemPrompt } from '@/services/ai/prompts';
 import { useChatStore } from '@/store/useChatStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -139,7 +139,7 @@ export default function AssistantScreen() {
         </ScrollView>
 
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
-          {hasKey === false ? (
+          {hasKey === false && !hasSharedFallback() ? (
             <View style={styles.gate}>
               <Text style={[styles.gateText, { color: colors.text3 }]}>Add your API key in Settings to start chatting.</Text>
               <Button label="Open Settings" variant="ghost" onPress={() => router.push('/settings')} />
@@ -147,12 +147,17 @@ export default function AssistantScreen() {
           ) : quotaExhausted ? (
             <View style={styles.gate}>
               <Text style={[styles.gateText, { color: colors.text3 }]}>
-                Daily limit reached on {tier === 'basic' ? 'Basic' : tier}. Upgrade for unlimited messages.
+                Daily limit reached on {TIER_LABELS[tier]}. Upgrade for unlimited messages.
               </Text>
               <Button label="Upgrade" onPress={() => router.push('/settings/upgrade')} />
             </View>
           ) : (
             <>
+              {hasKey === false ? (
+                <Text style={[styles.sharedHint, { color: colors.text3 }]}>
+                  Using a shared free key — add your own in Settings for faster, better responses.
+                </Text>
+              ) : null}
               {remaining !== null ? (
                 <Text style={[styles.quota, { color: colors.text3 }]}>{remaining} message{remaining === 1 ? '' : 's'} left today</Text>
               ) : null}
@@ -172,5 +177,6 @@ const styles = StyleSheet.create({
   footer: { borderTopWidth: StyleSheet.hairlineWidth, padding: spacing.md, gap: 6 },
   gate: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
   gateText: { fontSize: 12.5, textAlign: 'center' },
+  sharedHint: { fontSize: 11, textAlign: 'center', paddingHorizontal: spacing.sm, paddingBottom: 2 },
   quota: { fontSize: 11.5, textAlign: 'right', paddingHorizontal: spacing.sm },
 });

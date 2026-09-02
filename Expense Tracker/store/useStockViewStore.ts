@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { todayStr } from '@/utils/date';
 
 // Tracks how many distinct stock detail pages have been opened today (for
-// the Basic-tier "5 stocks/day" gate) and a running lookup count (for the
+// the Free-tier "5 stocks/day" gate) and a running lookup count (for the
 // every-3rd-lookup simulated ad slot). Resets automatically when the date
 // rolls over — checked lazily rather than on a timer.
 type StockViewState = {
@@ -14,7 +14,7 @@ type StockViewState = {
   lookupCount: number;
   recordView: (symbol: string) => { isNew: boolean; lookupCount: number; viewedTodayCount: number };
   viewedTodayCount: () => number;
-  // Would opening `symbol` push a Basic-tier user past `limit` distinct
+  // Would opening `symbol` push a Free-tier user past `limit` distinct
   // stocks today? Already-viewed symbols are always a free re-view.
   wouldExceedLimit: (symbol: string, limit: number | null) => boolean;
 };

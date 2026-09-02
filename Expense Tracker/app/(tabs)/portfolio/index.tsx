@@ -10,6 +10,7 @@ import Animated, {
 
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
 import { TopBar } from '@/components/ui/TopBar';
@@ -18,7 +19,9 @@ import { spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
-import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { sharePortfolioSummary } from '@/services/export/exportData';
+import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
+import { useToastStore } from '@/store/useToastStore';
 import { money, signedMoney, signedPct } from '@/utils/money';
 import { summarizePortfolio } from '@/utils/portfolioMath';
 
@@ -84,16 +87,40 @@ function HoldingRow({
 
 export default function PortfolioScreen() {
   const { colors } = useTheme();
-  const { cash, holdings, trades } = usePortfolioStore();
+  const { name, cash, holdings, trades } = useActivePortfolio();
+  const portfolioCount = usePortfolioStore((s) => Object.keys(s.portfolios).length);
+  const showToast = useToastStore((s) => s.show);
 
   const symbols = useMemo(() => Object.keys(holdings), [holdings]);
   const { quotes, refresh } = useQuotes(symbols);
   const summary = useMemo(() => summarizePortfolio(cash, holdings, quotes), [cash, holdings, quotes]);
   const holdingList = useMemo(() => Object.values(holdings).sort((a, b) => a.symbol.localeCompare(b.symbol)), [holdings]);
 
+  async function handleShare() {
+    const result = await sharePortfolioSummary({
+      name,
+      netWorth: summary.netWorth,
+      cash,
+      allTimePnl: summary.allTimePnl,
+      allTimePnlPct: summary.allTimePnlPct,
+      holdingsCount: summary.positionsCount,
+    });
+    if (!result.ok) showToast(result.message);
+  }
+
   return (
     <Screen>
-      <TopBar title="Portfolio" subtitle="Paper trading — no real money involved" />
+      <TopBar
+        title="Portfolio"
+        subtitle={portfolioCount > 1 ? name : 'Paper trading — no real money involved'}
+        right={
+          <>
+            <IconButton name="share-outline" onPress={handleShare} />
+            <IconButton name="trophy-outline" onPress={() => router.push('/portfolio/leaderboard')} />
+            <IconButton name="swap-horizontal-outline" onPress={() => router.push('/portfolio/manage')} />
+          </>
+        }
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>

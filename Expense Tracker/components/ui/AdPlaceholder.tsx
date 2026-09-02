@@ -5,10 +5,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
-// No real ad SDK is wired up (see constants/subscription.ts TODO) — this is
-// a house placeholder that stands in for the "every 3rd lookup" ad slot on
-// Basic, styled like a real ad unit but honestly self-promotional rather
-// than pretending to serve third-party ad content.
+// No third-party ad network is wired up — this is an in-house placeholder
+// that stands in for the "every 3rd lookup" ad slot on Free, styled like a
+// real ad unit but honestly self-promotional rather than pretending to
+// serve third-party ad content. Free is the only tier this renders for
+// (see adsEnabled in constants/subscription.ts).
 export function AdPlaceholder() {
   const { colors } = useTheme();
   return (

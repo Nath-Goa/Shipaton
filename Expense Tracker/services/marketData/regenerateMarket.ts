@@ -9,5 +9,7 @@ import { usePortfolioStore } from '@/store/usePortfolioStore';
 export function regenerateMarket(): void {
   useMarketStore.getState().bumpEpoch();
   resetMarketCache();
-  usePortfolioStore.getState().resetPortfolio();
+  // Every portfolio's holdings are stale against the freshly-generated price
+  // series, not just the active one.
+  usePortfolioStore.getState().resetAllPortfolios();
 }

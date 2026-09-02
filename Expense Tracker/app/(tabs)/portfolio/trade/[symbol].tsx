@@ -1,5 +1,5 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -17,7 +17,7 @@ import { radius, spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { subscribeLiveQuote } from '@/services/marketData/mockMarketData';
-import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { Quote } from '@/types/stock';
 import { money } from '@/utils/money';
@@ -61,13 +61,17 @@ export default function TradeScreen() {
   const symbol = (rawSymbol ?? '').toUpperCase();
   const { colors } = useTheme();
   const ticker = tickerOf(symbol);
-  const { cash, holdings, buy, sell } = usePortfolioStore();
+  const { cash, holdings } = useActivePortfolio();
+  const { buy, sell } = usePortfolioStore();
   const showToast = useToastStore((s) => s.show);
 
   const [side, setSide] = useState<Side>(rawSide === 'sell' ? 'sell' : 'buy');
   const [qtyText, setQtyText] = useState('1');
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Ref (not state) so a rapid double-tap is blocked synchronously, without
+  // waiting on a render to commit the "already submitting" flag.
+  const submittingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,9 +93,12 @@ export default function TradeScreen() {
   }
 
   function submit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     const result = side === 'buy' ? buy(symbol, qty, price) : sell(symbol, qty, price);
     if (!result.ok) {
+      submittingRef.current = false;
       setError(result.message);
       return;
     }

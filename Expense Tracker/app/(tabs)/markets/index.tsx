@@ -157,6 +157,11 @@ export default function MarketsScreen() {
           label="Regenerate market"
           onPress={confirmRegenerate}
         />
+        <MarketActionBtn
+          icon="analytics-outline"
+          label="Backtest"
+          onPress={() => router.push('/markets/backtest')}
+        />
       </Animated.View>
       <FlatList
         data={filtered}

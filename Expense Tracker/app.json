@@ -8,9 +8,11 @@
     "scheme": "mockstocktrainer",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nathgoa.mockstocktrainer"
     },
     "android": {
+      "package": "com.nathgoa.mockstocktrainer",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -26,6 +28,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
@@ -41,6 +44,13 @@
         {
           "photosPermission": "Let you attach a photo of a receipt to an expense.",
           "cameraPermission": "Let you take a photo of a receipt to attach to an expense."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff"
         }
       ]
     ],

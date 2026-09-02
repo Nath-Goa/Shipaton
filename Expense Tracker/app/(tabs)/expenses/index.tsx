@@ -15,7 +15,9 @@ import { TopBar } from '@/components/ui/TopBar';
 import { CATEGORIES, categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { shareExpensesCsv } from '@/services/export/exportData';
 import { useExpenseStore } from '@/store/useExpenseStore';
+import { useToastStore } from '@/store/useToastStore';
 import type { Expense } from '@/types/expense';
 import { formatDayHeading, parseDateLocal, toDateStr } from '@/utils/date';
 import { money } from '@/utils/money';
@@ -33,14 +35,16 @@ type Row = { kind: 'header'; date: string; total: number } | { kind: 'item'; exp
 
 export default function ExpensesScreen() {
   const { colors } = useTheme();
-  const { expenses, seedIfNeeded, deleteExpense, undoDelete } = useExpenseStore();
+  const { expenses, seedIfNeeded, generateDueRecurring, deleteExpense, undoDelete } = useExpenseStore();
+  const showToast = useToastStore((s) => s.show);
   const [preset, setPreset] = useState<Preset>('all');
   const [highlight, setHighlight] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     seedIfNeeded();
-  }, [seedIfNeeded]);
+    generateDueRecurring();
+  }, [seedIfNeeded, generateDueRecurring]);
 
   const filtered = useMemo(() => {
     if (preset === 'all') return expenses;
@@ -103,6 +107,11 @@ export default function ExpensesScreen() {
     setTimeout(() => setRefreshing(false), 350);
   }
 
+  async function handleExport() {
+    const result = await shareExpensesCsv(sorted);
+    if (!result.ok) showToast(result.message);
+  }
+
   function onLongPressExpense(expense: Expense) {
     Alert.alert(expense.desc || categoryOf(expense.category).label, undefined, [
       { text: 'Edit', onPress: () => router.push(`/expenses/${expense.id}`) },
@@ -123,7 +132,13 @@ export default function ExpensesScreen() {
       <TopBar
         title="Expenses"
         subtitle="Track spending — snap a receipt or add manually"
-        right={<IconButton name="add" onPress={() => router.push('/expenses/add')} />}
+        right={
+          <>
+            <IconButton name="pie-chart-outline" onPress={() => router.push('/expenses/budgets')} />
+            <IconButton name="share-outline" onPress={handleExport} />
+            <IconButton name="add" onPress={() => router.push('/expenses/add')} />
+          </>
+        }
       />
       <FlatList
         data={rows}
