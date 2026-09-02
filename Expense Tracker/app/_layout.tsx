@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -10,6 +11,7 @@ import { ToastHost } from '@/components/ui/ToastHost';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import { disableAllReminders, refreshStreakRiskReminder } from '@/services/notifications/notifications';
+import { initSentry } from '@/services/monitoring/sentry';
 import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
@@ -18,8 +20,11 @@ import { todayStr } from '@/utils/date';
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// As early as possible, before any component renders, so startup crashes
+// are captured too — a no-op without EXPO_PUBLIC_SENTRY_DSN configured.
+initSentry();
 
-export default function RootLayout() {
+function RootLayout() {
   const setTier = useSettingsStore((s) => s.setTier);
   const tier = useSettingsStore((s) => s.tier);
   const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
@@ -76,6 +81,8 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);
 
 function RootLayoutNav() {
   const { scheme, colors } = useTheme();
