@@ -1,0 +1,111 @@
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { radius, spacing } from '@/constants/theme';
+import { useHasApiKey } from '@/hooks/useHasApiKey';
+import { useTheme } from '@/hooks/useTheme';
+import { clearApiKey, getApiKey, maskKey, setApiKey } from '@/services/ai/apiKey';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { AI_PROVIDER_LABELS, type AiProvider } from '@/types/ai';
+
+const PROVIDER_OPTIONS: { value: AiProvider; label: string }[] = [
+  { value: 'claude', label: 'Claude' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'gemini', label: 'Gemini' },
+];
+
+type Props = {
+  onSaved?: () => void;
+  showHint?: boolean;
+};
+
+export function ApiKeySection({ onSaved, showHint = true }: Props) {
+  const { colors } = useTheme();
+  const { aiProvider, setAiProvider } = useSettingsStore();
+  const { hasKey, refresh } = useHasApiKey();
+  const [keyInput, setKeyInput] = useState('');
+  const [savedMask, setSavedMask] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getApiKey(aiProvider).then((key) => {
+      if (alive) setSavedMask(key ? maskKey(key) : null);
+    });
+    setKeyInput('');
+    return () => {
+      alive = false;
+    };
+  }, [aiProvider]);
+
+  async function saveKey() {
+    if (!keyInput.trim()) return;
+    await setApiKey(aiProvider, keyInput);
+    setSavedMask(maskKey(keyInput.trim()));
+    setKeyInput('');
+    refresh();
+    onSaved?.();
+  }
+
+  async function removeKey() {
+    await clearApiKey(aiProvider);
+    setSavedMask(null);
+    refresh();
+  }
+
+  return (
+    <View style={{ gap: spacing.md }}>
+      <SegmentedControl options={PROVIDER_OPTIONS} value={aiProvider} onChange={setAiProvider} />
+      <Card>
+        {savedMask ? (
+          <View style={styles.keyRow}>
+            <View>
+              <Text style={[styles.label, { color: colors.text3 }]}>{AI_PROVIDER_LABELS[aiProvider]} key</Text>
+              <Text style={[styles.maskedKey, { color: colors.text }]}>{savedMask}</Text>
+            </View>
+            <Button label="Remove" variant="ghost" onPress={removeKey} />
+          </View>
+        ) : (
+          <>
+            <Text style={[styles.label, { color: colors.text3 }]}>{AI_PROVIDER_LABELS[aiProvider]} API key</Text>
+            <TextInput
+              value={keyInput}
+              onChangeText={setKeyInput}
+              placeholder="Paste your API key"
+              placeholderTextColor={colors.text3}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+            />
+            <View style={{ marginTop: spacing.md }}>
+              <Button label="Save key" onPress={saveKey} disabled={!keyInput.trim()} />
+            </View>
+          </>
+        )}
+      </Card>
+      {showHint && hasKey === false ? (
+        <Text style={[styles.hint, { color: colors.text3 }]}>
+          Without a key, mock trading and expenses still work — only the Assistant and receipt auto-fill need one.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  label: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  input: {
+    marginTop: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 11,
+    fontSize: 14,
+  },
+  keyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  maskedKey: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+  hint: { fontSize: 12, lineHeight: 16 },
+});

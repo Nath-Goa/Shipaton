@@ -1,0 +1,242 @@
+import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+
+import { DonutChart } from '@/components/charts/DonutChart';
+import { ExpenseListItem } from '@/components/expenses/ExpenseListItem';
+import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
+import { Screen } from '@/components/ui/Screen';
+import { StatTile } from '@/components/ui/StatTile';
+import { TopBar } from '@/components/ui/TopBar';
+import { CATEGORIES, categoryOf } from '@/constants/categories';
+import { spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
+import { useExpenseStore } from '@/store/useExpenseStore';
+import type { Expense } from '@/types/expense';
+import { formatDayHeading, parseDateLocal, toDateStr } from '@/utils/date';
+import { money } from '@/utils/money';
+
+type Preset = 'all' | 'month' | '30' | 'year';
+
+const PRESETS: { value: Preset; label: string }[] = [
+  { value: 'all', label: 'All time' },
+  { value: 'month', label: 'This month' },
+  { value: '30', label: 'Last 30 days' },
+  { value: 'year', label: 'This year' },
+];
+
+type Row = { kind: 'header'; date: string; total: number } | { kind: 'item'; expense: Expense };
+
+export default function ExpensesScreen() {
+  const { colors } = useTheme();
+  const { expenses, seedIfNeeded, deleteExpense, undoDelete } = useExpenseStore();
+  const [preset, setPreset] = useState<Preset>('all');
+  const [highlight, setHighlight] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    seedIfNeeded();
+  }, [seedIfNeeded]);
+
+  const filtered = useMemo(() => {
+    if (preset === 'all') return expenses;
+    const now = new Date();
+    let from: Date;
+    if (preset === 'month') from = new Date(now.getFullYear(), now.getMonth(), 1);
+    else if (preset === '30') {
+      from = new Date();
+      from.setDate(from.getDate() - 29);
+    } else from = new Date(now.getFullYear(), 0, 1);
+    const fromStr = toDateStr(from);
+    return expenses.filter((e) => e.date >= fromStr);
+  }, [expenses, preset]);
+
+  const sorted = useMemo(
+    () => [...filtered].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
+    [filtered]
+  );
+
+  const total = filtered.reduce((s, e) => s + e.amount, 0);
+  const count = filtered.length;
+  const avg = count ? total / count : 0;
+
+  const monthTotal = useMemo(() => {
+    const now = new Date();
+    return expenses
+      .filter((e) => {
+        const d = parseDateLocal(e.date);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      })
+      .reduce((s, e) => s + e.amount, 0);
+  }, [expenses]);
+
+  const byCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of filtered) map.set(e.category, (map.get(e.category) ?? 0) + e.amount);
+    return CATEGORIES.map((c) => ({ id: c.id, label: c.label, color: c.color, value: map.get(c.id) ?? 0 })).sort(
+      (a, b) => b.value - a.value
+    );
+  }, [filtered]);
+
+  const topCategory = byCategory[0]?.value ? byCategory[0] : null;
+
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    let lastDay: string | null = null;
+    for (const e of sorted) {
+      if (e.date !== lastDay) {
+        lastDay = e.date;
+        const dayTotal = sorted.filter((x) => x.date === e.date).reduce((s, x) => s + x.amount, 0);
+        out.push({ kind: 'header', date: e.date, total: dayTotal });
+      }
+      out.push({ kind: 'item', expense: e });
+    }
+    return out;
+  }, [sorted]);
+
+  function onRefresh() {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 350);
+  }
+
+  function onLongPressExpense(expense: Expense) {
+    Alert.alert(expense.desc || categoryOf(expense.category).label, undefined, [
+      { text: 'Edit', onPress: () => router.push(`/expenses/${expense.id}`) },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deleteExpense(expense.id);
+          Alert.alert('Expense deleted', undefined, [{ text: 'Undo', onPress: undoDelete }, { text: 'OK' }]);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  return (
+    <Screen>
+      <TopBar
+        title="Expenses"
+        subtitle="Track spending — snap a receipt or add manually"
+        right={<IconButton name="add" onPress={() => router.push('/expenses/add')} />}
+      />
+      <FlatList
+        data={rows}
+        keyExtractor={(row, i) => (row.kind === 'header' ? `h-${row.date}` : row.expense.id) + i}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View style={styles.headerBlock}>
+            <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                {PRESETS.map((p) => (
+                  <Chip key={p.value} label={p.label} active={preset === p.value} onPress={() => setPreset(p.value)} />
+                ))}
+              </ScrollView>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(70).springify().damping(16)} style={styles.statsRow}>
+              <StatTile label="Total spending" value={money(total)} sub={`${count} expense${count === 1 ? '' : 's'}`} />
+              <StatTile label="This month" value={money(monthTotal)} />
+              <StatTile label="Average" value={money(avg)} />
+              <StatTile
+                label="Top category"
+                value={topCategory?.label ?? '—'}
+                sub={topCategory ? money(topCategory.value) : 'no data'}
+                dotColor={topCategory?.color}
+              />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
+              <Card>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Spending by category</Text>
+                {total > 0 ? (
+                  <View style={styles.breakdown}>
+                    <DonutChart
+                      segments={byCategory}
+                      centerLabel={highlight ? categoryOf(highlight).label : 'Total'}
+                      centerValue={
+                        highlight
+                          ? money(byCategory.find((c) => c.id === highlight)?.value ?? 0)
+                          : money(total)
+                      }
+                      highlightId={highlight}
+                      onSegmentPress={(id) => setHighlight((h) => (h === id ? null : id))}
+                    />
+                    <View style={styles.legend}>
+                      {byCategory
+                        .filter((c) => c.value > 0)
+                        .map((c) => (
+                          <Text
+                            key={c.id}
+                            onPress={() => setHighlight((h) => (h === c.id ? null : c.id))}
+                            style={[styles.legendItem, { color: highlight && highlight !== c.id ? colors.text3 : colors.text2 }]}>
+                            <Text style={{ color: c.color }}>●</Text> {c.label}{' '}
+                            <Text style={{ fontWeight: '700', color: colors.text }}>{money(c.value)}</Text>
+                          </Text>
+                        ))}
+                    </View>
+                  </View>
+                ) : (
+                  <EmptyState icon="🧾" title="No spending yet" message="Add an expense to see the breakdown." />
+                )}
+              </Card>
+            </Animated.View>
+
+            <Text style={[styles.cardTitle, { color: colors.text, marginTop: spacing.sm }]}>
+              Expenses <Text style={{ color: colors.text3 }}>({sorted.length})</Text>
+            </Text>
+          </View>
+        }
+        renderItem={({ item, index }) =>
+          item.kind === 'header' ? (
+            <Animated.View entering={FadeInDown.delay(Math.min(index * 25, 300)).springify().damping(16)} style={styles.dayHead}>
+              <Text style={[styles.dayHeadText, { color: colors.text3 }]}>{formatDayHeading(item.date)}</Text>
+              <Text style={[styles.dayHeadText, { color: colors.text3 }]}>{money(item.total)}</Text>
+            </Animated.View>
+          ) : (
+            <Animated.View entering={FadeInDown.delay(Math.min(index * 25, 300)).springify().damping(16)}>
+              <ExpenseListItem
+                expense={item.expense}
+                onPress={() => router.push(`/expenses/${item.expense.id}`)}
+                onLongPress={() => onLongPressExpense(item.expense)}
+              />
+            </Animated.View>
+          )
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="🧾"
+            title="No expenses match"
+            message="Try a different range, or add your first expense."
+            actionLabel="Add expense"
+            onAction={() => router.push('/expenses/add')}
+          />
+        }
+      />
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
+  headerBlock: { gap: spacing.lg, marginBottom: spacing.md },
+  chipsRow: { flexDirection: 'row', gap: spacing.sm },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: spacing.md },
+  breakdown: { alignItems: 'center', gap: spacing.lg },
+  legend: { width: '100%', gap: 8 },
+  legendItem: { fontSize: 13 },
+  dayHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  dayHeadText: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+});

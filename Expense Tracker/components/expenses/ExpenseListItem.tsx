@@ -1,0 +1,101 @@
+import { useCallback } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+
+import { springs, triggerHaptic } from '@/constants/animations';
+import { categoryOf } from '@/constants/categories';
+import { radius, spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
+import type { Expense } from '@/types/expense';
+import { money } from '@/utils/money';
+
+type Props = {
+  expense: Expense;
+  onPress?: () => void;
+  onLongPress?: () => void;
+};
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
+  const { colors } = useTheme();
+  const cat = categoryOf(expense.category);
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.98, springs.snappy);
+    triggerHaptic('light');
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.snappy);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onLongPress={() => {
+        triggerHaptic('medium');
+        onLongPress?.();
+      }}
+      style={[
+        styles.row,
+        { borderBottomColor: colors.border },
+        animatedStyle,
+      ]}>
+      {expense.photoUri ? (
+        <Image source={{ uri: expense.photoUri }} style={styles.photo} />
+      ) : (
+        <View style={[styles.icon, { backgroundColor: `${cat.color}26`, borderColor: `${cat.color}4D` }]}>
+          <Text style={styles.iconText}>{cat.icon}</Text>
+        </View>
+      )}
+      <View style={styles.main}>
+        <Text style={[styles.desc, { color: colors.text }]} numberOfLines={1}>
+          {expense.desc || cat.label}
+        </Text>
+        <Text style={[styles.meta, { color: colors.text3 }]} numberOfLines={1}>
+          <Text style={{ color: cat.color, fontWeight: '600' }}>{cat.label}</Text>
+        </Text>
+      </View>
+      <Text style={[styles.amount, { color: colors.text }]}>{money(expense.amount)}</Text>
+    </AnimatedPressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 11,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  icon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconText: { fontSize: 17 },
+  photo: { width: 38, height: 38, borderRadius: radius.sm },
+  main: { flex: 1, minWidth: 0 },
+  desc: { fontSize: 14.5, fontWeight: '500' },
+  meta: { fontSize: 12.5, marginTop: 1 },
+  amount: { fontSize: 15, fontWeight: '600' },
+});

@@ -1,0 +1,70 @@
+import { buildReceiptExtractionPrompt, type ReceiptExtraction } from '@/services/ai/prompts';
+import type { AiResult, SimpleChatMessage } from '@/types/ai';
+import { parseJsonResponse } from './shared';
+
+const API_URL = 'https://api.openai.com/v1/chat/completions';
+// Update as newer OpenAI models become available.
+const MODEL = 'gpt-4o';
+
+type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
+type Message = { role: 'system' | 'user' | 'assistant'; content: string | ContentPart[] };
+
+async function callChat(messages: Message[], apiKey: string): Promise<AiResult<any>> {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ model: MODEL, max_tokens: 1024, messages }),
+    });
+    if (res.status === 401) return { ok: false, error: { type: 'invalid_key' } };
+    if (res.status === 429) return { ok: false, error: { type: 'rate_limited' } };
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, error: { type: 'unknown', message: text || `Request failed (${res.status}).` } };
+    }
+    return { ok: true, data: await res.json() };
+  } catch {
+    return { ok: false, error: { type: 'network', message: 'Could not reach the OpenAI API.' } };
+  }
+}
+
+function extractText(data: any): string {
+  return (data?.choices?.[0]?.message?.content ?? '').trim();
+}
+
+export async function sendChatMessage(
+  systemPrompt: string,
+  history: SimpleChatMessage[],
+  apiKey: string
+): Promise<AiResult<string>> {
+  const messages: Message[] = [
+    { role: 'system', content: systemPrompt },
+    ...history.map((h) => ({ role: h.role, content: h.text }) as Message),
+  ];
+  const result = await callChat(messages, apiKey);
+  if (!result.ok) return result;
+  return { ok: true, data: extractText(result.data) };
+}
+
+export async function extractReceiptFromImage(
+  base64: string,
+  mimeType: string,
+  apiKey: string
+): Promise<AiResult<ReceiptExtraction>> {
+  const messages: Message[] = [
+    { role: 'system', content: buildReceiptExtractionPrompt() },
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Extract the expense details from this receipt photo.' },
+        { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+      ],
+    },
+  ];
+  const result = await callChat(messages, apiKey);
+  if (!result.ok) return result;
+  return parseJsonResponse<ReceiptExtraction>(extractText(result.data));
+}
