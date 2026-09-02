@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { useTheme } from '@/hooks/useTheme';
+import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 export { ErrorBoundary } from 'expo-router';
@@ -15,9 +16,30 @@ export { ErrorBoundary } from 'expo-router';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  const setTier = useSettingsStore((s) => s.setTier);
+
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
+
+  // RevenueCat is the source of truth for entitlement state: configure once
+  // at app start, adopt whatever tier the store already reports for this
+  // customer, then keep it live-synced for the rest of the session (a
+  // purchase, restore, renewal, or expiration all flow through this same
+  // listener). A no-op on web or when no API key is configured yet — see
+  // services/purchases/revenuecat.ts.
+  useEffect(() => {
+    if (!configurePurchases()) return;
+    let alive = true;
+    fetchCurrentTier().then((tier) => {
+      if (alive && tier) setTier(tier);
+    });
+    const unsubscribe = subscribeTierChanges((tier) => setTier(tier));
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, [setTier]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

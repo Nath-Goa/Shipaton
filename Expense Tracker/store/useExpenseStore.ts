@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { deleteReceiptFile } from '@/services/receipts/capture';
 import type { Expense } from '@/types/expense';
 import { daysAgo } from '@/utils/date';
 import { uid } from '@/utils/id';
@@ -46,6 +47,10 @@ export const useExpenseStore = create<ExpenseState>()(
         set((state) => ({ expenses: [{ id: uid(), ...input }, ...state.expenses] }));
       },
       updateExpense: (id, patch) => {
+        const prior = get().expenses.find((e) => e.id === id);
+        if (prior?.photoUri && prior.photoUri !== patch.photoUri) {
+          deleteReceiptFile(prior.photoUri);
+        }
         set((state) => ({
           expenses: state.expenses.map((e) => (e.id === id ? { id, ...patch } : e)),
         }));
@@ -54,6 +59,13 @@ export const useExpenseStore = create<ExpenseState>()(
         const idx = get().expenses.findIndex((e) => e.id === id);
         if (idx === -1) return;
         const expense = get().expenses[idx];
+        // Only one pending "undo" slot exists at a time, so this delete
+        // superseding an earlier one means that earlier one's undo window
+        // is now provably gone — safe to reclaim its photo file. The photo
+        // for *this* delete stays on disk until superseded in turn (or the
+        // app is closed), so Undo can still restore it in the meantime.
+        const superseded = get().lastDeleted;
+        if (superseded?.expense.photoUri) deleteReceiptFile(superseded.expense.photoUri);
         set((state) => ({
           expenses: state.expenses.filter((e) => e.id !== id),
           lastDeleted: { expense, index: idx },

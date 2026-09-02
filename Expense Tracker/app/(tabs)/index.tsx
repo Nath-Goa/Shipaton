@@ -73,7 +73,7 @@ export default function HomeScreen() {
           <StatTile label="Positions" value={String(summary.positionsCount)} sub={`Plan: ${TIER_LABELS[tier]}`} />
         </Animated.View>
 
-        {tier === 'basic' ? (
+        {tier === 'free' ? (
           <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
             <Pressable onPress={() => router.push('/settings/upgrade')}>
               <Card style={[styles.upsell, { borderColor: colors.accent }]}>

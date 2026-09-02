@@ -8,6 +8,24 @@ const MODEL = 'gemini-3.6-flash';
 type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
 type Content = { role: 'user' | 'model'; parts: Part[] };
 
+// Gemini returns HTTP 400 for a bad/missing API key *and* for a long list of
+// unrelated request problems (bad model name, malformed content, disabled
+// API, quota issues that aren't 429, etc.) — the status field alone doesn't
+// tell them apart. A blanket "400/403 = invalid_key" mislabels those other
+// failures as a key problem, so instead inspect the error body and only
+// classify as invalid_key when it actually says so.
+function isKeyError(status: number, body: any): boolean {
+  const reason: string = body?.error?.details?.find((d: any) => d.reason)?.reason ?? '';
+  if (reason === 'API_KEY_INVALID') return true;
+  const message: string = (body?.error?.message ?? '').toLowerCase();
+  if (message.includes('api key')) {
+    return /invalid|not valid|expired|missing|malformed/.test(message);
+  }
+  // A bare 403 with no explanatory message is almost always a rejected key
+  // (disabled/restricted key) rather than any other kind of request error.
+  return status === 403 && !message;
+}
+
 async function callGenerate(
   systemPrompt: string,
   contents: Content[],
@@ -23,11 +41,21 @@ async function callGenerate(
         contents,
       }),
     });
-    if (res.status === 400 || res.status === 403) return { ok: false, error: { type: 'invalid_key' } };
     if (res.status === 429) return { ok: false, error: { type: 'rate_limited' } };
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      return { ok: false, error: { type: 'unknown', message: text || `Request failed (${res.status}).` } };
+      const body = (() => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })();
+      if ((res.status === 400 || res.status === 403) && isKeyError(res.status, body)) {
+        return { ok: false, error: { type: 'invalid_key' } };
+      }
+      const message = body?.error?.message || text || `Request failed (${res.status}).`;
+      return { ok: false, error: { type: 'unknown', message } };
     }
     return { ok: true, data: await res.json() };
   } catch {

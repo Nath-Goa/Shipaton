@@ -1,5 +1,5 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -68,6 +68,9 @@ export default function TradeScreen() {
   const [qtyText, setQtyText] = useState('1');
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Ref (not state) so a rapid double-tap is blocked synchronously, without
+  // waiting on a render to commit the "already submitting" flag.
+  const submittingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,9 +92,12 @@ export default function TradeScreen() {
   }
 
   function submit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     const result = side === 'buy' ? buy(symbol, qty, price) : sell(symbol, qty, price);
     if (!result.ok) {
+      submittingRef.current = false;
       setError(result.message);
       return;
     }

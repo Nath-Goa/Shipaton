@@ -164,7 +164,7 @@ export default function StockDetailScreen() {
         <EmptyState
           icon="🔒"
           title="Daily stock limit reached"
-          message={`Basic includes ${features.stockDetailDailyLimit} stock lookups a day. Upgrade to Pro for unlimited access to every stock.`}
+          message={`Free includes ${features.stockDetailDailyLimit} stock lookups a day. Upgrade to Pro for unlimited access to every stock.`}
           actionLabel="Upgrade to Pro"
           onAction={() => router.push('/settings/upgrade')}
         />

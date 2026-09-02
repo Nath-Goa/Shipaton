@@ -13,7 +13,7 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
 import { badgeInfo } from '@/constants/badges';
 import { spacing } from '@/constants/theme';
-import { TIER_FEATURES } from '@/constants/subscription';
+import { TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
@@ -147,7 +147,7 @@ export default function AssistantScreen() {
           ) : quotaExhausted ? (
             <View style={styles.gate}>
               <Text style={[styles.gateText, { color: colors.text3 }]}>
-                Daily limit reached on {tier === 'basic' ? 'Basic' : tier}. Upgrade for unlimited messages.
+                Daily limit reached on {TIER_LABELS[tier]}. Upgrade for unlimited messages.
               </Text>
               <Button label="Upgrade" onPress={() => router.push('/settings/upgrade')} />
             </View>

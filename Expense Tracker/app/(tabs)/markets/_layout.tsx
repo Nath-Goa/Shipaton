@@ -15,6 +15,7 @@ export default function MarketsLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="[symbol]" />
       <Stack.Screen name="practice" options={{ presentation: 'modal', title: 'Practice Trade' }} />
+      <Stack.Screen name="backtest" options={{ title: 'Backtest' }} />
     </Stack>
   );
 }

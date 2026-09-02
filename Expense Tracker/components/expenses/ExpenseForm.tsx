@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { CategoryPicker } from '@/components/expenses/CategoryPicker';
@@ -12,7 +12,7 @@ import { TIER_FEATURES } from '@/constants/subscription';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
 import { extractReceiptFromImage } from '@/services/ai/client';
-import { captureReceiptFromCamera, pickReceiptFromLibrary } from '@/services/receipts/capture';
+import { captureReceiptFromCamera, deleteReceiptFile, pickReceiptFromLibrary } from '@/services/receipts/capture';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { formatShortDate, parseDateLocal, todayStr } from '@/utils/date';
 
@@ -42,6 +42,11 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const [date, setDate] = useState(initial?.date ?? todayStr());
   const [category, setCategory] = useState<CategoryId>(initial?.category ?? 'food');
   const [photoUri, setPhotoUri] = useState<string | undefined>(initial?.photoUri);
+  // Whether `photoUri` is a fresh capture living in the app's receipts
+  // directory that no saved expense references yet (vs. `initial`'s
+  // already-persisted photo) — only files in that state are ours to delete
+  // before the form is actually submitted.
+  const [photoIsNewCapture, setPhotoIsNewCapture] = useState(false);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [photoMime, setPhotoMime] = useState('image/jpeg');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -50,10 +55,25 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
 
   const canAutoFill = features.receiptAutoFill && hasKey === true;
 
+  // Backstop for a captured-but-never-submitted photo (e.g. the user backs
+  // out of the form): clean it up on unmount unless the form was submitted.
+  const submittedRef = useRef(false);
+  const photoStateRef = useRef({ photoUri, photoIsNewCapture });
+  photoStateRef.current = { photoUri, photoIsNewCapture };
+  useEffect(() => {
+    return () => {
+      const { photoUri: uri, photoIsNewCapture: isNew } = photoStateRef.current;
+      if (!submittedRef.current && isNew && uri) deleteReceiptFile(uri);
+    };
+  }, []);
+
   async function handleCapture(source: 'camera' | 'library') {
     const result = source === 'camera' ? await captureReceiptFromCamera() : await pickReceiptFromLibrary();
     if (!result) return;
+    // Replacing a not-yet-saved capture — the old one is an orphan now.
+    if (photoIsNewCapture && photoUri) deleteReceiptFile(photoUri);
     setPhotoUri(result.uri);
+    setPhotoIsNewCapture(true);
     setPhotoBase64(result.base64);
     setPhotoMime(result.mimeType);
   }
@@ -93,6 +113,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
       return;
     }
     setError(null);
+    submittedRef.current = true;
     onSubmit({ desc: desc.trim(), amount: Math.round(amount * 100) / 100, date, category, photoUri });
   }
 
@@ -116,7 +137,9 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
                 label="Remove photo"
                 variant="ghost"
                 onPress={() => {
+                  if (photoIsNewCapture && photoUri) deleteReceiptFile(photoUri);
                   setPhotoUri(undefined);
+                  setPhotoIsNewCapture(false);
                   setPhotoBase64(null);
                 }}
               />
@@ -163,33 +186,40 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
           <View style={{ flex: 1 }}>
             <Text style={[styles.label, { color: colors.text3 }]}>Date</Text>
             <Pressable
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => setShowDatePicker((v) => !v)}
               style={[styles.input, styles.dateInput, { borderColor: colors.border, backgroundColor: colors.surface2 }]}>
               <Text style={{ color: colors.text }}>{formatShortDate(date)}</Text>
             </Pressable>
           </View>
         </View>
         {showDatePicker ? (
-          <DateTimePicker
-            value={parseDateLocal(date)}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            maximumDate={new Date()}
-            onChange={(event, selected) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              if (event.type === 'dismissed') {
-                setShowDatePicker(false);
-                return;
-              }
-              if (selected) {
-                const y = selected.getFullYear();
-                const m = String(selected.getMonth() + 1).padStart(2, '0');
-                const d = String(selected.getDate()).padStart(2, '0');
-                setDate(`${y}-${m}-${d}`);
-              }
-              if (Platform.OS !== 'ios') setShowDatePicker(false);
-            }}
-          />
+          <>
+            <DateTimePicker
+              value={parseDateLocal(date)}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              maximumDate={new Date()}
+              onChange={(event, selected) => {
+                if (event.type === 'dismissed') {
+                  setShowDatePicker(false);
+                  return;
+                }
+                if (selected) {
+                  const y = selected.getFullYear();
+                  const m = String(selected.getMonth() + 1).padStart(2, '0');
+                  const d = String(selected.getDate()).padStart(2, '0');
+                  setDate(`${y}-${m}-${d}`);
+                }
+                // The 'default' (dialog) picker on Android closes itself on
+                // pick; the iOS 'inline' picker stays open by design — the
+                // Pressable above (and the Done button) are how it closes.
+                if (Platform.OS !== 'ios') setShowDatePicker(false);
+              }}
+            />
+            {Platform.OS === 'ios' ? (
+              <Button label="Done" variant="ghost" onPress={() => setShowDatePicker(false)} />
+            ) : null}
+          </>
         ) : null}
 
         <View>

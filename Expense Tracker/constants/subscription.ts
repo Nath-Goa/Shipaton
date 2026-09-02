@@ -1,4 +1,4 @@
-export type Tier = 'basic' | 'pro' | 'max';
+export type Tier = 'free' | 'pro' | 'max';
 
 export type FeatureFlags = {
   tier: Tier;
@@ -13,11 +13,12 @@ export type FeatureFlags = {
   quizDailyLimit: number | null;
   narrativeDailyLimit: number | null;
   patternDetection: boolean; // AI-powered "deep pattern analysis" on a stock
+  backtesting: boolean; // historical accuracy backtest of the direction-call algorithm
 };
 
 export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
-  basic: {
-    tier: 'basic',
+  free: {
+    tier: 'free',
     assistantDailyLimit: 3,
     forecastBand: false,
     liveSentiment: false,
@@ -28,6 +29,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     quizDailyLimit: 3,
     narrativeDailyLimit: 1,
     patternDetection: false,
+    backtesting: false,
   },
   pro: {
     tier: 'pro',
@@ -41,6 +43,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     quizDailyLimit: null,
     narrativeDailyLimit: null,
     patternDetection: true,
+    backtesting: false,
   },
   max: {
     tier: 'max',
@@ -54,29 +57,30 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     quizDailyLimit: null,
     narrativeDailyLimit: null,
     patternDetection: true,
+    backtesting: true,
   },
 };
 
 export const TIER_LABELS: Record<Tier, string> = {
-  basic: 'Basic',
+  free: 'Free',
   pro: 'Pro',
   max: 'Max',
 };
 
 export const TIER_PRICE: Record<Tier, string> = {
-  basic: 'Free',
+  free: 'Free',
   pro: '$6.99/mo',
   max: '$12.99/mo',
 };
 
 export const TIER_HEADLINE: Record<Tier, string> = {
-  basic: 'Get started with mock trading and the essentials.',
+  free: 'Get started with mock trading and the essentials.',
   pro: 'Full forecasts, live sentiment, and an unlimited analyst.',
-  max: 'Everything in Pro, plus early access to what comes next.',
+  max: 'Everything in Pro, plus historical backtesting.',
 };
 
 export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
-  basic: [
+  free: [
     'Unlimited mock trading with paper money',
     'Direction call only (up / down / flat)',
     '5 stock detail lookups/day',
@@ -86,7 +90,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Expense tracker with photo receipts',
   ],
   pro: [
-    'Everything in Basic',
+    'Everything in Free',
     'Unlimited stock lookups',
     'Full 7-day & 30-day price-range forecasts',
     'Real-time sentiment score + top headlines',
@@ -98,17 +102,15 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
   ],
   max: [
     'Everything in Pro',
-    // Placeholder — final Max-only feature set is still being decided.
-    'More Max-only features coming soon',
+    'Historical backtesting — test the direction-call algorithm against past mock data and see its hit rate',
   ],
 };
 
-// Features that exist in the plan but are not wired up yet (no payment
-// processor is integrated in this build — this is a local, demo entitlement
-// switch only).
-// TODO: wire to RevenueCat (react-native-purchases) for real purchases/ads.
-export const MAX_COMING_SOON: string[] = [
-  'Advanced backtesting against historical mock data',
-  'Multiple portfolios',
-  'Priority support',
-];
+// RevenueCat entitlement identifiers. These must match the entitlements
+// configured in the RevenueCat dashboard exactly (Project > Entitlements).
+// A customer holding the "max" entitlement is treated as Max even if they
+// don't also hold "pro" — configure your Max product to grant both
+// entitlements in RevenueCat, or adjust services/purchases/revenuecat.ts if
+// you'd rather keep them mutually exclusive.
+export const ENTITLEMENT_PRO = 'pro';
+export const ENTITLEMENT_MAX = 'max';

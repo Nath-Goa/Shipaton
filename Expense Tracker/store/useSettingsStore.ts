@@ -24,7 +24,7 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       themeMode: 'system',
-      tier: 'basic',
+      tier: 'free',
       onboardingComplete: false,
       aiProvider: 'claude',
       setThemeMode: (themeMode) => set({ themeMode }),

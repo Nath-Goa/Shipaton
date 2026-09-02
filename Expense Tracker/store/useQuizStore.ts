@@ -51,7 +51,10 @@ export const useQuizStore = create<QuizState>()(
         }
 
         const intervalDays = passed ? REVIEW_INTERVALS_DAYS[Math.min(consecutiveCorrect - 1, REVIEW_INTERVALS_DAYS.length - 1)] : 1;
-        const justMastered = nextDifficulty === 'hard' && passed && score >= 85 && consecutiveCorrect >= 3;
+        // Only the attempt that first crosses the mastery bar counts as
+        // "just mastered" — every qualifying attempt after that is still a
+        // pass, but shouldn't re-fire the one-time mastery celebration.
+        const justMastered = !prior?.mastered && nextDifficulty === 'hard' && passed && score >= 85 && consecutiveCorrect >= 3;
         const mastered = justMastered || prior?.mastered || false;
 
         const progress: TopicProgress = {
