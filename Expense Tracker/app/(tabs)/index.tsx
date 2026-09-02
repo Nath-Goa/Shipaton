@@ -23,6 +23,7 @@ import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { computeDirectionCall } from '@/services/market/signals';
 import { getFullHistory } from '@/services/marketData/mockMarketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
@@ -37,6 +38,7 @@ export default function HomeScreen() {
   const { cash, holdings } = useActivePortfolio();
   const watchlist = usePortfolioStore((s) => s.watchlist);
   const tier = useSettingsStore((s) => s.tier);
+  const upgradeToTier = useUpgradeToTier();
 
   const trackedSymbols = useMemo(
     () => Array.from(new Set([...Object.keys(holdings), ...watchlist])),
@@ -76,7 +78,7 @@ export default function HomeScreen() {
 
         {tier === 'free' ? (
           <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
-            <Pressable onPress={() => router.push('/settings/upgrade')}>
+            <Pressable onPress={() => upgradeToTier('pro')}>
               <Card style={[styles.upsell, { borderColor: colors.accent }]}>
                 <Ionicons name="sparkles" size={18} color={colors.accent} />
                 <View style={{ flex: 1 }}>

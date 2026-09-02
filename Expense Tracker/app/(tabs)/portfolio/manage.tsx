@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -11,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { getQuote } from '@/services/marketData/mockMarketData';
 import { MAX_PORTFOLIOS, type PortfolioData, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -83,6 +83,7 @@ export default function ManagePortfoliosScreen() {
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
+  const upgradeToTier = useUpgradeToTier();
   const { portfolios, activePortfolioId, createPortfolio } = usePortfolioStore();
   const showToast = useToastStore((s) => s.show);
   const [creating, setCreating] = useState(false);
@@ -117,7 +118,7 @@ export default function ManagePortfoliosScreen() {
           <Text style={[styles.lockedBody, { color: colors.text3 }]}>
             Max unlocks up to {MAX_PORTFOLIOS} paper-trading portfolios, so you can run separate strategies side by side.
           </Text>
-          <Button label="Upgrade to Max" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
+          <Button label="Upgrade to Max" variant="ghost" onPress={() => upgradeToTier('max')} />
         </Card>
       ) : creating ? (
         <Card style={{ gap: spacing.md }}>

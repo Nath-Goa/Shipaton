@@ -17,6 +17,7 @@ import { TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { hasSharedFallback, sendChatMessage } from '@/services/ai/client';
 import { buildAnalystSystemPrompt } from '@/services/ai/prompts';
 import { useChatStore } from '@/store/useChatStore';
@@ -46,6 +47,7 @@ export default function AssistantScreen() {
   const { symbol: paramSymbol } = useLocalSearchParams<{ symbol?: string }>();
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
+  const upgradeToTier = useUpgradeToTier();
   const features = TIER_FEATURES[tier];
   const { hasKey } = useHasApiKey();
   const { threads, addMessage, remainingToday, recordUsage } = useChatStore();
@@ -149,7 +151,7 @@ export default function AssistantScreen() {
               <Text style={[styles.gateText, { color: colors.text3 }]}>
                 Daily limit reached on {TIER_LABELS[tier]}. Upgrade for unlimited messages.
               </Text>
-              <Button label="Upgrade" onPress={() => router.push('/settings/upgrade')} />
+              <Button label="Upgrade" onPress={() => upgradeToTier('pro')} />
             </View>
           ) : (
             <>

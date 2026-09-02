@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 
 // No third-party ad network is wired up — this is an in-house placeholder
 // that stands in for the "every 3rd lookup" ad slot on Free, styled like a
@@ -12,9 +12,10 @@ import { useTheme } from '@/hooks/useTheme';
 // (see adsEnabled in constants/subscription.ts).
 export function AdPlaceholder() {
   const { colors } = useTheme();
+  const upgradeToTier = useUpgradeToTier();
   return (
     <Pressable
-      onPress={() => router.push('/settings/upgrade')}
+      onPress={() => upgradeToTier('pro')}
       style={[styles.wrap, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
       <View style={styles.row}>
         <Text style={[styles.label, { color: colors.text3 }]}>SPONSORED</Text>

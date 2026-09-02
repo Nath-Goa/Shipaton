@@ -7,7 +7,7 @@ import Purchases, {
   LOG_LEVEL,
 } from 'react-native-purchases';
 
-import { ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/constants/subscription';
+import { ENTITLEMENT_APP, ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/constants/subscription';
 
 // RevenueCat is the sole source of truth for entitlement state in this app.
 // Get your API keys from the RevenueCat dashboard (Project settings > API
@@ -17,12 +17,16 @@ import { ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/constants/subscri
 // across dev/staging/production RevenueCat projects.
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
 const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
+// A single key for projects that haven't split iOS/Android keys yet (e.g. a
+// RevenueCat project with only one app configured so far). Platform-specific
+// keys above always take priority when set.
+const SHARED_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY;
 
 let configured = false;
 
 function apiKeyForPlatform(): string | undefined {
-  if (Platform.OS === 'ios') return IOS_API_KEY;
-  if (Platform.OS === 'android') return ANDROID_API_KEY;
+  if (Platform.OS === 'ios') return IOS_API_KEY ?? SHARED_API_KEY;
+  if (Platform.OS === 'android') return ANDROID_API_KEY ?? SHARED_API_KEY;
   return undefined; // RevenueCat's native SDK has no web target.
 }
 
@@ -45,11 +49,13 @@ export function isPurchasesConfigured(): boolean {
 // A customer holding the Max entitlement is treated as Max regardless of
 // whether they also hold Pro — configure the Max product in RevenueCat to
 // grant both entitlements (or just Max) depending on how you want Pro
-// subscribers who upgrade to be modeled.
+// subscribers who upgrade to be modeled. ENTITLEMENT_APP is an alternate
+// signal for the same base tier as ENTITLEMENT_PRO — see its definition in
+// constants/subscription.ts.
 export function tierFromCustomerInfo(info: CustomerInfo): Tier {
   const active = info.entitlements.active;
   if (active[ENTITLEMENT_MAX]) return 'max';
-  if (active[ENTITLEMENT_PRO]) return 'pro';
+  if (active[ENTITLEMENT_PRO] || active[ENTITLEMENT_APP]) return 'pro';
   return 'free';
 }
 
@@ -57,6 +63,18 @@ export async function fetchCurrentOffering(): Promise<PurchasesOffering | null> 
   if (!configured) return null;
   const offerings = await Purchases.getOfferings();
   return offerings.current;
+}
+
+// Each paid tier has its own Offering in the RevenueCat dashboard
+// (identifier "pro" / "max"), each containing "monthly" / "yearly" /
+// "lifetime" packages — this is what backs the per-tier paywall in
+// app/settings/upgrade.tsx. Falls back to the "current" offering if a
+// tier-named one hasn't been set up yet, so a fresh dashboard still shows
+// something rather than nothing.
+export async function fetchOfferingForTier(tier: Exclude<Tier, 'free'>): Promise<PurchasesOffering | null> {
+  if (!configured) return null;
+  const offerings = await Purchases.getOfferings();
+  return offerings.all[tier] ?? offerings.current;
 }
 
 export type PurchaseOutcome =

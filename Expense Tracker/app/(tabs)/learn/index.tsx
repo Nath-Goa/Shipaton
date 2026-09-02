@@ -20,6 +20,7 @@ import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
@@ -55,6 +56,7 @@ function FlameIcon() {
 export default function LearnScreen() {
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
+  const upgradeToTier = useUpgradeToTier();
   const features = TIER_FEATURES[tier];
   const { topicProgress, getDueTopic, getNextNewTopic, attempts } = useQuizStore();
   const { streakDays, badges, getNarrativeCompletionsToday } = useStreakStore();
@@ -120,7 +122,7 @@ export default function LearnScreen() {
                 </Text>
                 <View style={{ marginTop: spacing.md }}>
                   {quizLocked ? (
-                    <Button label="Upgrade for unlimited quizzes" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
+                    <Button label="Upgrade for unlimited quizzes" variant="ghost" onPress={() => upgradeToTier('pro')} />
                   ) : (
                     <Button
                       label={isReview ? 'Review now' : 'Start quiz'}
@@ -148,7 +150,7 @@ export default function LearnScreen() {
             </Text>
             <View style={{ marginTop: spacing.md }}>
               {narrativeLocked ? (
-                <Button label="Upgrade for unlimited challenges" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
+                <Button label="Upgrade for unlimited challenges" variant="ghost" onPress={() => upgradeToTier('pro')} />
               ) : (
                 <Button label="Take the challenge" variant="ghost" onPress={() => router.push('/learn/narrative')} />
               )}

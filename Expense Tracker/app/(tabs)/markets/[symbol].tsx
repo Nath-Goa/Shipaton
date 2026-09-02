@@ -28,6 +28,7 @@ import { TIER_FEATURES } from '@/constants/subscription';
 import { spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { detectPatterns } from '@/services/ai/learn';
 import { computeDirectionCall, computeForecastBand, computeSentiment } from '@/services/market/signals';
 import { getFullHistory, getHistory, subscribeLiveQuote } from '@/services/marketData/mockMarketData';
@@ -52,6 +53,7 @@ export default function StockDetailScreen() {
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
+  const upgradeToTier = useUpgradeToTier();
   const { holdings } = useActivePortfolio();
   const { watchlist, toggleWatchlist } = usePortfolioStore();
   const stockView = useStockViewStore();
@@ -167,7 +169,7 @@ export default function StockDetailScreen() {
           title="Daily stock limit reached"
           message={`Free includes ${features.stockDetailDailyLimit} stock lookups a day. Upgrade to Pro for unlimited access to every stock.`}
           actionLabel="Upgrade to Pro"
-          onAction={() => router.push('/settings/upgrade')}
+          onAction={() => upgradeToTier('pro')}
         />
       </Screen>
     );
@@ -396,6 +398,7 @@ function ForecastCol({ label, value, color }: { label: string; value: string; co
 
 function LockedCard({ title, message }: { title: string; message: string }) {
   const { colors } = useTheme();
+  const upgradeToTier = useUpgradeToTier();
   return (
     <Card style={{ opacity: 0.9 }}>
       <View style={styles.cardHead}>
@@ -403,7 +406,7 @@ function LockedCard({ title, message }: { title: string; message: string }) {
         <Ionicons name="lock-closed" size={16} color={colors.text3} />
       </View>
       <Text style={[styles.reason, { color: colors.text3, marginBottom: spacing.md }]}>{message}</Text>
-      <Button label="Upgrade to Pro" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
+      <Button label="Upgrade to Pro" variant="ghost" onPress={() => upgradeToTier('pro')} />
     </Card>
   );
 }

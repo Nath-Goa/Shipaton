@@ -71,10 +71,28 @@ export const TIER_LABELS: Record<Tier, string> = {
   max: 'Max',
 };
 
+// Each paid tier is purchasable on three billing periods — matches the
+// "monthly" / "yearly" / "lifetime" package identifiers configured per tier
+// offering in the RevenueCat dashboard (see services/purchases/revenuecat.ts).
+export type BillingPeriod = 'monthly' | 'yearly' | 'lifetime';
+
+export const BILLING_PERIOD_LABELS: Record<BillingPeriod, string> = {
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+  lifetime: 'Lifetime',
+};
+
+// Demo-mode / glance pricing only — once RevenueCat is configured, the
+// paywall always shows real store-localized prices instead of these.
+export const TIER_PERIOD_PRICE: Record<Exclude<Tier, 'free'>, Record<BillingPeriod, string>> = {
+  pro: { monthly: '$6.99/mo', yearly: '$59.99/yr', lifetime: '$149.99' },
+  max: { monthly: '$12.99/mo', yearly: '$109.99/yr', lifetime: '$299.99' },
+};
+
 export const TIER_PRICE: Record<Tier, string> = {
   free: 'Free',
-  pro: '$6.99/mo',
-  max: '$12.99/mo',
+  pro: TIER_PERIOD_PRICE.pro.monthly,
+  max: TIER_PERIOD_PRICE.max.monthly,
 };
 
 export const TIER_HEADLINE: Record<Tier, string> = {
@@ -120,3 +138,11 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
 // you'd rather keep them mutually exclusive.
 export const ENTITLEMENT_PRO = 'pro';
 export const ENTITLEMENT_MAX = 'max';
+// Umbrella "any paid access" entitlement, named after the app — RevenueCat's
+// own default suggestion for a project that hasn't set up granular
+// per-tier entitlements yet. Treated as equivalent to ENTITLEMENT_PRO (the
+// base paid tier) in tierFromCustomerInfo, so the app keeps working exactly
+// the same whether your dashboard grants "pro"/"max" specifically or just
+// this one — Max still needs its own entitlement to unlock Max-only
+// features.
+export const ENTITLEMENT_APP = 'stock_market_predictor_and_tutor';

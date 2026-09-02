@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -16,31 +15,12 @@ import {
   type Tier,
 } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
-import {
-  fetchCurrentOffering,
-  isPurchasesConfigured,
-  purchasePackage,
-  restorePurchases,
-} from '@/services/purchases/revenuecat';
+import { PAYWALL_RESULT, presentCustomerCenter, presentPaywallForTier } from '@/services/purchases/paywallUI';
+import { isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
 
 const TIERS: Tier[] = ['free', 'pro', 'max'];
-const PAID_TIERS: Tier[] = ['pro', 'max'];
-
-// The current RevenueCat Offering must contain a package per paid tier,
-// identified by these exact package identifiers (Offering > Packages in the
-// RevenueCat dashboard). That's how this screen knows which package maps to
-// which app tier without hardcoding store product ids.
-function packageFor(offering: PurchasesOffering | null, tier: Tier): PurchasesPackage | undefined {
-  return offering?.availablePackages.find((p) => p.identifier === tier);
-}
-
-function manageSubscriptionUrl(): string {
-  return Platform.OS === 'ios'
-    ? 'itms-apps://apps.apple.com/account/subscriptions'
-    : 'https://play.google.com/store/account/subscriptions';
-}
 
 export default function UpgradeScreen() {
   const { colors } = useTheme();
@@ -48,36 +28,42 @@ export default function UpgradeScreen() {
   const showToast = useToastStore((s) => s.show);
   const configured = isPurchasesConfigured();
 
-  const [offering, setOffering] = useState<PurchasesOffering | null>(null);
-  const [loadingOffering, setLoadingOffering] = useState(configured);
-  const [purchasingTier, setPurchasingTier] = useState<Tier | null>(null);
+  const [busyTier, setBusyTier] = useState<Tier | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [openingCenter, setOpeningCenter] = useState(false);
 
-  useEffect(() => {
-    if (!configured) return;
-    let alive = true;
-    setLoadingOffering(true);
-    fetchCurrentOffering().then((result) => {
-      if (!alive) return;
-      setOffering(result);
-      setLoadingOffering(false);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [configured]);
+  // Opens RevenueCat's own Paywall UI for this tier's Offering (its
+  // "monthly" / "yearly" / "lifetime" packages) — pricing, layout, and the
+  // whole purchase flow are handled natively from there.
+  async function handleChoose(t: Exclude<Tier, 'free'>) {
+    setBusyTier(t);
+    const outcome = await presentPaywallForTier(t);
+    setBusyTier(null);
 
-  async function handlePurchase(t: Tier, pkg: PurchasesPackage) {
-    setPurchasingTier(t);
-    const result = await purchasePackage(pkg);
-    setPurchasingTier(null);
-    if (result.ok) {
-      setTier(result.tier);
-      showToast(`You're now on ${TIER_LABELS[result.tier]}.`);
-      router.back();
+    if (!outcome.shown) {
+      showToast('Demo mode — set up RevenueCat to enable real purchases. See .env.example.');
       return;
     }
-    if (!result.cancelled) showToast(result.message);
+    switch (outcome.result) {
+      case PAYWALL_RESULT.PURCHASED:
+        if (outcome.tier) setTier(outcome.tier);
+        showToast(`You're now on ${TIER_LABELS[outcome.tier ?? t]}.`);
+        router.back();
+        return;
+      case PAYWALL_RESULT.RESTORED:
+        if (outcome.tier) setTier(outcome.tier);
+        showToast(
+          outcome.tier && outcome.tier !== 'free' ? `Restored — you're on ${TIER_LABELS[outcome.tier]}.` : 'No active purchases found to restore.'
+        );
+        return;
+      case PAYWALL_RESULT.ERROR:
+        showToast('Something went wrong opening the paywall. Try again.');
+        return;
+      case PAYWALL_RESULT.CANCELLED:
+      case PAYWALL_RESULT.NOT_PRESENTED:
+      default:
+        return;
+    }
   }
 
   async function handleRestore() {
@@ -94,6 +80,16 @@ export default function UpgradeScreen() {
     );
   }
 
+  // RevenueCat's Customer Center: self-serve cancel/change-plan/refund UI,
+  // configured in the dashboard. Falls back to nothing useful in demo mode,
+  // so that path isn't offered there at all.
+  async function handleManage() {
+    setOpeningCenter(true);
+    const result = await presentCustomerCenter();
+    setOpeningCenter(false);
+    if (!result.ok) showToast(result.message ?? 'Could not open subscription management.');
+  }
+
   function chooseDemo(next: Tier) {
     setTier(next);
     showToast(`You're now on ${TIER_LABELS[next]}. (Demo mode — no charge.)`);
@@ -105,20 +101,12 @@ export default function UpgradeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.intro, { color: colors.text3 }]}>
           {configured
-            ? 'Manage your subscription — purchases are processed by the App Store / Google Play.'
+            ? 'Purchases are processed by the App Store / Google Play — pricing and billing period are shown on the next screen.'
             : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
         </Text>
 
-        {configured && loadingOffering ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : null}
-
         {TIERS.map((t) => {
           const isCurrent = tier === t;
-          const pkg = PAID_TIERS.includes(t) ? packageFor(offering, t) : undefined;
-          const price = t === 'free' ? TIER_PRICE.free : pkg ? pkg.product.priceString : configured ? null : TIER_PRICE[t];
 
           return (
             <Card key={t} style={[styles.card, isCurrent && { borderColor: colors.accent, borderWidth: 1.5 }]}>
@@ -126,7 +114,9 @@ export default function UpgradeScreen() {
                 <Text style={[styles.tierName, { color: colors.text }]}>{TIER_LABELS[t]}</Text>
                 {isCurrent ? <PillBadge label="Current" /> : null}
               </View>
-              <Text style={[styles.price, { color: colors.text }]}>{price ?? '—'}</Text>
+              <Text style={[styles.price, { color: colors.text }]}>
+                {t === 'free' ? TIER_PRICE.free : `From ${TIER_PRICE[t]}`}
+              </Text>
               <Text style={[styles.headline, { color: colors.text2 }]}>{TIER_HEADLINE[t]}</Text>
 
               <View style={styles.features}>
@@ -141,19 +131,18 @@ export default function UpgradeScreen() {
                 isCurrent ? (
                   <Button label="Current plan" variant="ghost" disabled fullWidth />
                 ) : configured ? (
-                  <Button label="Manage subscription" variant="ghost" fullWidth onPress={() => Linking.openURL(manageSubscriptionUrl()).catch(() => {})} />
+                  <Button label="Manage subscription" variant="ghost" loading={openingCenter} fullWidth onPress={handleManage} />
                 ) : (
                   <Button label="Choose Free" variant="ghost" fullWidth onPress={() => chooseDemo(t)} />
                 )
               ) : isCurrent ? (
-                <Button label="Current plan" variant="ghost" disabled fullWidth onPress={() => {}} />
+                <Button label="Current plan" variant="ghost" disabled fullWidth />
               ) : configured ? (
                 <Button
-                  label={pkg ? `Subscribe — ${pkg.product.priceString}` : 'Not available yet'}
-                  disabled={!pkg}
-                  loading={purchasingTier === t}
+                  label={`View ${TIER_LABELS[t]} plans`}
+                  loading={busyTier === t}
                   fullWidth
-                  onPress={() => pkg && handlePurchase(t, pkg)}
+                  onPress={() => handleChoose(t)}
                 />
               ) : (
                 <Button label={`Choose ${TIER_LABELS[t]} (Demo)`} fullWidth onPress={() => chooseDemo(t)} />
@@ -173,7 +162,6 @@ export default function UpgradeScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   intro: { fontSize: 12, textAlign: 'center', lineHeight: 16 },
-  loadingRow: { alignItems: 'center', paddingVertical: spacing.md },
   card: { gap: 4 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   tierName: { fontSize: 18, fontWeight: '700' },

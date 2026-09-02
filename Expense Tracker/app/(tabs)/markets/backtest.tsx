@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -14,6 +13,7 @@ import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { TICKERS, tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { runBacktest } from '@/services/market/backtest';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import type { Direction } from '@/types/stock';
@@ -29,6 +29,7 @@ export default function BacktestScreen() {
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
+  const upgradeToTier = useUpgradeToTier();
 
   const [query, setQuery] = useState('');
   const [symbol, setSymbol] = useState(TICKERS[0].symbol);
@@ -52,7 +53,7 @@ export default function BacktestScreen() {
           title="Backtesting is a Max feature"
           message="See how the direction-call algorithm would've performed historically, symbol by symbol, with a full accuracy breakdown."
           actionLabel="Upgrade to Max"
-          onAction={() => router.push('/settings/upgrade')}
+          onAction={() => upgradeToTier('max')}
         />
       </Screen>
     );
