@@ -24,6 +24,18 @@ export function daysAgo(offset: number): string {
   return toDateStr(dt);
 }
 
+export function addDaysStr(dateStr: string, days: number): string {
+  const d = parseDateLocal(dateStr);
+  d.setDate(d.getDate() + days);
+  return toDateStr(d);
+}
+
+export function addMonthsStr(dateStr: string, months: number): string {
+  const d = parseDateLocal(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return toDateStr(d);
+}
+
 export function formatDayHeading(dateStr: string): string {
   const d = parseDateLocal(dateStr);
   const today = parseDateLocal(todayStr());

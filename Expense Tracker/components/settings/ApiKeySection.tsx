@@ -8,6 +8,7 @@ import { radius, spacing } from '@/constants/theme';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
 import { clearApiKey, getApiKey, maskKey, setApiKey } from '@/services/ai/apiKey';
+import { hasSharedFallback } from '@/services/ai/client';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { AI_PROVIDER_LABELS, type AiProvider } from '@/types/ai';
 
@@ -88,7 +89,9 @@ export function ApiKeySection({ onSaved, showHint = true }: Props) {
       </Card>
       {showHint && hasKey === false ? (
         <Text style={[styles.hint, { color: colors.text3 }]}>
-          Without a key, mock trading and expenses still work — only the Assistant and receipt auto-fill need one.
+          {hasSharedFallback()
+            ? 'Without a key, the Assistant and receipt auto-fill still work off a shared free key — add your own for faster, better responses.'
+            : 'Without a key, mock trading and expenses still work — only the Assistant and receipt auto-fill need one.'}
         </Text>
       ) : null}
     </View>

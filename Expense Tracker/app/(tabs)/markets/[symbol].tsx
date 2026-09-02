@@ -31,7 +31,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { detectPatterns } from '@/services/ai/learn';
 import { computeDirectionCall, computeForecastBand, computeSentiment } from '@/services/market/signals';
 import { getFullHistory, getHistory, subscribeLiveQuote } from '@/services/marketData/mockMarketData';
-import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStockViewStore } from '@/store/useStockViewStore';
 import { useStreakStore } from '@/store/useStreakStore';
@@ -52,7 +52,8 @@ export default function StockDetailScreen() {
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
-  const { holdings, watchlist, toggleWatchlist } = usePortfolioStore();
+  const { holdings } = useActivePortfolio();
+  const { watchlist, toggleWatchlist } = usePortfolioStore();
   const stockView = useStockViewStore();
   const recordPatternDetectionViewed = useStreakStore((s) => s.recordPatternDetectionViewed);
 

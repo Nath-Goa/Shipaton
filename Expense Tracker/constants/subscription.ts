@@ -14,6 +14,7 @@ export type FeatureFlags = {
   narrativeDailyLimit: number | null;
   patternDetection: boolean; // AI-powered "deep pattern analysis" on a stock
   backtesting: boolean; // historical accuracy backtest of the direction-call algorithm
+  multiplePortfolios: boolean; // create/switch between more than one paper portfolio
 };
 
 export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
@@ -30,6 +31,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     narrativeDailyLimit: 1,
     patternDetection: false,
     backtesting: false,
+    multiplePortfolios: false,
   },
   pro: {
     tier: 'pro',
@@ -44,6 +46,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     narrativeDailyLimit: null,
     patternDetection: true,
     backtesting: false,
+    multiplePortfolios: false,
   },
   max: {
     tier: 'max',
@@ -58,6 +61,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     narrativeDailyLimit: null,
     patternDetection: true,
     backtesting: true,
+    multiplePortfolios: true,
   },
 };
 
@@ -103,6 +107,8 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
   max: [
     'Everything in Pro',
     'Historical backtesting — test the direction-call algorithm against past mock data and see its hit rate',
+    // Keep this number in sync with MAX_PORTFOLIOS in store/usePortfolioStore.ts.
+    'Up to 5 paper-trading portfolios, so you can run separate strategies side by side',
   ],
 };
 

@@ -20,7 +20,7 @@ import { QUIZ_TOPICS } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { generateNarrative } from '@/services/ai/learn';
-import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useActivePortfolio } from '@/store/usePortfolioStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { NarrativeScenario } from '@/types/narrative';
@@ -98,7 +98,7 @@ function NarrativeOptionItem({
 
 export default function NarrativeScreen() {
   const { colors } = useTheme();
-  const { holdings } = usePortfolioStore();
+  const { holdings } = useActivePortfolio();
   const recordNarrativeCompleted = useStreakStore((s) => s.recordNarrativeCompleted);
   const showToast = useToastStore((s) => s.show);
 

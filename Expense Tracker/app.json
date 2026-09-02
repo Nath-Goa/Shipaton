@@ -45,6 +45,13 @@
           "photosPermission": "Let you attach a photo of a receipt to an expense.",
           "cameraPermission": "Let you take a photo of a receipt to attach to an expense."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff"
+        }
       ]
     ],
     "experiments": {

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -63,9 +64,12 @@ export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
         </View>
       )}
       <View style={styles.main}>
-        <Text style={[styles.desc, { color: colors.text }]} numberOfLines={1}>
-          {expense.desc || cat.label}
-        </Text>
+        <View style={styles.descRow}>
+          <Text style={[styles.desc, { color: colors.text }]} numberOfLines={1}>
+            {expense.desc || cat.label}
+          </Text>
+          {expense.recurring ? <Ionicons name="repeat" size={13} color={colors.text3} /> : null}
+        </View>
         <Text style={[styles.meta, { color: colors.text3 }]} numberOfLines={1}>
           <Text style={{ color: cat.color, fontWeight: '600' }}>{cat.label}</Text>
         </Text>
@@ -95,7 +99,8 @@ const styles = StyleSheet.create({
   iconText: { fontSize: 17 },
   photo: { width: 38, height: 38, borderRadius: radius.sm },
   main: { flex: 1, minWidth: 0 },
-  desc: { fontSize: 14.5, fontWeight: '500' },
+  descRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  desc: { fontSize: 14.5, fontWeight: '500', flexShrink: 1 },
   meta: { fontSize: 12.5, marginTop: 1 },
   amount: { fontSize: 15, fontWeight: '600' },
 });

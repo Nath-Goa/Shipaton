@@ -6,14 +6,16 @@ import { Alert, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } 
 import { CategoryPicker } from '@/components/expenses/CategoryPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
-import { extractReceiptFromImage } from '@/services/ai/client';
+import { extractReceiptFromImage, hasSharedFallback } from '@/services/ai/client';
 import { captureReceiptFromCamera, deleteReceiptFile, pickReceiptFromLibrary } from '@/services/receipts/capture';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import type { RecurringFrequency } from '@/types/expense';
 import { formatShortDate, parseDateLocal, todayStr } from '@/utils/date';
 
 export type ExpenseFormValues = {
@@ -22,7 +24,14 @@ export type ExpenseFormValues = {
   date: string;
   category: CategoryId;
   photoUri?: string;
+  recurring?: RecurringFrequency;
 };
+
+const REPEAT_OPTIONS: { value: 'none' | RecurringFrequency; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
 
 type Props = {
   initial?: Partial<ExpenseFormValues>;
@@ -41,6 +50,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const [amountText, setAmountText] = useState(initial?.amount ? String(initial.amount) : '');
   const [date, setDate] = useState(initial?.date ?? todayStr());
   const [category, setCategory] = useState<CategoryId>(initial?.category ?? 'food');
+  const [repeat, setRepeat] = useState<'none' | RecurringFrequency>(initial?.recurring ?? 'none');
   const [photoUri, setPhotoUri] = useState<string | undefined>(initial?.photoUri);
   // Whether `photoUri` is a fresh capture living in the app's receipts
   // directory that no saved expense references yet (vs. `initial`'s
@@ -53,7 +63,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const [autoFilling, setAutoFilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canAutoFill = features.receiptAutoFill && hasKey === true;
+  const canAutoFill = features.receiptAutoFill && (hasKey === true || hasSharedFallback());
 
   // Backstop for a captured-but-never-submitted photo (e.g. the user backs
   // out of the form): clean it up on unmount unless the form was submitted.
@@ -114,7 +124,14 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
     }
     setError(null);
     submittedRef.current = true;
-    onSubmit({ desc: desc.trim(), amount: Math.round(amount * 100) / 100, date, category, photoUri });
+    onSubmit({
+      desc: desc.trim(),
+      amount: Math.round(amount * 100) / 100,
+      date,
+      category,
+      photoUri,
+      recurring: repeat === 'none' ? undefined : repeat,
+    });
   }
 
   return (
@@ -226,6 +243,13 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
           <Text style={[styles.label, { color: colors.text3 }]}>Category</Text>
           <View style={{ marginTop: spacing.sm }}>
             <CategoryPicker value={category} onChange={setCategory} />
+          </View>
+        </View>
+
+        <View>
+          <Text style={[styles.label, { color: colors.text3 }]}>Repeat</Text>
+          <View style={{ marginTop: spacing.sm }}>
+            <SegmentedControl options={REPEAT_OPTIONS} value={repeat} onChange={setRepeat} />
           </View>
         </View>
 

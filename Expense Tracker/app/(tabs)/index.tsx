@@ -25,7 +25,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { computeDirectionCall } from '@/services/market/signals';
 import { getFullHistory } from '@/services/marketData/mockMarketData';
-import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { money, signedMoney, signedPct } from '@/utils/money';
 import { summarizePortfolio } from '@/utils/portfolioMath';
@@ -34,7 +34,8 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const { cash, holdings, watchlist } = usePortfolioStore();
+  const { cash, holdings } = useActivePortfolio();
+  const watchlist = usePortfolioStore((s) => s.watchlist);
   const tier = useSettingsStore((s) => s.tier);
 
   const trackedSymbols = useMemo(

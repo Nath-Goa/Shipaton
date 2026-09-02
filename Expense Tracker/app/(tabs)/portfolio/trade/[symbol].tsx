@@ -17,7 +17,7 @@ import { radius, spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { subscribeLiveQuote } from '@/services/marketData/mockMarketData';
-import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { Quote } from '@/types/stock';
 import { money } from '@/utils/money';
@@ -61,7 +61,8 @@ export default function TradeScreen() {
   const symbol = (rawSymbol ?? '').toUpperCase();
   const { colors } = useTheme();
   const ticker = tickerOf(symbol);
-  const { cash, holdings, buy, sell } = usePortfolioStore();
+  const { cash, holdings } = useActivePortfolio();
+  const { buy, sell } = usePortfolioStore();
   const showToast = useToastStore((s) => s.show);
 
   const [side, setSide] = useState<Side>(rawSide === 'sell' ? 'sell' : 'buy');
