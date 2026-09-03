@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -34,7 +34,7 @@ export function Chip({ label, active, onPress }: Props) {
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.92, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('selection');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {

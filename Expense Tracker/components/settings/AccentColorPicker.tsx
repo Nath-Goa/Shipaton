@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { triggerHaptic } from '@/constants/animations';
+import { triggerFeedback } from '@/constants/animations';
 import { ACCENT_COLORS, ACCENT_LABELS, type AccentColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -27,7 +27,7 @@ export function AccentColorPicker({ value, onChange }: Props) {
   const { colors } = useTheme();
 
   function handleSelect(color: AccentColor) {
-    if (color !== value) triggerHaptic('selection');
+    if (color !== value) triggerFeedback('selection');
     onChange(color);
   }
 

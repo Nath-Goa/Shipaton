@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS, tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
@@ -33,7 +33,7 @@ function PracticeQtyButton({ label, onPress }: { label: string; onPress: () => v
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.88, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('selection');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
@@ -91,7 +91,7 @@ export default function PracticeTradeScreen() {
   const owned = selected ? (holdings[selected]?.qty ?? 0) : 0;
 
   function resetSandbox() {
-    triggerHaptic('medium');
+    triggerFeedback('destructive');
     setCash(SANDBOX_CASH);
     setHoldings({});
     setMessage(null);
@@ -111,10 +111,10 @@ export default function PracticeTradeScreen() {
       const cost = qty * price;
       if (cost > cash) {
         setMessage("That's more than your sandbox cash.");
-        triggerHaptic('warning');
+        triggerFeedback('error');
         return;
       }
-      triggerHaptic('success');
+      triggerFeedback('success');
       setCash((c) => c - cost);
       setHoldings((h) => {
         const existing = h[selected];
@@ -127,10 +127,10 @@ export default function PracticeTradeScreen() {
       const existing = holdings[selected];
       if (!existing || existing.qty < qty) {
         setMessage("You don't own that many shares in this sandbox.");
-        triggerHaptic('warning');
+        triggerFeedback('error');
         return;
       }
-      triggerHaptic('success');
+      triggerFeedback('success');
       const proceeds = qty * price;
       setCash((c) => c + proceeds);
       setHoldings((h) => {

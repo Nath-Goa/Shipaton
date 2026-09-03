@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -30,7 +30,7 @@ export function ChatComposer({ onSend, disabled, loading, placeholder = 'Ask a q
   const handlePressIn = useCallback(() => {
     if (!canSubmit) return;
     scale.value = withSpring(0.88, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('primary');
   }, [canSubmit, scale]);
 
   const handlePressOut = useCallback(() => {
@@ -40,7 +40,6 @@ export function ChatComposer({ onSend, disabled, loading, placeholder = 'Ask a q
   function submit() {
     const trimmed = text.trim();
     if (!trimmed || disabled || loading) return;
-    triggerHaptic('medium');
     onSend(trimmed);
     setText('');
   }

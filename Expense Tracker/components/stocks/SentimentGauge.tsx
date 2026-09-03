@@ -27,12 +27,14 @@ export function SentimentGauge({ score }: { score: number }) {
   }, [targetPct, markerPct]);
 
   useEffect(() => {
+    // A single up-down pulse (2s total) rather than an endless loop —
+    // decorative animations here are capped at ~2s and then hold static.
     pulseScale.value = withRepeat(
       withSequence(
         withTiming(1.25, { duration: 1000 }),
         withTiming(1, { duration: 1000 })
       ),
-      -1,
+      1,
       true
     );
   }, [pulseScale]);

@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { categoryOf } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -30,7 +30,7 @@ export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.98, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
@@ -49,7 +49,7 @@ export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onLongPress={() => {
-        triggerHaptic('medium');
+        triggerFeedback('secondary');
         onLongPress?.();
       }}
       style={[

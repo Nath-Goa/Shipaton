@@ -30,12 +30,14 @@ function FlameIcon() {
   const scale = useSharedValue(1);
 
   useEffect(() => {
+    // A single up-down flicker (1.8s total) rather than an endless loop —
+    // decorative animations here are capped at ~2s and then hold static.
     scale.value = withRepeat(
       withSequence(
         withTiming(1.22, { duration: 900 }),
         withTiming(1, { duration: 900 })
       ),
-      -1,
+      1,
       true
     );
   }, [scale]);

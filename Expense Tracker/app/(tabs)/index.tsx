@@ -17,7 +17,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
 import { TopBar } from '@/components/ui/TopBar';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
@@ -160,7 +160,7 @@ function QuickAction({
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.94, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {

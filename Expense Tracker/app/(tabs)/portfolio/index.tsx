@@ -15,7 +15,7 @@ import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
 import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
@@ -47,7 +47,7 @@ function HoldingRow({
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.98, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
@@ -32,7 +32,7 @@ function QtyButton({ label, onPress }: { label: string; onPress: () => void }) {
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.88, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('selection');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {

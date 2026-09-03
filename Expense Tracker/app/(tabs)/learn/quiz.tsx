@@ -17,7 +17,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { badgeInfo } from '@/constants/badges';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { quizTopicOf } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -52,7 +52,7 @@ function QuizOptionItem({
   const handlePressIn = useCallback(() => {
     if (revealed) return;
     scale.value = withSpring(0.97, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('selection');
   }, [revealed, scale]);
 
   const handlePressOut = useCallback(() => {
@@ -131,7 +131,7 @@ export default function QuizScreen() {
     if (selectedIndex !== null || !question || !topic) return;
     setSelectedIndex(index);
     const isCorrect = index === question.correctIndex;
-    triggerHaptic(isCorrect ? 'success' : 'error');
+    triggerFeedback(isCorrect ? 'success' : 'error');
 
     const score = isCorrect ? 100 : 0;
     const { mastered } = recordAttempt(topic, score, difficulty);

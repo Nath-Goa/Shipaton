@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { badgeInfo } from '@/constants/badges';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { QUIZ_TOPICS } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -56,7 +56,7 @@ function NarrativeOptionItem({
   const handlePressIn = useCallback(() => {
     if (revealed) return;
     scale.value = withSpring(0.97, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('selection');
   }, [revealed, scale]);
 
   const handlePressOut = useCallback(() => {
@@ -140,7 +140,7 @@ export default function NarrativeScreen() {
 
   function choose(index: number) {
     if (chosenIndex !== null) return;
-    triggerHaptic('medium');
+    triggerFeedback('primary');
     setChosenIndex(index);
     const earned = recordNarrativeCompleted();
     if (earned.length) showToast(`${badgeInfo(earned[0]).icon} Badge earned: ${badgeInfo(earned[0]).label}`);

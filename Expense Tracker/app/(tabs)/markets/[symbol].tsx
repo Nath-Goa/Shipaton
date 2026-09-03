@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
@@ -112,7 +112,7 @@ export default function StockDetailScreen() {
   const up = changePct >= 0;
 
   function handleToggleWatchlist() {
-    triggerHaptic('selection');
+    triggerFeedback('selection');
     starScale.value = withSequence(
       withSpring(1.35, springs.bouncy),
       withSpring(1, springs.snappy)
@@ -133,7 +133,7 @@ export default function StockDetailScreen() {
   });
 
   async function runPatternAnalysis() {
-    triggerHaptic('medium');
+    triggerFeedback('primary');
     setPatternLoading(true);
     setPatternError(null);
     const result = await detectPatterns(symbol, fullHistory);

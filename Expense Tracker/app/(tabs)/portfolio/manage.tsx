@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/IconButton';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
@@ -41,7 +41,7 @@ function PortfolioRow({ portfolio, isActive, index }: { portfolio: PortfolioData
   const handlePressIn = useCallback(() => {
     if (isActive) return;
     scale.value = withSpring(0.98, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('selection');
   }, [isActive, scale]);
 
   const handlePressOut = useCallback(() => {
@@ -100,7 +100,9 @@ function PortfolioRow({ portfolio, isActive, index }: { portfolio: PortfolioData
         </AnimatedPressable>
         <View style={styles.actions}>
           <IconButton name="pencil-outline" size={15} onPress={() => setEditing(true)} />
-          {portfolioCount > 1 ? <IconButton name="trash-outline" size={15} onPress={handleDelete} /> : null}
+          {portfolioCount > 1 ? (
+            <IconButton name="trash-outline" size={15} onPress={handleDelete} category="destructive" />
+          ) : null}
         </View>
       </Card>
     </Animated.View>

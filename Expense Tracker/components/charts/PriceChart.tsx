@@ -28,20 +28,22 @@ export function PriceChart({ bars, forecast, height = 180, trend }: Props) {
   const beaconOpacity = useSharedValue(0.8);
 
   useEffect(() => {
+    // A couple of quick pulses (~1.8s total) rather than pulsing forever —
+    // decorative animations here are capped at ~2s and then hold static.
     beaconPulse.value = withRepeat(
       withSequence(
-        withTiming(2.2, { duration: 1200 }),
-        withTiming(1, { duration: 1200 })
+        withTiming(2.2, { duration: 450 }),
+        withTiming(1, { duration: 450 })
       ),
-      -1,
+      2,
       false
     );
     beaconOpacity.value = withRepeat(
       withSequence(
-        withTiming(0, { duration: 1200 }),
-        withTiming(0.8, { duration: 1200 })
+        withTiming(0, { duration: 450 }),
+        withTiming(0.8, { duration: 450 })
       ),
-      -1,
+      2,
       false
     );
   }, [beaconPulse, beaconOpacity]);

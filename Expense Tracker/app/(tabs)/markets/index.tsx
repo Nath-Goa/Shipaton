@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
@@ -42,7 +42,7 @@ function MarketActionBtn({
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.95, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('secondary');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
@@ -76,7 +76,7 @@ function StarButton({ symbol, watched, onToggle }: { symbol: string; watched: bo
   const scale = useSharedValue(1);
 
   function handlePress() {
-    triggerHaptic('selection');
+    triggerFeedback('selection');
     scale.value = withSequence(
       withSpring(1.35, springs.bouncy),
       withSpring(1, springs.snappy)

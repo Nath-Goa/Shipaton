@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import type { Quote } from '@/types/stock';
@@ -44,7 +44,7 @@ export function StockListItem({ symbol, name, quote, onPress }: Props) {
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.98, springs.snappy);
-    triggerHaptic('light');
+    triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {

@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback, type SoundCategory } from '@/constants/animations';
 import { radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -15,18 +15,21 @@ type Props = {
   name: keyof typeof Ionicons.glyphMap;
   onPress?: () => void;
   size?: number;
+  // Most icon buttons are simple navigation/utility actions; pass
+  // 'destructive' for trash/remove icons so they get the danger feedback.
+  category?: SoundCategory;
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function IconButton({ name, onPress, size = 18 }: Props) {
+export function IconButton({ name, onPress, size = 18, category = 'navigation' }: Props) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.9, springs.snappy);
-    triggerHaptic('light');
-  }, [scale]);
+    triggerFeedback(category);
+  }, [scale, category]);
 
   const handlePressOut = useCallback(() => {
     scale.value = withSpring(1, springs.snappy);

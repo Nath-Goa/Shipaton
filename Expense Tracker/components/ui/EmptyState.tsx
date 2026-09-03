@@ -36,12 +36,14 @@ export function EmptyState({
   const translateY = useSharedValue(0);
 
   useEffect(() => {
+    // A single float up-down (1.4s total) rather than an endless loop —
+    // decorative animations here are capped at ~2s and then hold static.
     translateY.value = withRepeat(
       withSequence(
-        withTiming(-5, { duration: 1400 }),
-        withTiming(0, { duration: 1400 })
+        withTiming(-5, { duration: 700 }),
+        withTiming(0, { duration: 700 })
       ),
-      -1,
+      1,
       true
     );
   }, [translateY]);

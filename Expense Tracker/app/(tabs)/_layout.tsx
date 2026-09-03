@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -36,7 +36,10 @@ function AnimatedTabIcon({
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    if (focused) scale.value = withSequence(withSpring(1.25, springs.bouncy), withSpring(1, springs.snappy));
+    // A small, fast overshoot rather than the old wide bouncy spring — that
+    // settled slowly enough to read as "bending and oscillating" on tab
+    // change. This settles in well under 200ms.
+    if (focused) scale.value = withSequence(withSpring(1.12, springs.quick), withSpring(1, springs.quick));
   }, [focused, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -94,7 +97,7 @@ function AnimatedTabButton(props: any) {
 
   const handlePress = useCallback(
     (e: any) => {
-      if (!focused) triggerHaptic('selection');
+      if (!focused) triggerFeedback('navigation');
       props.onPress?.(e);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

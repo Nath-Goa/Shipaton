@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, shadow } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -52,7 +52,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
 
   function handleSelect(optValue: T) {
     if (optValue !== value) {
-      triggerHaptic('selection');
+      triggerFeedback('selection');
       onChange(optValue);
     }
   }

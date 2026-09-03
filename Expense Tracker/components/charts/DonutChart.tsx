@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, Keyframe } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
-import { triggerHaptic } from '@/constants/animations';
+import { triggerFeedback } from '@/constants/animations';
 import { useTheme } from '@/hooks/useTheme';
 
 export type DonutSegment = { id: string; label: string; color: string; value: number };
@@ -35,7 +35,7 @@ export function DonutChart({
   let offset = 0;
 
   function handlePressSegment(id: string) {
-    triggerHaptic('selection');
+    triggerFeedback('selection');
     onSegmentPress?.(id);
   }
 

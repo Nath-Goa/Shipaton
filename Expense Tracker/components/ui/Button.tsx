@@ -6,7 +6,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { springs, triggerHaptic } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -41,11 +41,13 @@ export function Button({
   const border = variant === 'ghost' ? colors.border : bg;
   const textColor = variant === 'ghost' ? colors.text2 : colors.onAccent;
 
+  const feedbackCategory = variant === 'danger' ? 'destructive' : variant === 'ghost' ? 'secondary' : 'primary';
+
   const handlePressIn = useCallback(() => {
     if (disabled || loading) return;
     scale.value = withSpring(0.96, springs.snappy);
-    if (haptic) triggerHaptic('light');
-  }, [disabled, loading, haptic, scale]);
+    if (haptic) triggerFeedback(feedbackCategory);
+  }, [disabled, loading, haptic, feedbackCategory, scale]);
 
   const handlePressOut = useCallback(() => {
     scale.value = withSpring(1, springs.snappy);

@@ -170,7 +170,7 @@ export default function ExpensesScreen() {
           <>
             <IconButton name="pie-chart-outline" onPress={() => router.push('/expenses/budgets')} />
             <IconButton name="share-outline" onPress={handleExport} />
-            <IconButton name="add" onPress={() => router.push('/expenses/add')} />
+            <IconButton name="add" onPress={() => router.push('/expenses/add')} category="primary" />
           </>
         }
       />

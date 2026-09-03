@@ -1,6 +1,10 @@
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
+import { playSound, type SoundCategory } from '@/services/sound/soundEffects';
+
+export type { SoundCategory };
+
 /**
  * Production-grade spring configurations tailored for 60fps mobile UI interactions.
  */
@@ -28,6 +32,13 @@ export const springs = {
     damping: 16,
     stiffness: 120,
     mass: 0.9,
+  },
+  // High-stiffness, quickly-settling spring for tiny overshoot bounces (tab
+  // icons, badges) that must never visibly linger or oscillate
+  quick: {
+    damping: 16,
+    stiffness: 420,
+    mass: 0.5,
   },
 } as const;
 
@@ -63,4 +74,24 @@ export function triggerHaptic(type: 'light' | 'medium' | 'heavy' | 'selection' |
   } catch {
     // Graceful fallback if haptics unavailable
   }
+}
+
+const CATEGORY_HAPTIC: Record<SoundCategory, Parameters<typeof triggerHaptic>[0]> = {
+  primary: 'medium',
+  secondary: 'light',
+  destructive: 'warning',
+  selection: 'selection',
+  navigation: 'light',
+  success: 'success',
+  error: 'error',
+};
+
+/**
+ * Combined tap feedback (haptic + sound) for a given interaction category.
+ * Prefer this over calling triggerHaptic directly for anything user-facing —
+ * it keeps every button's haptic and sound in sync with its category.
+ */
+export function triggerFeedback(category: SoundCategory) {
+  triggerHaptic(CATEGORY_HAPTIC[category]);
+  playSound(category);
 }
