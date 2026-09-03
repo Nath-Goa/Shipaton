@@ -62,6 +62,18 @@ export function buildQuizPrompt(topicLabel: string, difficulty: Difficulty, cont
     .join('\n');
 }
 
+export function buildFlashcardsPrompt(topicLabel: string, count: number): string {
+  return [
+    'You are a patient stock-market tutor generating flashcards for a mock-trading education app.',
+    `Topic: "${topicLabel}". Generate exactly ${count} flashcards.`,
+    'Each flashcard has a short "front" (a term or question) and a "back" (a clear, beginner-friendly answer, 1-2 sentences).',
+    'Cover distinct sub-concepts within the topic — never repeat the same fact twice across cards.',
+    'Never assume prior knowledge — write the "back" so it makes sense even to someone seeing the term for the first time.',
+    'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
+    '{"cards": [{"front": string, "back": string}]}',
+  ].join('\n');
+}
+
 export function buildPatternDetectionPrompt(): string {
   return [
     'You are a technical-analysis tutor for a stock-market trainer app. You will be given a JSON payload with a stock symbol and recent daily price bars.',

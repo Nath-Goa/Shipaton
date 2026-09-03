@@ -145,6 +145,20 @@ export default function LearnScreen() {
           </Card>
         </Animated.View>
 
+        {/* Flashcards Card */}
+        <Animated.View entering={FadeInDown.delay(130).springify().damping(16)}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Flashcards</Text>
+          <Card style={{ marginTop: spacing.md }}>
+            <Text style={[styles.topicLabel, { color: colors.text }]}>Quick term review</Text>
+            <Text style={[styles.topicMeta, { color: colors.text3 }]}>
+              Flip through built-in flashcards by topic — generate more with AI any time.
+            </Text>
+            <View style={{ marginTop: spacing.md }}>
+              <Button label="Study flashcards" variant="ghost" onPress={() => router.push('/learn/flashcards')} />
+            </View>
+          </Card>
+        </Animated.View>
+
         {/* Daily Challenge Card */}
         <Animated.View entering={FadeInDown.delay(150).springify().damping(16)}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Daily challenge</Text>

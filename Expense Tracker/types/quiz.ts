@@ -27,3 +27,17 @@ export type TopicProgress = {
   nextReviewDate: string;
   mastered: boolean;
 };
+
+export type QuizSource = 'bank' | 'ai';
+
+export type QuizHistoryEntry = {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  selectedIndex: number;
+  explanation: string;
+  difficulty: Difficulty;
+  source: QuizSource;
+  createdAt: number; // epoch ms
+};

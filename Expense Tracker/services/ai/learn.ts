@@ -1,6 +1,7 @@
 import { sendStructuredPrompt } from '@/services/ai/client';
-import { buildNarrativePrompt, buildPatternDetectionPrompt, buildQuizPrompt } from '@/services/ai/prompts';
+import { buildFlashcardsPrompt, buildNarrativePrompt, buildPatternDetectionPrompt, buildQuizPrompt } from '@/services/ai/prompts';
 import type { AiResult } from '@/types/ai';
+import type { Flashcard } from '@/types/flashcard';
 import type { ScenarioType, NarrativeScenario } from '@/types/narrative';
 import type { PatternDetectionResult } from '@/types/pattern';
 import type { PriceBar } from '@/types/stock';
@@ -14,6 +15,15 @@ export async function generateQuiz(
   return sendStructuredPrompt<QuizQuestion>(
     buildQuizPrompt(topicLabel, difficulty, context),
     'Generate the quiz question now.'
+  );
+}
+
+const AI_FLASHCARD_BATCH_SIZE = 5;
+
+export async function generateFlashcards(topicLabel: string): Promise<AiResult<{ cards: Flashcard[] }>> {
+  return sendStructuredPrompt<{ cards: Flashcard[] }>(
+    buildFlashcardsPrompt(topicLabel, AI_FLASHCARD_BATCH_SIZE),
+    'Generate the flashcards now.'
   );
 }
 

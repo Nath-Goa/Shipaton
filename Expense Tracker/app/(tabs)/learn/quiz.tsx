@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  FadeIn,
   FadeInDown,
   FadeInUp,
   useAnimatedStyle,
@@ -15,9 +16,13 @@ import { FlappyBirdLoader } from '@/components/games/FlappyBirdLoader';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
+import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
+import { TopBar } from '@/components/ui/TopBar';
 import { badgeInfo } from '@/constants/badges';
 import { springs, triggerFeedback } from '@/constants/animations';
+import { bankQuestionsFor } from '@/constants/quizBank';
 import { quizTopicOf } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -27,7 +32,9 @@ import { generateQuiz } from '@/services/ai/learn';
 import { useQuizStore } from '@/store/useQuizStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
-import type { QuizQuestion } from '@/types/quiz';
+import type { Difficulty, QuizHistoryEntry, QuizQuestion, QuizSource } from '@/types/quiz';
+import { timeAgo } from '@/utils/date';
+import { uid } from '@/utils/id';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -93,27 +100,50 @@ function QuizOptionItem({
 export default function QuizScreen() {
   const { topic } = useLocalSearchParams<{ topic: string }>();
   const { colors } = useTheme();
-  const { getProgressFor, recordAttempt } = useQuizStore();
+  const { getProgressFor, recordAttempt, seenBankIndices, markBankSeen, history, addHistoryEntry, clearHistory } = useQuizStore();
   const recordQuizActivity = useStreakStore((s) => s.recordQuizActivity);
   const showToast = useToastStore((s) => s.show);
   const upgradeToTier = useUpgradeToTier();
 
   const topicMeta = quizTopicOf(topic ?? '');
-  const difficulty = getProgressFor(topic ?? '')?.currentDifficulty ?? 'easy';
+  const adaptiveDifficulty = getProgressFor(topic ?? '')?.currentDifficulty ?? 'easy';
 
   const [question, setQuestion] = useState<QuizQuestion | null>(null);
+  const [questionDifficulty, setQuestionDifficulty] = useState<Difficulty>('easy');
+  const [source, setSource] = useState<QuizSource>('bank');
+  const [bankIndex, setBankIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorActions, setErrorActions] = useState({ showAddKey: false, showUpgrade: false });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    if (!topicMeta) return;
-    setLoading(true);
-    setError(null);
-    generateQuiz(topicMeta.label, difficulty).then((result) => {
-      if (!alive) return;
+  const loadQuestion = useCallback(
+    async (forceAi: boolean) => {
+      if (!topicMeta || !topic) return;
+      setSelectedIndex(null);
+      setError(null);
+
+      if (!forceAi) {
+        const bank = bankQuestionsFor(topic);
+        const seen = new Set(seenBankIndices[topic] ?? []);
+        const unseen = bank.map((_, i) => i).filter((i) => !seen.has(i));
+        if (unseen.length > 0) {
+          const idx = unseen[Math.floor(Math.random() * unseen.length)];
+          setQuestion(bank[idx]);
+          setQuestionDifficulty(bank[idx].difficulty);
+          setSource('bank');
+          setBankIndex(idx);
+          setLoading(false);
+          return;
+        }
+      }
+
+      setLoading(true);
+      setSource('ai');
+      setBankIndex(null);
+      setQuestionDifficulty(adaptiveDifficulty);
+      const result = await generateQuiz(topicMeta.label, adaptiveDifficulty);
       setLoading(false);
       if (!result.ok) {
         setError(describeAiError(result.error));
@@ -121,10 +151,15 @@ export default function QuizScreen() {
         return;
       }
       setQuestion(result.data);
-    });
-    return () => {
-      alive = false;
-    };
+    },
+    [topic, topicMeta, adaptiveDifficulty, seenBankIndices]
+  );
+
+  useEffect(() => {
+    loadQuestion(false);
+    // Only re-run when the topic itself changes — loadQuestion is
+    // deliberately not a dep here (it's recreated each render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topic]);
 
   function selectOption(index: number) {
@@ -134,13 +169,33 @@ export default function QuizScreen() {
     triggerFeedback(isCorrect ? 'success' : 'error');
 
     const score = isCorrect ? 100 : 0;
-    const { mastered } = recordAttempt(topic, score, difficulty);
+    // Always advance the spaced-repetition ladder using the store's own
+    // tracked difficulty — a bank question's difficulty tag is only a
+    // display label (bank picks are random, not difficulty-gated), so
+    // feeding it into recordAttempt would let one lucky/unlucky bank pull
+    // jump the ladder out of step with the "3 in a row" progression rule.
+    const { mastered } = recordAttempt(topic, score, adaptiveDifficulty);
     const earnedBadges = recordQuizActivity();
+
+    if (source === 'bank' && bankIndex !== null) markBankSeen(topic, bankIndex);
+    addHistoryEntry(topic, {
+      id: uid(),
+      question: question.question,
+      options: question.options,
+      correctIndex: question.correctIndex,
+      selectedIndex: index,
+      explanation: question.explanation,
+      difficulty: questionDifficulty,
+      source,
+      createdAt: Date.now(),
+    });
 
     if (mastered) showToast(`🎉 You've mastered ${topicMeta?.label}!`);
     else if (earnedBadges.length) showToast(`${badgeInfo(earnedBadges[0]).icon} Badge earned: ${badgeInfo(earnedBadges[0]).label}`);
     else showToast(score === 100 ? 'Nailed it!' : "Not quite — here's why.");
   }
+
+  const topicHistory = history[topic ?? ''] ?? [];
 
   if (!topicMeta) {
     return (
@@ -152,10 +207,25 @@ export default function QuizScreen() {
 
   return (
     <Screen edges={['left', 'right', 'bottom']}>
+      <TopBar
+        title={topicMeta.label}
+        right={<IconButton name="time-outline" onPress={() => setHistoryOpen(true)} />}
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.topicLabel, { color: colors.text3 }]}>
-          {topicMeta.label} · {difficulty}
-        </Text>
+        <View style={styles.topicRow}>
+          <Text style={[styles.topicLabel, { color: colors.text3 }]}>
+            {topicMeta.label} · {questionDifficulty}
+          </Text>
+          <PillBadge label={source === 'bank' ? 'Built-in' : 'AI-generated'} />
+        </View>
+
+        {!loading && question ? (
+          <Pressable onPress={() => loadQuestion(true)} hitSlop={6}>
+            <Text style={[styles.aiLink, { color: colors.accent }]}>
+              🤖 {source === 'bank' ? 'Prefer AI? Generate one instead' : 'Generate another with AI'}
+            </Text>
+          </Pressable>
+        ) : null}
 
         {loading ? (
           <View style={styles.loadingWrap}>
@@ -205,7 +275,8 @@ export default function QuizScreen() {
                   </Text>
                   <Text style={[styles.explanation, { color: colors.text2 }]}>{question.explanation}</Text>
                   <Text style={[styles.followUp, { color: colors.accent }]}>Next up: {question.followUpTopic}</Text>
-                  <View style={{ marginTop: spacing.md }}>
+                  <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+                    <Button label="Another question" fullWidth variant="ghost" onPress={() => loadQuestion(false)} />
                     <Button label="Back to Learn" fullWidth onPress={() => router.back()} />
                   </View>
                 </Card>
@@ -214,13 +285,86 @@ export default function QuizScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      <QuizHistoryModal
+        visible={historyOpen}
+        entries={topicHistory}
+        onClose={() => setHistoryOpen(false)}
+        onClear={() => topic && clearHistory(topic)}
+      />
     </Screen>
+  );
+}
+
+function QuizHistoryModal({
+  visible,
+  entries,
+  onClose,
+  onClear,
+}: {
+  visible: boolean;
+  entries: QuizHistoryEntry[];
+  onClose: () => void;
+  onClear: () => void;
+}) {
+  const { colors } = useTheme();
+  const rows = useMemo(() => [...entries].reverse(), [entries]);
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
+        <AnimatedPressable
+          entering={FadeInDown.springify().damping(18)}
+          style={[styles.modalSheet, { backgroundColor: colors.surface }]}
+          onPress={(e: any) => e.stopPropagation()}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Quiz history</Text>
+          <ScrollView style={{ maxHeight: 420 }}>
+            {rows.length === 0 ? (
+              <Text style={[styles.historyEmpty, { color: colors.text3 }]}>No attempts yet for this topic.</Text>
+            ) : (
+              rows.map((entry) => {
+                const isCorrect = entry.selectedIndex === entry.correctIndex;
+                return (
+                  <View key={entry.id} style={[styles.historyRow, { borderColor: colors.border }]}>
+                    <Ionicons
+                      name={isCorrect ? 'checkmark-circle' : 'close-circle'}
+                      size={18}
+                      color={isCorrect ? colors.success : colors.danger}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.historyLabel, { color: colors.text }]} numberOfLines={2}>
+                        {entry.question}
+                      </Text>
+                      <Text style={[styles.historyPreview, { color: colors.text3 }]}>
+                        {entry.source === 'bank' ? 'Built-in' : 'AI-generated'} · {entry.difficulty} · {timeAgo(entry.createdAt)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            {rows.length > 0 ? (
+              <View style={{ flex: 1 }}>
+                <Button label="Clear" variant="ghost" fullWidth onPress={onClear} />
+              </View>
+            ) : null}
+            <View style={{ flex: 1 }}>
+              <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
+            </View>
+          </View>
+        </AnimatedPressable>
+      </AnimatedPressable>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
+  topicRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   topicLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  aiLink: { fontSize: 12.5, fontWeight: '600' },
   loadingWrap: { alignItems: 'center', paddingVertical: spacing.xxl },
   question: { fontSize: 19, fontWeight: '700', lineHeight: 26 },
   option: {
@@ -236,4 +380,19 @@ const styles = StyleSheet.create({
   explanationLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   explanation: { fontSize: 13.5, lineHeight: 19, marginTop: spacing.sm },
   followUp: { fontSize: 12.5, fontWeight: '600', marginTop: spacing.sm },
+  modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
+  modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.md },
+  modalTitle: { fontSize: 19, fontWeight: '700' },
+  historyEmpty: { fontSize: 13, textAlign: 'center', paddingVertical: spacing.xl },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  historyLabel: { fontSize: 13.5, fontWeight: '600' },
+  historyPreview: { fontSize: 11.5, marginTop: 3 },
 });

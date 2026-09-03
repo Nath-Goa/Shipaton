@@ -3,8 +3,12 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { QUIZ_TOPICS } from '@/constants/quizTopics';
-import type { Difficulty, QuizAttempt, TopicProgress } from '@/types/quiz';
+import type { Difficulty, QuizAttempt, QuizHistoryEntry, TopicProgress } from '@/types/quiz';
 import { parseDateLocal, toDateStr, todayStr } from '@/utils/date';
+
+// A generous cap so a topic's saved history (mirrors the chat "threads"
+// pattern in useChatStore) can't grow unbounded on a device used for years.
+const MAX_HISTORY_PER_TOPIC = 100;
 
 // Spaced-repetition scheduling: a pass (score >= 70) advances through
 // [1, 3, 7, 14]-day review intervals as consecutiveCorrect grows; a miss
@@ -24,10 +28,21 @@ function addDays(dateStr: string, days: number): string {
 type QuizState = {
   attempts: QuizAttempt[];
   topicProgress: Record<string, TopicProgress>;
+  // Indices into constants/quizBank.ts's per-topic question array that this
+  // device has already been shown — once every index for a topic is seen,
+  // the quiz screen falls back to AI generation for that topic.
+  seenBankIndices: Record<string, number[]>;
+  // Saved quiz attempts per topic, newest last — the same shape as
+  // useChatStore's `threads`, so a "Quiz history" view works the same way
+  // the Assistant's chat history does.
+  history: Record<string, QuizHistoryEntry[]>;
   recordAttempt: (topic: string, score: number, difficulty: Difficulty) => { mastered: boolean };
   getDueTopic: () => string | null;
   getNextNewTopic: () => string | null;
   getProgressFor: (topic: string) => TopicProgress | undefined;
+  markBankSeen: (topic: string, index: number) => void;
+  addHistoryEntry: (topic: string, entry: QuizHistoryEntry) => void;
+  clearHistory: (topic: string) => void;
 };
 
 export const useQuizStore = create<QuizState>()(
@@ -35,6 +50,8 @@ export const useQuizStore = create<QuizState>()(
     (set, get) => ({
       attempts: [],
       topicProgress: {},
+      seenBankIndices: {},
+      history: {},
 
       recordAttempt: (topic, score, difficulty) => {
         const today = todayStr();
@@ -89,6 +106,30 @@ export const useQuizStore = create<QuizState>()(
       },
 
       getProgressFor: (topic) => get().topicProgress[topic],
+
+      markBankSeen: (topic, index) => {
+        set((state) => {
+          const seen = state.seenBankIndices[topic] ?? [];
+          if (seen.includes(index)) return state;
+          return { seenBankIndices: { ...state.seenBankIndices, [topic]: [...seen, index] } };
+        });
+      },
+
+      addHistoryEntry: (topic, entry) => {
+        set((state) => {
+          const prior = state.history[topic] ?? [];
+          const next = [...prior, entry].slice(-MAX_HISTORY_PER_TOPIC);
+          return { history: { ...state.history, [topic]: next } };
+        });
+      },
+
+      clearHistory: (topic) => {
+        set((state) => {
+          const next = { ...state.history };
+          delete next[topic];
+          return { history: next };
+        });
+      },
     }),
     {
       name: 'quiz-store',

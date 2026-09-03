@@ -31,19 +31,8 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { ChatMessage, ThreadKey } from '@/types/chat';
+import { timeAgo } from '@/utils/date';
 import { uid } from '@/utils/id';
-
-function timeAgo(ts: number): string {
-  const diffMs = Date.now() - ts;
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(ts).toLocaleDateString();
-}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 

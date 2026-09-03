@@ -57,3 +57,17 @@ export function formatShortDate(dateStr: string): string {
     year: 'numeric',
   });
 }
+
+// Relative time for an epoch-ms timestamp — used by history modals (chat,
+// quiz, flashcards) to show "5m ago" style previews.
+export function timeAgo(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
