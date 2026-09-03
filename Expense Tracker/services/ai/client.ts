@@ -41,10 +41,13 @@ export function hasSharedFallback(): boolean {
   return !!FALLBACK_API_KEY;
 }
 
-async function resolveKey(): Promise<{ provider: AiProvider; apiKey: string } | null> {
+async function resolveKey(): Promise<{ provider: AiProvider; apiKey: string; model?: string } | null> {
   const provider = useSettingsStore.getState().aiProvider;
   const personalKey = await getApiKey(provider);
-  if (personalKey) return { provider, apiKey: personalKey };
+  // A model override only ever applies with the user's own key — the
+  // shared fallback key always runs its provider's default model
+  // (DEFAULT_AI_MODEL.gemini), never a per-device override.
+  if (personalKey) return { provider, apiKey: personalKey, model: useSettingsStore.getState().customModelByProvider[provider] };
   if (FALLBACK_API_KEY) return { provider: FALLBACK_PROVIDER, apiKey: FALLBACK_API_KEY };
   return null;
 }
@@ -55,7 +58,7 @@ export async function sendChatMessage(
 ): Promise<AiResult<string>> {
   const resolved = await resolveKey();
   if (!resolved) return { ok: false, error: { type: 'missing_key' } };
-  return clientFor(resolved.provider).sendChatMessage(systemPrompt, history, resolved.apiKey);
+  return clientFor(resolved.provider).sendChatMessage(systemPrompt, history, resolved.apiKey, resolved.model);
 }
 
 export async function extractReceiptFromImage(
@@ -64,7 +67,7 @@ export async function extractReceiptFromImage(
 ): Promise<AiResult<ReceiptExtraction>> {
   const resolved = await resolveKey();
   if (!resolved) return { ok: false, error: { type: 'missing_key' } };
-  return clientFor(resolved.provider).extractReceiptFromImage(base64, mimeType, resolved.apiKey);
+  return clientFor(resolved.provider).extractReceiptFromImage(base64, mimeType, resolved.apiKey, resolved.model);
 }
 
 // Single-turn "ask for JSON matching this shape" helper, reused by quiz

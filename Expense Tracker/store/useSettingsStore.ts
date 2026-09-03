@@ -16,6 +16,12 @@ type SettingsState = {
   // Which provider's key to use — the key itself never lives in this
   // persisted store, only in SecureStore (see services/ai/apiKey.ts).
   aiProvider: AiProvider;
+  // Per-provider model override, only meaningful (and only offered in the
+  // UI) once a user has their own key for that provider — see
+  // services/ai/client.ts's resolveKey, which never applies these when
+  // falling back to the shared free-tier key, so that key's cost/behavior
+  // stays fixed to DEFAULT_AI_MODEL regardless of any device's overrides.
+  customModelByProvider: Partial<Record<AiProvider, string>>;
   // User's intent, not proof of OS permission — the actual scheduling in
   // services/notifications/notifications.ts also checks/requests permission.
   notificationsEnabled: boolean;
@@ -24,6 +30,7 @@ type SettingsState = {
   setTier: (tier: Tier) => void;
   completeOnboarding: () => void;
   setAiProvider: (provider: AiProvider) => void;
+  setCustomModel: (provider: AiProvider, model: string) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
 };
 
@@ -35,12 +42,15 @@ export const useSettingsStore = create<SettingsState>()(
       tier: 'free',
       onboardingComplete: false,
       aiProvider: 'claude',
+      customModelByProvider: {},
       notificationsEnabled: false,
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentColor: (accentColor) => set({ accentColor }),
       setTier: (tier) => set({ tier }),
       completeOnboarding: () => set({ onboardingComplete: true }),
       setAiProvider: (aiProvider) => set({ aiProvider }),
+      setCustomModel: (provider, model) =>
+        set((s) => ({ customModelByProvider: { ...s.customModelByProvider, [provider]: model.trim() } })),
       setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
     }),
     {

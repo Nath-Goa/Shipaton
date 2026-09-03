@@ -1,11 +1,10 @@
+import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
 import { buildReceiptExtractionPrompt, type ReceiptExtraction } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
 import { parseJsonResponse } from './shared';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
-// Update as newer Claude models become available.
-const MODEL = 'claude-sonnet-5';
 
 type ContentBlock =
   | { type: 'text'; text: string }
@@ -53,11 +52,12 @@ function extractText(data: any): string {
 export async function sendChatMessage(
   systemPrompt: string,
   history: SimpleChatMessage[],
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<AiResult<string>> {
   const result = await callMessages(
     {
-      model: MODEL,
+      model: model || DEFAULT_AI_MODEL.claude,
       max_tokens: 1024,
       system: systemPrompt,
       messages: history.map((h) => ({ role: h.role, content: h.text })),
@@ -71,11 +71,12 @@ export async function sendChatMessage(
 export async function extractReceiptFromImage(
   base64: string,
   mimeType: string,
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<AiResult<ReceiptExtraction>> {
   const result = await callMessages(
     {
-      model: MODEL,
+      model: model || DEFAULT_AI_MODEL.claude,
       max_tokens: 512,
       system: buildReceiptExtractionPrompt(),
       messages: [

@@ -1,15 +1,14 @@
+import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
 import { buildReceiptExtractionPrompt, type ReceiptExtraction } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
 import { parseJsonResponse } from './shared';
 
 const API_URL = 'https://api.openai.com/v1/chat/completions';
-// Update as newer OpenAI models become available.
-const MODEL = 'gpt-4o';
 
 type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 type Message = { role: 'system' | 'user' | 'assistant'; content: string | ContentPart[] };
 
-async function callChat(messages: Message[], apiKey: string): Promise<AiResult<any>> {
+async function callChat(messages: Message[], apiKey: string, model?: string): Promise<AiResult<any>> {
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -17,7 +16,7 @@ async function callChat(messages: Message[], apiKey: string): Promise<AiResult<a
         'content-type': 'application/json',
         authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1024, messages }),
+      body: JSON.stringify({ model: model || DEFAULT_AI_MODEL.openai, max_tokens: 1024, messages }),
     });
     if (res.status === 401) return { ok: false, error: { type: 'invalid_key' } };
     if (res.status === 429) return { ok: false, error: { type: 'rate_limited' } };
@@ -38,13 +37,14 @@ function extractText(data: any): string {
 export async function sendChatMessage(
   systemPrompt: string,
   history: SimpleChatMessage[],
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<AiResult<string>> {
   const messages: Message[] = [
     { role: 'system', content: systemPrompt },
     ...history.map((h) => ({ role: h.role, content: h.text }) as Message),
   ];
-  const result = await callChat(messages, apiKey);
+  const result = await callChat(messages, apiKey, model);
   if (!result.ok) return result;
   return { ok: true, data: extractText(result.data) };
 }
@@ -52,7 +52,8 @@ export async function sendChatMessage(
 export async function extractReceiptFromImage(
   base64: string,
   mimeType: string,
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<AiResult<ReceiptExtraction>> {
   const messages: Message[] = [
     { role: 'system', content: buildReceiptExtractionPrompt() },
@@ -64,7 +65,7 @@ export async function extractReceiptFromImage(
       ],
     },
   ];
-  const result = await callChat(messages, apiKey);
+  const result = await callChat(messages, apiKey, model);
   if (!result.ok) return result;
   return parseJsonResponse<ReceiptExtraction>(extractText(result.data));
 }

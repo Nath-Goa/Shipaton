@@ -1,9 +1,7 @@
+import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
 import { buildReceiptExtractionPrompt, type ReceiptExtraction } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
 import { parseJsonResponse } from './shared';
-
-// Update as newer Gemini models become available.
-const MODEL = 'gemini-3.6-flash';
 
 type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
 type Content = { role: 'user' | 'model'; parts: Part[] };
@@ -29,9 +27,10 @@ function isKeyError(status: number, body: any): boolean {
 async function callGenerate(
   systemPrompt: string,
   contents: Content[],
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<AiResult<any>> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || DEFAULT_AI_MODEL.gemini}:generateContent?key=${encodeURIComponent(apiKey)}`;
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -74,13 +73,14 @@ function extractText(data: any): string {
 export async function sendChatMessage(
   systemPrompt: string,
   history: SimpleChatMessage[],
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<AiResult<string>> {
   const contents: Content[] = history.map((h) => ({
     role: h.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: h.text }],
   }));
-  const result = await callGenerate(systemPrompt, contents, apiKey);
+  const result = await callGenerate(systemPrompt, contents, apiKey, model);
   if (!result.ok) return result;
   return { ok: true, data: extractText(result.data) };
 }
@@ -88,7 +88,8 @@ export async function sendChatMessage(
 export async function extractReceiptFromImage(
   base64: string,
   mimeType: string,
-  apiKey: string
+  apiKey: string,
+  model?: string
 ): Promise<AiResult<ReceiptExtraction>> {
   const contents: Content[] = [
     {
@@ -99,7 +100,7 @@ export async function extractReceiptFromImage(
       ],
     },
   ];
-  const result = await callGenerate(buildReceiptExtractionPrompt(), contents, apiKey);
+  const result = await callGenerate(buildReceiptExtractionPrompt(), contents, apiKey, model);
   if (!result.ok) return result;
   return parseJsonResponse<ReceiptExtraction>(extractText(result.data));
 }

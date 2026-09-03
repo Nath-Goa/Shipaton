@@ -4,6 +4,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
 import { radius, spacing } from '@/constants/theme';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
@@ -25,10 +26,15 @@ type Props = {
 
 export function ApiKeySection({ onSaved, showHint = true }: Props) {
   const { colors } = useTheme();
-  const { aiProvider, setAiProvider } = useSettingsStore();
+  const { aiProvider, setAiProvider, customModelByProvider, setCustomModel } = useSettingsStore();
   const { hasKey, refresh } = useHasApiKey();
   const [keyInput, setKeyInput] = useState('');
   const [savedMask, setSavedMask] = useState<string | null>(null);
+  const [modelInput, setModelInput] = useState('');
+
+  useEffect(() => {
+    setModelInput(customModelByProvider[aiProvider] ?? '');
+  }, [aiProvider, customModelByProvider]);
 
   useEffect(() => {
     let alive = true;
@@ -61,13 +67,31 @@ export function ApiKeySection({ onSaved, showHint = true }: Props) {
       <SegmentedControl options={PROVIDER_OPTIONS} value={aiProvider} onChange={setAiProvider} />
       <Card>
         {savedMask ? (
-          <View style={styles.keyRow}>
-            <View>
-              <Text style={[styles.label, { color: colors.text3 }]}>{AI_PROVIDER_LABELS[aiProvider]} key</Text>
-              <Text style={[styles.maskedKey, { color: colors.text }]}>{savedMask}</Text>
+          <>
+            <View style={styles.keyRow}>
+              <View>
+                <Text style={[styles.label, { color: colors.text3 }]}>{AI_PROVIDER_LABELS[aiProvider]} key</Text>
+                <Text style={[styles.maskedKey, { color: colors.text }]}>{savedMask}</Text>
+              </View>
+              <Button label="Remove" variant="ghost" onPress={removeKey} />
             </View>
-            <Button label="Remove" variant="ghost" onPress={removeKey} />
-          </View>
+            <View style={styles.modelRow}>
+              <Text style={[styles.label, { color: colors.text3 }]}>Model (optional)</Text>
+              <TextInput
+                value={modelInput}
+                onChangeText={setModelInput}
+                onEndEditing={() => setCustomModel(aiProvider, modelInput)}
+                placeholder={DEFAULT_AI_MODEL[aiProvider]}
+                placeholderTextColor={colors.text3}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+              />
+              <Text style={[styles.modelHint, { color: colors.text3 }]}>
+                Leave blank to use the default ({DEFAULT_AI_MODEL[aiProvider]}).
+              </Text>
+            </View>
+          </>
         ) : (
           <>
             <Text style={[styles.label, { color: colors.text3 }]}>{AI_PROVIDER_LABELS[aiProvider]} API key</Text>
@@ -110,5 +134,7 @@ const styles = StyleSheet.create({
   },
   keyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   maskedKey: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+  modelRow: { marginTop: spacing.lg },
+  modelHint: { fontSize: 11.5, lineHeight: 15, marginTop: spacing.sm },
   hint: { fontSize: 12, lineHeight: 16 },
 });
