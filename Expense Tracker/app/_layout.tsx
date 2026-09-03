@@ -6,8 +6,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
+import { LimitOrderWatcher } from '@/components/markets/LimitOrderWatcher';
+import { PriceAlertWatcher } from '@/components/markets/PriceAlertWatcher';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { ReviewPromptModal } from '@/components/reviews/ReviewPromptModal';
+import { AppLockGate } from '@/components/security/AppLockGate';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
@@ -38,10 +41,27 @@ function RootLayout() {
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
   const streakDays = useStreakStore((s) => s.streakDays);
   const lastActivityDate = useStreakStore((s) => s.lastActivityDate);
+  const processDividends = usePortfolioStore((s) => s.processDividends);
+  const [portfolioHydrated, setPortfolioHydrated] = useState(usePortfolioStore.persist.hasHydrated());
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
+
+  // Waits for AsyncStorage rehydration before touching the portfolio store —
+  // calling processDividends() before that would read (and could then get
+  // silently overwritten by) the pre-rehydration default state.
+  useEffect(() => {
+    if (portfolioHydrated) return;
+    return usePortfolioStore.persist.onFinishHydration(() => setPortfolioHydrated(true));
+  }, [portfolioHydrated]);
+
+  // Pays out any dividends due since last app open. Idempotent — safe to
+  // run once per app open (see usePortfolioStore.processDividends).
+  useEffect(() => {
+    if (!portfolioHydrated) return;
+    processDividends();
+  }, [portfolioHydrated, processDividends]);
 
   // Re-evaluates on every app open and whenever the streak changes (a quiz
   // or challenge completed elsewhere in the app), so the same-day nudge
@@ -122,13 +142,21 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       {onboardingComplete ? (
-        <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-        </Stack>
+        <AppLockGate>
+          <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="settings" options={{ headerShown: false }} />
+          </Stack>
+        </AppLockGate>
       ) : (
         <OnboardingScreen />
       )}
+      {onboardingComplete ? (
+        <>
+          <PriceAlertWatcher />
+          <LimitOrderWatcher />
+        </>
+      ) : null}
       <ToastHost />
       <ReviewPromptModal visible={reviewModalVisible} onClose={() => setReviewModalVisible(false)} />
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

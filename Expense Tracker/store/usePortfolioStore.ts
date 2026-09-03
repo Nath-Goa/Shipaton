@@ -2,6 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { badgeInfo } from '@/constants/badges';
+import { tickerOf } from '@/constants/tickers';
+import { getQuote } from '@/services/marketData/marketData';
+import { useStreakStore } from '@/store/useStreakStore';
+import { useToastStore } from '@/store/useToastStore';
+import { addMonthsStr, todayStr } from '@/utils/date';
+import { money } from '@/utils/money';
 import { uid } from '@/utils/id';
 
 export const STARTING_CASH = 100_000;
@@ -19,6 +26,16 @@ export type Trade = {
   total: number;
   date: number; // epoch ms
 };
+export type Dividend = { id: string; symbol: string; amount: number; date: number };
+export type LimitOrder = {
+  id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  qty: number;
+  // Buy fills at or below this price; sell fills at or above it.
+  targetPrice: number;
+  createdAt: number;
+};
 
 export type PortfolioData = {
   id: string;
@@ -26,10 +43,23 @@ export type PortfolioData = {
   cash: number;
   holdings: Record<string, Holding>;
   trades: Trade[];
+  // Lifetime dividend payouts, and the last quarterly payout date paid per
+  // symbol — kept separate from `holdings` so a payout doesn't get
+  // re-triggered just because qty/avgCost changed from a later trade.
+  dividends: Dividend[];
+  dividendCursor: Record<string, string>;
+  // Pending limit orders — see processLimitOrders below.
+  limitOrders: LimitOrder[];
 };
 
-type TradeResult = { ok: true } | { ok: false; message: string };
+const DIVERSIFIED_SECTOR_THRESHOLD = 4;
+// A sane ceiling per portfolio — mainly to keep the pending-orders list
+// usable, same spirit as MAX_PORTFOLIOS.
+export const MAX_LIMIT_ORDERS = 10;
+
+type TradeResult = { ok: true; badgeEarned?: string } | { ok: false; message: string };
 type PortfolioActionResult = { ok: true; id?: string } | { ok: false; message: string };
+type LimitOrderResult = { ok: true; id: string } | { ok: false; message: string };
 
 type PortfolioState = {
   portfolios: Record<string, PortfolioData>;
@@ -49,10 +79,32 @@ type PortfolioState = {
   renamePortfolio: (id: string, name: string) => void;
   deletePortfolio: (id: string) => PortfolioActionResult;
   switchPortfolio: (id: string) => void;
+  // Pays out quarterly dividends for every held symbol that has a
+  // dividendYield configured, straight into that portfolio's cash.
+  // Idempotent — safe to call on every app open (see dividendCursor).
+  processDividends: () => void;
+  // Places a pending order on the ACTIVE portfolio, filled later by
+  // processLimitOrders once the price condition is met. Re-validated at
+  // fill time, not reserved at placement time (see processLimitOrders).
+  placeLimitOrder: (symbol: string, side: 'buy' | 'sell', qty: number, targetPrice: number) => LimitOrderResult;
+  cancelLimitOrder: (orderId: string) => void;
+  // Checks every pending limit order across ALL portfolios against a live
+  // price lookup and fills whatever qualifies. Safe to call repeatedly —
+  // components/markets/LimitOrderWatcher.tsx drives this from a quote poll.
+  processLimitOrders: (priceFor: (symbol: string) => number | undefined) => void;
 };
 
 function freshPortfolio(id: string, name: string): PortfolioData {
-  return { id, name, cash: STARTING_CASH, holdings: {}, trades: [] };
+  return {
+    id,
+    name,
+    cash: STARTING_CASH,
+    holdings: {},
+    trades: [],
+    dividends: [],
+    dividendCursor: {},
+    limitOrders: [],
+  };
 }
 
 const initialState = {
@@ -84,7 +136,18 @@ export const usePortfolioStore = create<PortfolioState>()(
           trades: [{ id: uid(), symbol, side: 'buy', qty, price, total: cost, date: Date.now() }, ...active.trades],
         };
         set({ portfolios: { ...portfolios, [activePortfolioId]: updated } });
-        return { ok: true };
+
+        let badgeEarned: string | undefined;
+        if (active.trades.length === 0) {
+          badgeEarned = useStreakStore.getState().awardBadge('first_trade')[0];
+        }
+        if (!badgeEarned) {
+          const sectors = new Set(Object.keys(updated.holdings).map((s) => tickerOf(s)?.sector).filter(Boolean));
+          if (sectors.size >= DIVERSIFIED_SECTOR_THRESHOLD) {
+            badgeEarned = useStreakStore.getState().awardBadge('diversified')[0];
+          }
+        }
+        return { ok: true, badgeEarned };
       },
 
       sell: (symbol, qty, price) => {
@@ -97,14 +160,26 @@ export const usePortfolioStore = create<PortfolioState>()(
         const proceeds = qty * price;
         const remainingQty = existing.qty - qty;
         const nextHoldings = { ...active.holdings };
-        if (remainingQty <= 0) delete nextHoldings[symbol];
-        else nextHoldings[symbol] = { ...existing, qty: remainingQty };
+        const nextDividendCursor = active.dividendCursor;
+        let dividendCursorChanged = false;
+        if (remainingQty <= 0) {
+          delete nextHoldings[symbol];
+          // Fully closing a position clears its dividend cursor too — a
+          // later re-buy should accrue from then, not resume a stale cursor
+          // and pay for a stretch when this portfolio held nothing.
+          if (symbol in nextDividendCursor) dividendCursorChanged = true;
+        } else {
+          nextHoldings[symbol] = { ...existing, qty: remainingQty };
+        }
 
         const updated: PortfolioData = {
           ...active,
           cash: active.cash + proceeds,
           holdings: nextHoldings,
           trades: [{ id: uid(), symbol, side: 'sell', qty, price, total: proceeds, date: Date.now() }, ...active.trades],
+          dividendCursor: dividendCursorChanged
+            ? Object.fromEntries(Object.entries(active.dividendCursor).filter(([s]) => s !== symbol))
+            : active.dividendCursor,
         };
         set({ portfolios: { ...portfolios, [activePortfolioId]: updated } });
         return { ok: true };
@@ -170,18 +245,208 @@ export const usePortfolioStore = create<PortfolioState>()(
         if (!get().portfolios[id]) return;
         set({ activePortfolioId: id });
       },
+
+      processDividends: () => {
+        const today = todayStr();
+        const { portfolios } = get();
+        const nextPortfolios: Record<string, PortfolioData> = { ...portfolios };
+        let anyPaid = false;
+        let totalPaid = 0;
+
+        for (const portfolio of Object.values(portfolios)) {
+          let cash = portfolio.cash;
+          const dividends = [...portfolio.dividends];
+          const cursor = { ...portfolio.dividendCursor };
+          let portfolioChanged = false;
+
+          for (const [symbol, holding] of Object.entries(portfolio.holdings)) {
+            const ticker = tickerOf(symbol);
+            if (!ticker?.dividendYield || holding.qty <= 0) continue;
+
+            // First time we ever see this holding, seed the cursor at today
+            // rather than backdating — dividends start accruing going
+            // forward only. `cursor[symbol]` tracks the last date already
+            // paid through (or the seed), not the next due date, so a
+            // reopen right after the due date still pays it exactly once.
+            let paidThrough = cursor[symbol] ?? today;
+            let guard = 0;
+            while (guard < 8) {
+              const due = addMonthsStr(paidThrough, 3);
+              if (due > today) break;
+              const price = getQuote(symbol).price;
+              const amount = Math.round(price * (ticker.dividendYield / 4) * holding.qty * 100) / 100;
+              if (amount > 0) {
+                dividends.unshift({ id: uid(), symbol, amount, date: Date.now() });
+                cash += amount;
+                totalPaid += amount;
+                portfolioChanged = true;
+              }
+              paidThrough = due;
+              guard++;
+            }
+            cursor[symbol] = paidThrough;
+          }
+
+          if (portfolioChanged || Object.keys(cursor).length !== Object.keys(portfolio.dividendCursor).length) {
+            nextPortfolios[portfolio.id] = { ...portfolio, cash, dividends, dividendCursor: cursor };
+            anyPaid = anyPaid || portfolioChanged;
+          }
+        }
+
+        if (Object.keys(nextPortfolios).some((id) => nextPortfolios[id] !== portfolios[id])) {
+          set({ portfolios: nextPortfolios });
+        }
+        if (anyPaid) {
+          useToastStore.getState().show(`💰 ${money(totalPaid)} in dividends received`);
+        }
+      },
+
+      placeLimitOrder: (symbol, side, qty, targetPrice) => {
+        if (qty <= 0) return { ok: false, message: 'Enter a quantity greater than 0.' };
+        if (!(targetPrice > 0)) return { ok: false, message: 'Enter a valid target price.' };
+        const { portfolios, activePortfolioId } = get();
+        const active = portfolios[activePortfolioId];
+        if (active.limitOrders.length >= MAX_LIMIT_ORDERS) {
+          return { ok: false, message: `You can have up to ${MAX_LIMIT_ORDERS} pending orders at once.` };
+        }
+        if (side === 'buy' && qty * targetPrice > active.cash) {
+          return { ok: false, message: "That's more than your available cash." };
+        }
+        if (side === 'sell' && (active.holdings[symbol]?.qty ?? 0) < qty) {
+          return { ok: false, message: "You don't own that many shares." };
+        }
+        const order: LimitOrder = { id: uid(), symbol, side, qty, targetPrice, createdAt: Date.now() };
+        set({
+          portfolios: {
+            ...portfolios,
+            [activePortfolioId]: { ...active, limitOrders: [order, ...active.limitOrders] },
+          },
+        });
+        return { ok: true, id: order.id };
+      },
+
+      cancelLimitOrder: (orderId) => {
+        const { portfolios, activePortfolioId } = get();
+        const active = portfolios[activePortfolioId];
+        set({
+          portfolios: {
+            ...portfolios,
+            [activePortfolioId]: { ...active, limitOrders: active.limitOrders.filter((o) => o.id !== orderId) },
+          },
+        });
+      },
+
+      processLimitOrders: (priceFor) => {
+        const { portfolios } = get();
+        const nextPortfolios: Record<string, PortfolioData> = { ...portfolios };
+        const fills: { symbol: string; side: 'buy' | 'sell'; qty: number; price: number; badgeEarned?: string }[] = [];
+        const cancellations: string[] = [];
+
+        for (const portfolio of Object.values(portfolios)) {
+          if (portfolio.limitOrders.length === 0) continue;
+          let cash = portfolio.cash;
+          const holdings = { ...portfolio.holdings };
+          const trades = [...portfolio.trades];
+          const dividendCursor = { ...portfolio.dividendCursor };
+          const remaining: LimitOrder[] = [];
+          let changed = false;
+          // Mirrors buy()'s badge logic, applied the same way for a fill
+          // that happens via a limit order instead of an immediate market
+          // order — otherwise a limit-only trading history never earns them.
+          let hasTraded = portfolio.trades.length > 0;
+
+          for (const order of portfolio.limitOrders) {
+            const price = priceFor(order.symbol);
+            const triggered =
+              price != null && (order.side === 'buy' ? price <= order.targetPrice : price >= order.targetPrice);
+            if (!triggered) {
+              remaining.push(order);
+              continue;
+            }
+
+            // Re-validate against current state — cash/shares may have
+            // moved since the order was placed.
+            let badgeEarned: string | undefined;
+            if (order.side === 'buy') {
+              const cost = order.qty * price;
+              if (cost > cash) {
+                cancellations.push(order.symbol);
+                changed = true;
+                continue;
+              }
+              const existing = holdings[order.symbol];
+              const newQty = (existing?.qty ?? 0) + order.qty;
+              const newAvgCost = existing ? (existing.avgCost * existing.qty + cost) / newQty : price;
+              cash -= cost;
+              holdings[order.symbol] = { symbol: order.symbol, qty: newQty, avgCost: newAvgCost };
+              trades.unshift({ id: uid(), symbol: order.symbol, side: 'buy', qty: order.qty, price, total: cost, date: Date.now() });
+
+              if (!hasTraded) {
+                badgeEarned = useStreakStore.getState().awardBadge('first_trade')[0];
+              }
+              hasTraded = true;
+              if (!badgeEarned) {
+                const sectors = new Set(Object.keys(holdings).map((s) => tickerOf(s)?.sector).filter(Boolean));
+                if (sectors.size >= DIVERSIFIED_SECTOR_THRESHOLD) {
+                  badgeEarned = useStreakStore.getState().awardBadge('diversified')[0];
+                }
+              }
+            } else {
+              const existing = holdings[order.symbol];
+              if (!existing || existing.qty < order.qty) {
+                cancellations.push(order.symbol);
+                changed = true;
+                continue;
+              }
+              const proceeds = order.qty * price;
+              const remainingQty = existing.qty - order.qty;
+              if (remainingQty <= 0) {
+                delete holdings[order.symbol];
+                // Same fix as sell(): closing a position fully clears its
+                // dividend cursor so a later re-buy doesn't inherit a stale
+                // one.
+                delete dividendCursor[order.symbol];
+              } else {
+                holdings[order.symbol] = { ...existing, qty: remainingQty };
+              }
+              cash += proceeds;
+              trades.unshift({ id: uid(), symbol: order.symbol, side: 'sell', qty: order.qty, price, total: proceeds, date: Date.now() });
+            }
+            fills.push({ symbol: order.symbol, side: order.side, qty: order.qty, price, badgeEarned });
+            changed = true;
+          }
+
+          if (changed) {
+            nextPortfolios[portfolio.id] = { ...portfolio, cash, holdings, trades, dividendCursor, limitOrders: remaining };
+          }
+        }
+
+        if (Object.keys(nextPortfolios).some((id) => nextPortfolios[id] !== portfolios[id])) {
+          set({ portfolios: nextPortfolios });
+        }
+        for (const fill of fills) {
+          const base = `✅ Limit order filled: ${fill.side === 'buy' ? 'Bought' : 'Sold'} ${fill.qty} ${fill.symbol} @ ${money(fill.price)}`;
+          useToastStore.getState().show(fill.badgeEarned ? `${base} · 🏅 ${badgeInfo(fill.badgeEarned).label} badge earned!` : base);
+        }
+        for (const symbol of cancellations) {
+          useToastStore.getState().show(`⚠️ A limit order for ${symbol} couldn't fill and was cancelled.`);
+        }
+      },
     }),
     {
       name: 'portfolio-store',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: 3,
       // v0 was a single flat portfolio: { cash, holdings, trades, watchlist }.
       // Wrap it into v1's { portfolios, activePortfolioId, watchlist } shape
-      // as that user's one existing portfolio, rather than losing it.
+      // as that user's one existing portfolio, rather than losing it. v2
+      // added per-portfolio dividends/dividendCursor, v3 added limitOrders —
+      // both backfilled below for anyone persisted before that.
       migrate: (persisted: any) => {
-        if (persisted && typeof persisted === 'object' && !persisted.portfolios) {
-          const { cash, holdings, trades, watchlist } = persisted;
-          return {
+        let state = persisted;
+        if (state && typeof state === 'object' && !state.portfolios) {
+          const { cash, holdings, trades, watchlist } = state;
+          state = {
             watchlist: watchlist ?? [],
             activePortfolioId: DEFAULT_PORTFOLIO_ID,
             portfolios: {
@@ -195,7 +460,19 @@ export const usePortfolioStore = create<PortfolioState>()(
             },
           };
         }
-        return persisted;
+        if (state?.portfolios) {
+          const backfilled: Record<string, any> = {};
+          for (const [id, p] of Object.entries<any>(state.portfolios)) {
+            backfilled[id] = {
+              ...p,
+              dividends: p.dividends ?? [],
+              dividendCursor: p.dividendCursor ?? {},
+              limitOrders: p.limitOrders ?? [],
+            };
+          }
+          state = { ...state, portfolios: backfilled };
+        }
+        return state;
       },
     }
   )

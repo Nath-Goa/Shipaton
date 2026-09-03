@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -34,8 +35,17 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 ];
 
 export default function SettingsScreen() {
-  const { themeMode, setThemeMode, accentColor, setAccentColor, tier, notificationsEnabled, setNotificationsEnabled } =
-    useSettingsStore();
+  const {
+    themeMode,
+    setThemeMode,
+    accentColor,
+    setAccentColor,
+    tier,
+    notificationsEnabled,
+    setNotificationsEnabled,
+    biometricLockEnabled,
+    setBiometricLockEnabled,
+  } = useSettingsStore();
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
   const features = TIER_FEATURES[tier];
   const [planModalOpen, setPlanModalOpen] = useState(false);
@@ -53,6 +63,29 @@ export default function SettingsScreen() {
     }
     setNotificationsEnabled(true);
     await scheduleDailyReminder();
+  }
+
+  async function handleToggleBiometricLock(next: boolean) {
+    if (!next) {
+      setBiometricLockEnabled(false);
+      return;
+    }
+    let isEnrolled = false;
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      isEnrolled = hasHardware && (await LocalAuthentication.isEnrolledAsync());
+    } catch {
+      // Treated the same as "not enrolled" below — the alert covers both
+      // "nothing set up" and "couldn't check", and the switch just stays off.
+    }
+    if (!isEnrolled) {
+      Alert.alert(
+        'No biometrics set up',
+        'Set up Face ID, Touch ID, or a fingerprint in your device Settings first, then turn this on.'
+      );
+      return;
+    }
+    setBiometricLockEnabled(true);
   }
 
   function resetAllData() {
@@ -112,6 +145,12 @@ export default function SettingsScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
+          <Section title="Security">
+            <BiometricLockToggle enabled={biometricLockEnabled} onToggle={handleToggleBiometricLock} />
+          </Section>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(250).springify().damping(16)}>
           <Section title="Data">
             <Button label="Reset all app data" variant="danger" onPress={resetAllData} />
           </Section>
@@ -120,6 +159,21 @@ export default function SettingsScreen() {
 
       <PlanDetailsModal visible={planModalOpen} tier={tier} onClose={() => setPlanModalOpen(false)} />
     </Screen>
+  );
+}
+
+function BiometricLockToggle({ enabled, onToggle }: { enabled: boolean; onToggle: (next: boolean) => void }) {
+  const { colors } = useTheme();
+  return (
+    <Card style={styles.notifRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>App lock</Text>
+        <Text style={[styles.notifSub, { color: colors.text3 }]}>
+          Require Face ID, Touch ID, or a fingerprint to open the app.
+        </Text>
+      </View>
+      <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: colors.accent }} />
+    </Card>
   );
 }
 

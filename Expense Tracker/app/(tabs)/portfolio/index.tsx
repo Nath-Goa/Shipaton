@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -8,6 +8,9 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
+import { BenchmarkChart } from '@/components/charts/BenchmarkChart';
+import { DonutChart, type DonutSegment } from '@/components/charts/DonutChart';
+import { ResultsCardModal } from '@/components/portfolio/ResultsCardModal';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
@@ -17,14 +20,14 @@ import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
-import { tickerOf } from '@/constants/tickers';
+import { SECTOR_COLORS, tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { sharePortfolioSummary } from '@/services/export/exportData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useToastStore } from '@/store/useToastStore';
 import { money, signedMoney, signedPct } from '@/utils/money';
-import { summarizePortfolio } from '@/utils/portfolioMath';
+import { computePortfolioVsBenchmark, summarizePortfolio } from '@/utils/portfolioMath';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -88,7 +91,8 @@ function HoldingRow({
 
 export default function PortfolioScreen() {
   const { colors } = useTheme();
-  const { name, cash, holdings, trades } = useActivePortfolio();
+  const activePortfolio = useActivePortfolio();
+  const { name, cash, holdings, trades, dividends } = activePortfolio;
   const portfolioCount = usePortfolioStore((s) => Object.keys(s.portfolios).length);
   const showToast = useToastStore((s) => s.show);
 
@@ -96,6 +100,26 @@ export default function PortfolioScreen() {
   const { quotes, refresh } = useQuotes(symbols);
   const summary = useMemo(() => summarizePortfolio(cash, holdings, quotes), [cash, holdings, quotes]);
   const holdingList = useMemo(() => Object.values(holdings).sort((a, b) => a.symbol.localeCompare(b.symbol)), [holdings]);
+  const dividendTotal = useMemo(() => dividends.reduce((s, d) => s + d.amount, 0), [dividends]);
+  const benchmarkPoints = useMemo(() => computePortfolioVsBenchmark(activePortfolio, 90), [activePortfolio]);
+
+  const sectorBreakdown = useMemo(() => {
+    const bySector = new Map<string, number>();
+    for (const h of holdingList) {
+      const ticker = tickerOf(h.symbol);
+      if (!ticker) continue;
+      const price = quotes.get(h.symbol)?.price ?? h.avgCost;
+      bySector.set(ticker.sector, (bySector.get(ticker.sector) ?? 0) + price * h.qty);
+    }
+    const total = Array.from(bySector.values()).reduce((s, v) => s + v, 0);
+    const segments: DonutSegment[] = Array.from(bySector.entries())
+      .map(([sector, value]) => ({ id: sector, label: sector, color: SECTOR_COLORS[sector as keyof typeof SECTOR_COLORS], value }))
+      .sort((a, b) => b.value - a.value);
+    const topShare = total > 0 && segments.length ? segments[0].value / total : 0;
+    return { segments, total, topShare, topSector: segments[0]?.label };
+  }, [holdingList, quotes]);
+
+  const [resultsCardOpen, setResultsCardOpen] = useState(false);
 
   async function handleShare() {
     const result = await sharePortfolioSummary({
@@ -116,6 +140,7 @@ export default function PortfolioScreen() {
         subtitle={portfolioCount > 1 ? name : 'Paper trading — no real money involved'}
         right={
           <>
+            <IconButton name="image-outline" onPress={() => setResultsCardOpen(true)} />
             <IconButton name="share-outline" onPress={handleShare} />
             <IconButton name="trophy-outline" onPress={() => router.push('/portfolio/leaderboard')} />
             <IconButton name="swap-horizontal-outline" onPress={() => router.push('/portfolio/manage')} />
@@ -140,6 +165,15 @@ export default function PortfolioScreen() {
             valueColor={summary.allTimePnl >= 0 ? colors.success : colors.danger}
           />
         </Animated.View>
+
+        {benchmarkPoints.length > 1 ? (
+          <Animated.View entering={FadeInDown.delay(60).springify().damping(16)}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>You vs. the market</Text>
+            <Card style={{ marginTop: spacing.md }}>
+              <BenchmarkChart points={benchmarkPoints} />
+            </Card>
+          </Animated.View>
+        ) : null}
 
         <UpgradeBanner
           title="Trade with an edge"
@@ -171,6 +205,65 @@ export default function PortfolioScreen() {
             )}
           </Card>
         </Animated.View>
+
+        {/* Diversification Section */}
+        {sectorBreakdown.segments.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(120).springify().damping(16)}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Diversification</Text>
+            <Card style={[styles.diversificationCard, { marginTop: spacing.md }]}>
+              <DonutChart
+                segments={sectorBreakdown.segments}
+                centerLabel="Sectors"
+                centerValue={String(sectorBreakdown.segments.length)}
+                size={140}
+                strokeWidth={18}
+              />
+              <View style={{ flex: 1, gap: 6 }}>
+                {sectorBreakdown.segments.map((seg) => (
+                  <View key={seg.id} style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: seg.color }]} />
+                    <Text style={[styles.legendLabel, { color: colors.text2 }]} numberOfLines={1}>
+                      {seg.label}
+                    </Text>
+                    <Text style={[styles.legendPct, { color: colors.text3 }]}>
+                      {Math.round((seg.value / sectorBreakdown.total) * 100)}%
+                    </Text>
+                  </View>
+                ))}
+                {sectorBreakdown.topShare >= 0.5 ? (
+                  <Text style={[styles.diversificationWarning, { color: colors.warning }]}>
+                    {Math.round(sectorBreakdown.topShare * 100)}% of this portfolio is in {sectorBreakdown.topSector} —
+                    consider diversifying.
+                  </Text>
+                ) : null}
+              </View>
+            </Card>
+          </Animated.View>
+        ) : null}
+
+        {/* Dividend Income Section */}
+        {dividends.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Dividend income</Text>
+            <Card style={{ marginTop: spacing.md }}>
+              <View style={styles.dividendTotalRow}>
+                <Text style={[styles.dividendTotalLabel, { color: colors.text3 }]}>Lifetime total</Text>
+                <Text style={[styles.dividendTotalValue, { color: colors.success }]}>{money(dividendTotal)}</Text>
+              </View>
+              {dividends.slice(0, 5).map((d, i) => (
+                <View
+                  key={d.id}
+                  style={[styles.tradeRow, i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.symbol, { color: colors.text }]}>{d.symbol}</Text>
+                    <Text style={[styles.meta, { color: colors.text3 }]}>{new Date(d.date).toLocaleDateString()}</Text>
+                  </View>
+                  <Text style={[styles.value, { color: colors.success }]}>+{money(d.amount)}</Text>
+                </View>
+              ))}
+            </Card>
+          </Animated.View>
+        ) : null}
 
         {/* Recent Trades Section */}
         <Animated.View entering={FadeInDown.delay(160).springify().damping(16)}>
@@ -207,6 +300,17 @@ export default function PortfolioScreen() {
           </Card>
         </Animated.View>
       </ScrollView>
+
+      <ResultsCardModal
+        visible={resultsCardOpen}
+        onClose={() => setResultsCardOpen(false)}
+        name={name}
+        netWorth={summary.netWorth}
+        allTimePnl={summary.allTimePnl}
+        allTimePnlPct={summary.allTimePnlPct}
+        holdingsCount={summary.positionsCount}
+        dividendTotal={dividendTotal}
+      />
     </Screen>
   );
 }
@@ -223,4 +327,13 @@ const styles = StyleSheet.create({
   pnl: { fontSize: 12.5, fontWeight: '600', marginTop: 1 },
   tradeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: spacing.md },
   sideBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
+  diversificationCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendLabel: { fontSize: 12.5, flex: 1 },
+  legendPct: { fontSize: 12.5, fontWeight: '600' },
+  diversificationWarning: { fontSize: 11.5, lineHeight: 15, marginTop: 4 },
+  dividendTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  dividendTotalLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  dividendTotalValue: { fontSize: 17, fontWeight: '700' },
 });

@@ -31,6 +31,9 @@ type SettingsState = {
   // User's intent, not proof of OS permission — the actual scheduling in
   // services/notifications/notifications.ts also checks/requests permission.
   notificationsEnabled: boolean;
+  // Only ever set true from a screen that already confirmed
+  // hasHardwareAsync() + isEnrolledAsync() — see components/security/AppLockGate.tsx.
+  biometricLockEnabled: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setAccentColor: (color: AccentColor) => void;
   setTier: (tier: Tier) => void;
@@ -40,6 +43,7 @@ type SettingsState = {
   markKeyBroken: (provider: AiProvider) => void;
   clearKeyBroken: (provider: AiProvider) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
+  setBiometricLockEnabled: (enabled: boolean) => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -53,6 +57,7 @@ export const useSettingsStore = create<SettingsState>()(
       customModelByProvider: {},
       brokenKeyProviders: {},
       notificationsEnabled: false,
+      biometricLockEnabled: false,
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentColor: (accentColor) => set({ accentColor }),
       setTier: (tier) => set({ tier }),
@@ -69,6 +74,7 @@ export const useSettingsStore = create<SettingsState>()(
           return { brokenKeyProviders: next };
         }),
       setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
+      setBiometricLockEnabled: (biometricLockEnabled) => set({ biometricLockEnabled }),
     }),
     {
       name: 'settings-store',

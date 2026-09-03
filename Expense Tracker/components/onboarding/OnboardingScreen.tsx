@@ -143,7 +143,6 @@ export function OnboardingScreen() {
 
   const progressStyle = useAnimatedStyle(() => ({ width: `${progress.value}%` }));
 
-  const stepsLeft = total - (stepIndex + 1);
   const entering = direction === 'forward' ? FadeInRight.duration(280) : FadeInLeft.duration(280);
 
   return (
@@ -165,7 +164,7 @@ export function OnboardingScreen() {
           <Animated.View style={[styles.progressFill, { backgroundColor: colors.accent }, progressStyle]} />
         </View>
         <Text style={[styles.stepsLeftLabel, { color: colors.text3 }]}>
-          {stepsLeft === 0 ? 'Last step' : `${stepsLeft} step${stepsLeft === 1 ? '' : 's'} left`}
+          {stepIndex + 1}/{total}
         </Text>
       </View>
 

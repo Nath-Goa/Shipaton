@@ -21,6 +21,10 @@ type StreakState = {
   recordAnalystQuestion: () => string[];
   recordNarrativeCompleted: () => string[];
   getNarrativeCompletionsToday: () => number;
+  // Generic one-off badge award (first trade, diversified portfolio, budget
+  // met, etc.) — idempotent, returns [id] the first time, [] every time
+  // after.
+  awardBadge: (id: string) => string[];
 };
 
 function awardMilestoneBadges(badges: string[], value: number, milestones: number[], prefix: string): string[] {
@@ -83,6 +87,13 @@ export const useStreakStore = create<StreakState>()(
       getNarrativeCompletionsToday: () => {
         const state = get();
         return state.narrativeCompletionsToday.date === todayStr() ? state.narrativeCompletionsToday.count : 0;
+      },
+
+      awardBadge: (id) => {
+        const state = get();
+        if (state.badges.includes(id)) return [];
+        set({ badges: [...state.badges, id] });
+        return [id];
       },
     }),
     {

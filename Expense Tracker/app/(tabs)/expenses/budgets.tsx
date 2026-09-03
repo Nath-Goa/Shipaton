@@ -1,17 +1,26 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { TrendChart } from '@/components/charts/TrendChart';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
+import { badgeInfo } from '@/constants/badges';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useBudgetStore } from '@/store/useBudgetStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
+import { useStreakStore } from '@/store/useStreakStore';
+import { useToastStore } from '@/store/useToastStore';
 import { parseDateLocal } from '@/utils/date';
 import { money } from '@/utils/money';
+
+// "On track to make it" heuristic — late enough in the month that staying
+// under budget is a real signal, not just luck from few expenses logged so
+// far.
+const BUDGET_MET_MIN_DAY_OF_MONTH = 25;
 
 function ProgressBar({ pct, color, track }: { pct: number; color: string; track: string }) {
   const clamped = Math.max(0, Math.min(100, pct));
@@ -98,6 +107,34 @@ export default function BudgetsScreen() {
     return { overall, byCategory };
   }, [expenses]);
 
+  const monthlyTrend = useMemo(() => {
+    const now = new Date();
+    const months: { key: string; label: string; value: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-US', { month: 'short' }), value: 0 });
+    }
+    const byKey = new Map(months.map((m) => [m.key, m]));
+    for (const e of expenses) {
+      const d = parseDateLocal(e.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const m = byKey.get(key);
+      if (m) m.value += e.amount;
+    }
+    return months.map((m, i) => ({ label: m.label, value: m.value, highlighted: i === months.length - 1 }));
+  }, [expenses]);
+
+  const awardBadge = useStreakStore((s) => s.awardBadge);
+  const showToast = useToastStore((s) => s.show);
+
+  useEffect(() => {
+    if (!overallBudget) return;
+    if (new Date().getDate() < BUDGET_MET_MIN_DAY_OF_MONTH) return;
+    if (monthTotals.overall > overallBudget) return;
+    const earned = awardBadge('budget_met');
+    if (earned.length) showToast(`🏅 ${badgeInfo(earned[0]).label} badge earned!`);
+  }, [overallBudget, monthTotals.overall, awardBadge, showToast]);
+
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -105,6 +142,13 @@ export default function BudgetsScreen() {
           <Text style={[styles.intro, { color: colors.text3 }]}>
             Set monthly limits — this only tracks against expenses logged this calendar month.
           </Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(30).springify().damping(16)}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Spending trends</Text>
+          <Card style={{ marginTop: spacing.sm }}>
+            <TrendChart points={monthlyTrend} formatValue={(v) => (v >= 1000 ? `${Math.round(v / 100) / 10}k` : Math.round(v).toString())} />
+          </Card>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(60).springify().damping(16)}>
@@ -141,6 +185,7 @@ export default function BudgetsScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   intro: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
+  sectionTitle: { fontSize: 15.5, fontWeight: '700' },
   row: { gap: spacing.sm },
   rowHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
   rowLabel: { fontSize: 14, fontWeight: '600', flexShrink: 1 },

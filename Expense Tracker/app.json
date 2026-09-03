@@ -54,6 +54,12 @@
         }
       ],
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID to unlock the app when App Lock is turned on in Settings."
+        }
+      ],
+      [
         "@sentry/react-native/expo",
         {
           "organization": "nathan-p0",
