@@ -22,6 +22,7 @@
     "expo-sharing": "~57.0.5",
     "expo-splash-screen": "~57.0.8",
     "expo-status-bar": "~57.0.1",
+    "expo-store-review": "~57.0.2",
     "expo-symbols": "~57.0.2",
     "expo-web-browser": "~57.0.2",
     "react": "19.2.3",

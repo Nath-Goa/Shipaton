@@ -30,14 +30,19 @@ type ExpenseState = {
   expenses: Expense[];
   hasSeeded: boolean;
   lastDeleted: { expense: Expense; index: number } | null;
+  // The last date generateDueRecurring has already accounted for, per
+  // series — independent of what's still in `expenses`, so deleting a
+  // generated instance doesn't make it reappear on the next catch-up (see
+  // generateDueRecurring).
+  seriesCursor: Record<string, string>;
   seedIfNeeded: () => void;
   addExpense: (input: Omit<Expense, 'id'>) => void;
   updateExpense: (id: string, patch: Omit<Expense, 'id'>) => void;
   deleteExpense: (id: string) => void;
   undoDelete: () => void;
   // Catches up every recurring series to today, generating one expense per
-  // elapsed cycle since its latest instance. Idempotent — safe to call on
-  // every app open.
+  // elapsed cycle since its cursor. Idempotent — safe to call on every app
+  // open.
   generateDueRecurring: () => void;
 };
 
@@ -47,6 +52,7 @@ export const useExpenseStore = create<ExpenseState>()(
       expenses: [],
       hasSeeded: false,
       lastDeleted: null,
+      seriesCursor: {},
       seedIfNeeded: () => {
         if (get().hasSeeded) return;
         set({ expenses: seedExpenses(), hasSeeded: true });
@@ -98,36 +104,48 @@ export const useExpenseStore = create<ExpenseState>()(
       },
       generateDueRecurring: () => {
         const today = todayStr();
-        const expenses = get().expenses;
-        const latestBySeries = new Map<string, Expense>();
+        const { expenses, seriesCursor } = get();
+        // A template per series (desc/category/amount/frequency) — whichever
+        // instance is still around, not necessarily the most recent one, since
+        // the actual "how far have we generated" position comes from
+        // seriesCursor below, not from what's currently in the list.
+        const templateBySeries = new Map<string, Expense>();
         for (const e of expenses) {
           if (!e.recurring || !e.seriesId) continue;
-          const cur = latestBySeries.get(e.seriesId);
-          if (!cur || e.date > cur.date) latestBySeries.set(e.seriesId, e);
+          const cur = templateBySeries.get(e.seriesId);
+          if (!cur || e.date > cur.date) templateBySeries.set(e.seriesId, e);
         }
 
         const generated: Expense[] = [];
-        for (const latest of latestBySeries.values()) {
-          let cursor = nextOccurrence(latest.date, latest.recurring!);
+        const nextCursor = { ...seriesCursor };
+        for (const [seriesId, template] of templateBySeries) {
+          // Falls back to the template's own date only the first time a
+          // series is ever caught up — every call after that trusts the
+          // persisted cursor instead, so deleting a generated instance
+          // doesn't make generateDueRecurring regenerate it right back.
+          let cursor = seriesCursor[seriesId] ?? template.date;
           let guard = 0;
           // Caps catch-up at 24 cycles (2 years weekly, or 2 years monthly)
           // so a very stale install doesn't flood the list in one go.
-          while (cursor <= today && guard < 24) {
-            generated.push({ ...latest, id: uid(), date: cursor });
-            cursor = nextOccurrence(cursor, latest.recurring!);
+          while (guard < 24) {
+            const next = nextOccurrence(cursor, template.recurring!);
+            if (next > today) break;
+            generated.push({ ...template, id: uid(), date: next });
+            cursor = next;
             guard++;
           }
+          nextCursor[seriesId] = cursor;
         }
 
-        if (generated.length) {
-          set((state) => ({ expenses: [...generated, ...state.expenses] }));
+        if (generated.length || Object.keys(nextCursor).length !== Object.keys(seriesCursor).length) {
+          set((state) => ({ expenses: [...generated, ...state.expenses], seriesCursor: nextCursor }));
         }
       },
     }),
     {
       name: 'expense-store',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ expenses: state.expenses, hasSeeded: state.hasSeeded }),
+      partialize: (state) => ({ expenses: state.expenses, hasSeeded: state.hasSeeded, seriesCursor: state.seriesCursor }),
     }
   )
 );

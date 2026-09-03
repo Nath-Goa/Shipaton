@@ -1,21 +1,28 @@
 import * as Sentry from '@sentry/react-native';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
+import { ReviewPromptModal } from '@/components/reviews/ReviewPromptModal';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import { disableAllReminders, refreshStreakRiskReminder } from '@/services/notifications/notifications';
 import { initSentry } from '@/services/monitoring/sentry';
 import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
+import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { useReviewStore } from '@/store/useReviewStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { todayStr } from '@/utils/date';
+
+// Real engagement signals only — never counted the moment onboarding
+// finishes, since both are naturally still zero then.
+const REVIEW_PROMPT_MIN_TRADES = 3;
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -87,6 +94,30 @@ export default Sentry.wrap(RootLayout);
 function RootLayoutNav() {
   const { scheme, colors } = useTheme();
   const onboardingComplete = useSettingsStore((s) => s.onboardingComplete);
+  const badgeCount = useStreakStore((s) => s.badges.length);
+  const tradeCount = usePortfolioStore((s) =>
+    Object.values(s.portfolios).reduce((total, p) => total + p.trades.length, 0)
+  );
+  const hasPrompted = useReviewStore((s) => s.hasPrompted);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  // hasPrompted starts false until AsyncStorage finishes rehydrating it, so
+  // gating on this too (not just hasPrompted) stops a returning user who
+  // already reviewed from briefly re-qualifying before their prior answer
+  // has loaded back in.
+  const [reviewStoreHydrated, setReviewStoreHydrated] = useState(useReviewStore.persist.hasHydrated());
+
+  useEffect(() => {
+    if (reviewStoreHydrated) return;
+    return useReviewStore.persist.onFinishHydration(() => setReviewStoreHydrated(true));
+  }, [reviewStoreHydrated]);
+
+  // Ask once, only after the person has actually done something — a badge
+  // earned (Learn/Markets) or a few trades (Portfolio) — rather than
+  // nagging on first open.
+  useEffect(() => {
+    if (!onboardingComplete || !reviewStoreHydrated || hasPrompted) return;
+    if (badgeCount >= 1 || tradeCount >= REVIEW_PROMPT_MIN_TRADES) setReviewModalVisible(true);
+  }, [onboardingComplete, reviewStoreHydrated, hasPrompted, badgeCount, tradeCount]);
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -99,6 +130,7 @@ function RootLayoutNav() {
         <OnboardingScreen />
       )}
       <ToastHost />
+      <ReviewPromptModal visible={reviewModalVisible} onClose={() => setReviewModalVisible(false)} />
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );

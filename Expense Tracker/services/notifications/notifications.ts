@@ -38,6 +38,9 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 export async function scheduleDailyReminder(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
+  // Permission can still be revoked between requestNotificationPermission()
+  // succeeding and this call (or on a later app open with the toggle still
+  // on) — never let that surface as an unhandled rejection.
   await Notifications.scheduleNotificationAsync({
     identifier: DAILY_REMINDER_ID,
     content: {
@@ -49,7 +52,7 @@ export async function scheduleDailyReminder(): Promise<void> {
       hour: DAILY_REMINDER_HOUR,
       minute: 0,
     },
-  });
+  }).catch(() => {});
 }
 
 // Called on every activity that keeps the streak alive — cancels today's
@@ -73,6 +76,9 @@ export async function refreshStreakRiskReminder(params: {
   target.setHours(STREAK_RISK_HOUR, 0, 0, 0);
   if (target <= now) return; // Too late today — don't fire a stale nudge overnight.
 
+  // This runs unattended on every app open (app/_layout.tsx doesn't await
+  // or catch it), so a revoked OS permission must not become an unhandled
+  // rejection here.
   await Notifications.scheduleNotificationAsync({
     identifier: STREAK_RISK_ID,
     content: {
@@ -80,7 +86,7 @@ export async function refreshStreakRiskReminder(params: {
       body: 'Take a quick quiz or challenge before the day ends.',
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: target },
-  });
+  }).catch(() => {});
 }
 
 export async function disableAllReminders(): Promise<void> {
