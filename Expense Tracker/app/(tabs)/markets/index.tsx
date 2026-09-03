@@ -19,6 +19,7 @@ import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
+import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
 import { regenerateMarket } from '@/services/marketData/regenerateMarket';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -112,26 +113,36 @@ export default function MarketsScreen() {
     return TICKERS.filter((t) => t.symbol.toLowerCase().includes(q) || t.name.toLowerCase().includes(q));
   }, [query]);
 
+  const liveData = isLiveMarketDataConfigured();
+
   function confirmRegenerate() {
     confirmAction(
-      {
-        title: 'Regenerate the market?',
-        message:
-          'This re-simulates fresh prices for every stock and resets your mock portfolio (cash, holdings, and trade history) since the old prices no longer apply.',
-        confirmLabel: 'Regenerate',
-        destructive: true,
-      },
+      liveData
+        ? {
+            title: 'Refresh prices?',
+            message:
+              'This re-fetches the latest real prices for every stock and resets your mock portfolio (cash, holdings, and trade history) since the old prices no longer apply.',
+            confirmLabel: 'Refresh',
+            destructive: true,
+          }
+        : {
+            title: 'Regenerate the market?',
+            message:
+              'This re-simulates fresh prices for every stock and resets your mock portfolio (cash, holdings, and trade history) since the old prices no longer apply.',
+            confirmLabel: 'Regenerate',
+            destructive: true,
+          },
       () => {
         regenerateMarket();
         refresh();
-        showToast('Market regenerated — portfolio reset to $100,000.');
+        showToast(liveData ? 'Prices refreshed — portfolio reset to $100,000.' : 'Market regenerated — portfolio reset to $100,000.');
       }
     );
   }
 
   return (
     <Screen>
-      <TopBar title="Markets" subtitle="Mock stocks — simulated prices, real symbols" />
+      <TopBar title="Markets" subtitle={liveData ? 'Mock trading — real live prices' : 'Mock stocks — simulated prices, real symbols'} />
       <Animated.View entering={FadeInDown.duration(300).springify().damping(16)} style={styles.searchWrap}>
         <View style={[styles.searchBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
           <Ionicons name="search" size={16} color={colors.text3} />
@@ -153,8 +164,8 @@ export default function MarketsScreen() {
           onPress={() => router.push('/markets/practice')}
         />
         <MarketActionBtn
-          icon="shuffle-outline"
-          label="Regenerate market"
+          icon={liveData ? 'refresh-outline' : 'shuffle-outline'}
+          label={liveData ? 'Refresh prices' : 'Regenerate market'}
           onPress={confirmRegenerate}
         />
         <MarketActionBtn

@@ -11,7 +11,7 @@ import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
-import { getQuote } from '@/services/marketData/mockMarketData';
+import { getQuote } from '@/services/marketData/marketData';
 import { MAX_PORTFOLIOS, type PortfolioData, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';

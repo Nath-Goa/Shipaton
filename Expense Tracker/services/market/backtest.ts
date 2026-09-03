@@ -1,5 +1,5 @@
 import { computeDirectionCall } from '@/services/market/signals';
-import { getFullHistory } from '@/services/marketData/mockMarketData';
+import { getFullHistory } from '@/services/marketData/marketData';
 import type { Direction } from '@/types/stock';
 
 // Max-tier feature: walks the mock price history day by day, re-running the

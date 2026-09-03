@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { getQuote } from '@/services/marketData/mockMarketData';
+import { getQuote } from '@/services/marketData/marketData';
 import type { Quote } from '@/types/stock';
 
 // Polls the (fully local, in-memory) mock quote engine for a fixed list of

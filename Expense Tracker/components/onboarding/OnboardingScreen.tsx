@@ -10,6 +10,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
+import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
 import { useSettingsStore, type ThemeMode } from '@/store/useSettingsStore';
 
 type Step = 'theme' | 'key' | 'stocks';
@@ -68,7 +69,9 @@ export function OnboardingScreen() {
             <Text style={[styles.eyebrow, { color: colors.accent }]}>Mock stocks</Text>
             <Text style={[styles.title, { color: colors.text }]}>{TICKERS.length} stocks, ready to trade</Text>
             <Text style={[styles.subtitle, { color: colors.text2 }]}>
-              Real symbols, simulated prices — start with $100,000 in paper money. No real brokerage, no real risk.
+              {isLiveMarketDataConfigured()
+                ? 'Real symbols, real live prices — start with $100,000 in paper money. No real brokerage, no real risk.'
+                : 'Real symbols, simulated prices — start with $100,000 in paper money. No real brokerage, no real risk.'}
             </Text>
           </View>
           <FlatList

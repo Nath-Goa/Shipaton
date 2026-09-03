@@ -25,7 +25,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { computeDirectionCall } from '@/services/market/signals';
-import { getFullHistory } from '@/services/marketData/mockMarketData';
+import { getFullHistory } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { money, signedMoney, signedPct } from '@/utils/money';

@@ -16,7 +16,7 @@ import { springs, triggerHaptic } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
-import { subscribeLiveQuote } from '@/services/marketData/mockMarketData';
+import { subscribeLiveQuote } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { Quote } from '@/types/stock';
