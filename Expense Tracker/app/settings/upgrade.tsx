@@ -139,7 +139,7 @@ export default function UpgradeScreen() {
                 <Button label="Current plan" variant="ghost" disabled fullWidth />
               ) : configured ? (
                 <Button
-                  label={`View ${TIER_LABELS[t]} plans`}
+                  label={`View ${TIER_LABELS[t]} plan`}
                   loading={busyTier === t}
                   fullWidth
                   onPress={() => handleChoose(t)}

@@ -14,6 +14,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
 import { TopBar } from '@/components/ui/TopBar';
+import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { springs, triggerHaptic } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
@@ -139,6 +140,12 @@ export default function PortfolioScreen() {
             valueColor={summary.allTimePnl >= 0 ? colors.success : colors.danger}
           />
         </Animated.View>
+
+        <UpgradeBanner
+          title="Trade with an edge"
+          body="Upgrade to Max for historical backtesting and up to 5 separate paper portfolios."
+          delay={40}
+        />
 
         {/* Holdings Section */}
         <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>

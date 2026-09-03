@@ -30,9 +30,17 @@ async function resolveOutcome(result: PAYWALL_RESULT): Promise<PresentPaywallOut
 // offering, or RevenueCat's default template if none has been designed yet.
 export async function presentPaywallForTier(tier: Exclude<Tier, 'free'>): Promise<PresentPaywallOutcome> {
   if (!isPurchasesConfigured()) return { shown: false, reason: 'not_configured' };
-  const offering = await fetchOfferingForTier(tier);
-  const result = await RevenueCatUI.presentPaywall({ offering: offering ?? undefined });
-  return resolveOutcome(result);
+  try {
+    const offering = await fetchOfferingForTier(tier);
+    const result = await RevenueCatUI.presentPaywall({ offering: offering ?? undefined });
+    return resolveOutcome(result);
+  } catch {
+    // A "configured" but invalid/placeholder key (present, but rejected by
+    // RevenueCat's servers) reaches here rather than crashing the tap —
+    // callers treat this the same as not_configured and fall back to the
+    // demo-mode upgrade screen.
+    return { shown: false, reason: 'not_configured' };
+  }
 }
 
 // Modern "only show it if they need it" pattern: skips the paywall entirely
@@ -41,13 +49,17 @@ export async function presentPaywallForTier(tier: Exclude<Tier, 'free'>): Promis
 // purchase flow instead of just routing to the Settings paywall screen.
 export async function presentPaywallIfNeededForTier(tier: Exclude<Tier, 'free'>): Promise<PresentPaywallOutcome> {
   if (!isPurchasesConfigured()) return { shown: false, reason: 'not_configured' };
-  const offering = await fetchOfferingForTier(tier);
-  const requiredEntitlementIdentifier = tier === 'max' ? ENTITLEMENT_MAX : ENTITLEMENT_PRO;
-  const result = await RevenueCatUI.presentPaywallIfNeeded({
-    requiredEntitlementIdentifier,
-    offering: offering ?? undefined,
-  });
-  return resolveOutcome(result);
+  try {
+    const offering = await fetchOfferingForTier(tier);
+    const requiredEntitlementIdentifier = tier === 'max' ? ENTITLEMENT_MAX : ENTITLEMENT_PRO;
+    const result = await RevenueCatUI.presentPaywallIfNeeded({
+      requiredEntitlementIdentifier,
+      offering: offering ?? undefined,
+    });
+    return resolveOutcome(result);
+  } catch {
+    return { shown: false, reason: 'not_configured' };
+  }
 }
 
 export async function presentCustomerCenter(): Promise<{ ok: boolean; message?: string }> {

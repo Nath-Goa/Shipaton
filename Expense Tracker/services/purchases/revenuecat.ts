@@ -61,8 +61,18 @@ export function tierFromCustomerInfo(info: CustomerInfo): Tier {
 
 export async function fetchCurrentOffering(): Promise<PurchasesOffering | null> {
   if (!configured) return null;
-  const offerings = await Purchases.getOfferings();
-  return offerings.current;
+  try {
+    const offerings = await Purchases.getOfferings();
+    return offerings.current;
+  } catch {
+    // A key that "looks" present but is invalid/placeholder (or the
+    // dashboard has no offerings set up yet) makes getOfferings() reject —
+    // callers treat null the same as "not configured" and fall back to the
+    // demo-mode upgrade screen instead of the whole tap silently doing
+    // nothing (an uncaught rejection here has no visible effect on a
+    // fire-and-forget onPress handler).
+    return null;
+  }
 }
 
 // Each paid tier has its own Offering in the RevenueCat dashboard
@@ -73,8 +83,12 @@ export async function fetchCurrentOffering(): Promise<PurchasesOffering | null> 
 // something rather than nothing.
 export async function fetchOfferingForTier(tier: Exclude<Tier, 'free'>): Promise<PurchasesOffering | null> {
   if (!configured) return null;
-  const offerings = await Purchases.getOfferings();
-  return offerings.all[tier] ?? offerings.current;
+  try {
+    const offerings = await Purchases.getOfferings();
+    return offerings.all[tier] ?? offerings.current;
+  } catch {
+    return null;
+  }
 }
 
 export type PurchaseOutcome =

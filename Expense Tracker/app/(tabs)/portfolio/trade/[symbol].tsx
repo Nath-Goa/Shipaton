@@ -1,5 +1,5 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -72,6 +72,15 @@ export default function TradeScreen() {
   // Ref (not state) so a rapid double-tap is blocked synchronously, without
   // waiting on a render to commit the "already submitting" flag.
   const submittingRef = useRef(false);
+
+  // Expo Router can reuse this same screen instance across navigations to
+  // the same route with a different `side` param (e.g. Sell, back, then
+  // Buy on another stock) — the useState initializer above only runs once
+  // on mount, so without this the tab stays stuck on whichever side it
+  // first opened with.
+  useEffect(() => {
+    setSide(rawSide === 'sell' ? 'sell' : 'buy');
+  }, [rawSide]);
 
   useFocusEffect(
     useCallback(() => {

@@ -85,8 +85,8 @@ export const BILLING_PERIOD_LABELS: Record<BillingPeriod, string> = {
 // Demo-mode / glance pricing only — once RevenueCat is configured, the
 // paywall always shows real store-localized prices instead of these.
 export const TIER_PERIOD_PRICE: Record<Exclude<Tier, 'free'>, Record<BillingPeriod, string>> = {
-  pro: { monthly: '$6.99/mo', yearly: '$59.99/yr', lifetime: '$149.99' },
-  max: { monthly: '$12.99/mo', yearly: '$109.99/yr', lifetime: '$299.99' },
+  pro: { monthly: '$5/mo', yearly: '$49.99/yr', lifetime: '$129.99' },
+  max: { monthly: '$15/mo', yearly: '$139.99/yr', lifetime: '$349.99' },
 };
 
 export const TIER_PRICE: Record<Tier, string> = {

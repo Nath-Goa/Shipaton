@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
+import { FlappyBirdLoader } from '@/components/games/FlappyBirdLoader';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -20,7 +21,7 @@ import { QUIZ_TOPICS } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
-import { describeAiError, aiErrorNeedsUpgrade } from '@/services/ai/errorMessage';
+import { describeAiError, aiErrorActions } from '@/services/ai/errorMessage';
 import { generateNarrative } from '@/services/ai/learn';
 import { useActivePortfolio } from '@/store/usePortfolioStore';
 import { useStreakStore } from '@/store/useStreakStore';
@@ -108,7 +109,7 @@ export default function NarrativeScreen() {
   const [scenario, setScenario] = useState<NarrativeScenario | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [errorNeedsUpgrade, setErrorNeedsUpgrade] = useState(false);
+  const [errorActions, setErrorActions] = useState({ showAddKey: false, showUpgrade: false });
   const [chosenIndex, setChosenIndex] = useState<number | null>(null);
 
   const portfolioContext = useMemo(() => {
@@ -127,7 +128,7 @@ export default function NarrativeScreen() {
       setLoading(false);
       if (!result.ok) {
         setError(describeAiError(result.error));
-        setErrorNeedsUpgrade(aiErrorNeedsUpgrade(result.error));
+        setErrorActions(aiErrorActions(result.error));
         return;
       }
       setScenario(result.data);
@@ -154,14 +155,17 @@ export default function NarrativeScreen() {
           <View style={styles.loadingWrap}>
             <ActivityIndicator color={colors.accent} />
             <Text style={{ color: colors.text3, marginTop: spacing.md }}>Setting the scene…</Text>
+            <FlappyBirdLoader />
           </View>
         ) : error ? (
           <EmptyState
             icon="⚠️"
             title="Couldn't generate a scenario"
             message={error}
-            actionLabel={errorNeedsUpgrade ? 'Upgrade' : 'Open Settings'}
-            onAction={errorNeedsUpgrade ? () => upgradeToTier('pro') : () => router.push('/settings')}
+            actionLabel={errorActions.showAddKey ? 'Add your API key' : 'Open Settings'}
+            onAction={() => router.push('/settings')}
+            secondaryActionLabel={errorActions.showUpgrade ? 'Upgrade' : undefined}
+            onSecondaryAction={errorActions.showUpgrade ? () => upgradeToTier('pro') : undefined}
           />
         ) : scenario ? (
           <>

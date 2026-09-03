@@ -25,6 +25,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
   const { colors } = useTheme();
   const cat = categoryOf(expense.category);
+  const categoryLabel = expense.category === 'other' && expense.customCategoryLabel ? expense.customCategoryLabel : cat.label;
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
@@ -66,12 +67,12 @@ export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
       <View style={styles.main}>
         <View style={styles.descRow}>
           <Text style={[styles.desc, { color: colors.text }]} numberOfLines={1}>
-            {expense.desc || cat.label}
+            {expense.desc || categoryLabel}
           </Text>
           {expense.recurring ? <Ionicons name="repeat" size={13} color={colors.text3} /> : null}
         </View>
         <Text style={[styles.meta, { color: colors.text3 }]} numberOfLines={1}>
-          <Text style={{ color: cat.color, fontWeight: '600' }}>{cat.label}</Text>
+          <Text style={{ color: cat.color, fontWeight: '600' }}>{categoryLabel}</Text>
         </Text>
       </View>
       <Text style={[styles.amount, { color: colors.text }]}>{money(expense.amount)}</Text>

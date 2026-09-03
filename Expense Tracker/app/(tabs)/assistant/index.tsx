@@ -1,18 +1,22 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { FlappyBirdLoader } from '@/components/games/FlappyBirdLoader';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
+import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { badgeInfo } from '@/constants/badges';
-import { spacing } from '@/constants/theme';
+import { radius, spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useAiQuota } from '@/hooks/useAiQuota';
@@ -29,6 +33,18 @@ import { useToastStore } from '@/store/useToastStore';
 import type { ChatMessage, ThreadKey } from '@/types/chat';
 import { uid } from '@/utils/id';
 
+function timeAgo(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
 export default function AssistantScreen() {
   const { symbol: paramSymbol } = useLocalSearchParams<{ symbol?: string }>();
   const { colors } = useTheme();
@@ -38,12 +54,13 @@ export default function AssistantScreen() {
   const upgradeToTier = useUpgradeToTier();
   const { hasKey } = useHasApiKey();
   const { remaining, locked: quotaExhausted } = useAiQuota();
-  const { threads, addMessage } = useChatStore();
+  const { threads, addMessage, clearThread } = useChatStore();
   const recordAnalystQuestion = useStreakStore((s) => s.recordAnalystQuestion);
   const showToast = useToastStore((s) => s.show);
 
   const [activeThread, setActiveThread] = useState<ThreadKey>('general');
   const [loading, setLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -88,7 +105,11 @@ export default function AssistantScreen() {
 
   return (
     <Screen>
-      <TopBar title="Assistant" subtitle="Ask the analyst — educational, not financial advice" />
+      <TopBar
+        title="Assistant"
+        subtitle="Ask the analyst — educational, not financial advice"
+        right={<IconButton name="time-outline" onPress={() => setHistoryOpen(true)} />}
+      />
 
       {threadKeys.length > 1 ? (
         <Animated.View entering={FadeInDown.duration(250).springify().damping(16)}>
@@ -107,22 +128,30 @@ export default function AssistantScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.messages}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
           {messages.length === 0 ? (
-            <EmptyState
-              icon="🤖"
-              title={activeThread === 'general' ? 'Ask anything about investing' : `Ask about ${activeThread}`}
-              message="Explains terms in plain English, scoped to this simulated app — not real market data."
-            />
+            <>
+              <EmptyState
+                icon="🤖"
+                title={activeThread === 'general' ? 'Ask anything about investing' : `Ask about ${activeThread}`}
+                message="Explains terms in plain English, scoped to this simulated app — not real market data."
+              />
+              <UpgradeBanner title="Never run out of questions" body="Upgrade for a bigger daily AI allowance." />
+            </>
           ) : (
             messages.map((m) => <ChatBubble key={m.id} message={m} />)
           )}
-          {loading ? <TypingIndicator /> : null}
+          {loading ? (
+            <>
+              <TypingIndicator />
+              <FlappyBirdLoader />
+            </>
+          ) : null}
         </ScrollView>
 
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
@@ -136,7 +165,10 @@ export default function AssistantScreen() {
               <Text style={[styles.gateText, { color: colors.text3 }]}>
                 {TIER_LABELS[tier]} hit its daily AI limit on the built-in key. Upgrade for more, or add your own API key for unlimited use.
               </Text>
-              <Button label="Upgrade" onPress={() => upgradeToTier('pro')} />
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <Button label="Add your API key" variant="ghost" onPress={() => router.push('/settings')} />
+                <Button label="Upgrade" onPress={() => upgradeToTier('pro')} />
+              </View>
             </View>
           ) : (
             <>
@@ -157,7 +189,81 @@ export default function AssistantScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      <HistoryModal
+        visible={historyOpen}
+        threads={threads}
+        activeThread={activeThread}
+        onClose={() => setHistoryOpen(false)}
+        onSelect={(key) => {
+          setActiveThread(key);
+          setHistoryOpen(false);
+        }}
+        onClear={clearThread}
+      />
     </Screen>
+  );
+}
+
+function HistoryModal({
+  visible,
+  threads,
+  activeThread,
+  onClose,
+  onSelect,
+  onClear,
+}: {
+  visible: boolean;
+  threads: Record<ThreadKey, ChatMessage[]>;
+  activeThread: ThreadKey;
+  onClose: () => void;
+  onSelect: (key: ThreadKey) => void;
+  onClear: (key: ThreadKey) => void;
+}) {
+  const { colors } = useTheme();
+
+  const rows = useMemo(() => {
+    const keys = new Set<ThreadKey>(['general', ...Object.keys(threads)]);
+    return Array.from(keys)
+      .map((key) => {
+        const msgs = threads[key] ?? [];
+        const last = msgs[msgs.length - 1];
+        return { key, last, lastAt: last?.createdAt ?? 0, count: msgs.length };
+      })
+      .sort((a, b) => b.lastAt - a.lastAt);
+  }, [threads]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={[styles.modalSheet, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Chat history</Text>
+          <ScrollView style={{ maxHeight: 420 }}>
+            {rows.map((row) => (
+              <Pressable
+                key={row.key}
+                onPress={() => onSelect(row.key)}
+                onLongPress={() => row.count > 0 && onClear(row.key)}
+                style={[
+                  styles.historyRow,
+                  { borderColor: row.key === activeThread ? colors.accent : colors.border },
+                ]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.historyLabel, { color: colors.text }]}>
+                    {row.key === 'general' ? 'General' : row.key}
+                  </Text>
+                  <Text style={[styles.historyPreview, { color: colors.text3 }]} numberOfLines={1}>
+                    {row.last ? row.last.text : 'No messages yet'}
+                  </Text>
+                </View>
+                {row.lastAt ? <Text style={[styles.historyTime, { color: colors.text3 }]}>{timeAgo(row.lastAt)}</Text> : null}
+              </Pressable>
+            ))}
+          </ScrollView>
+          <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -170,4 +276,19 @@ const styles = StyleSheet.create({
   gateText: { fontSize: 12.5, textAlign: 'center' },
   sharedHint: { fontSize: 11, textAlign: 'center', paddingHorizontal: spacing.sm, paddingBottom: 2 },
   quota: { fontSize: 11.5, textAlign: 'right', paddingHorizontal: spacing.sm },
+  modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
+  modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.md },
+  modalTitle: { fontSize: 19, fontWeight: '700' },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  historyLabel: { fontSize: 14, fontWeight: '700' },
+  historyPreview: { fontSize: 12.5, marginTop: 2 },
+  historyTime: { fontSize: 11 },
 });

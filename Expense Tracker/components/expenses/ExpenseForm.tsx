@@ -25,6 +25,7 @@ export type ExpenseFormValues = {
   amount: number;
   date: string;
   category: CategoryId;
+  customCategoryLabel?: string;
   photoUri?: string;
   recurring?: RecurringFrequency;
 };
@@ -53,6 +54,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const [amountText, setAmountText] = useState(initial?.amount ? String(initial.amount) : '');
   const [date, setDate] = useState(initial?.date ?? todayStr());
   const [category, setCategory] = useState<CategoryId>(initial?.category ?? 'food');
+  const [customCategoryLabel, setCustomCategoryLabel] = useState(initial?.customCategoryLabel ?? '');
   const [repeat, setRepeat] = useState<'none' | RecurringFrequency>(initial?.recurring ?? 'none');
   const [photoUri, setPhotoUri] = useState<string | undefined>(initial?.photoUri);
   // Whether `photoUri` is a fresh capture living in the app's receipts
@@ -126,6 +128,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
       amount: Math.round(amount * 100) / 100,
       date,
       category,
+      customCategoryLabel: category === 'other' ? customCategoryLabel.trim() || undefined : undefined,
       photoUri,
       recurring: repeat === 'none' ? undefined : repeat,
     });
@@ -241,6 +244,18 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
           <View style={{ marginTop: spacing.sm }}>
             <CategoryPicker value={category} onChange={setCategory} />
           </View>
+          {category === 'other' ? (
+            <TextInput
+              value={customCategoryLabel}
+              onChangeText={setCustomCategoryLabel}
+              placeholder="Specify (e.g. Gift, Pet supplies)"
+              placeholderTextColor={colors.text3}
+              style={[
+                styles.input,
+                { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2, marginTop: spacing.sm },
+              ]}
+            />
+          ) : null}
         </View>
 
         <View>

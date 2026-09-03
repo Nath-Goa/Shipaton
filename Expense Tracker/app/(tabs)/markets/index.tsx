@@ -14,6 +14,7 @@ import { StockListItem } from '@/components/stocks/StockListItem';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
+import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { springs, triggerHaptic } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
@@ -157,6 +158,13 @@ export default function MarketsScreen() {
           />
         </View>
       </Animated.View>
+      <View style={styles.bannerWrap}>
+        <UpgradeBanner
+          title="Unlock full forecasts"
+          body="Upgrade to Pro for price-range forecasts, live sentiment, and deep pattern analysis."
+          delay={40}
+        />
+      </View>
       <Animated.View entering={FadeInDown.delay(60).springify().damping(16)} style={styles.actionsRow}>
         <MarketActionBtn
           icon="flask-outline"
@@ -214,6 +222,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   searchInput: { flex: 1, paddingVertical: 10, fontSize: 14 },
+  bannerWrap: { paddingHorizontal: spacing.xl, marginBottom: spacing.sm },
   actionsRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, marginBottom: spacing.md },
   actionBtn: {
     flex: 1,

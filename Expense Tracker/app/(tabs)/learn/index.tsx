@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
+import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { badgeInfo } from '@/constants/badges';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { spacing } from '@/constants/theme';
@@ -96,6 +97,12 @@ export default function LearnScreen() {
             </View>
           </Card>
         </Animated.View>
+
+        <UpgradeBanner
+          title="Upgrade for more AI actions"
+          body="Pro and Max raise your daily AI limit for quizzes, challenges, and the analyst."
+          delay={40}
+        />
 
         {badges.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(60).springify().damping(16)} style={styles.badgeRow}>

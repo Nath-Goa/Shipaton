@@ -13,6 +13,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
 import { TopBar } from '@/components/ui/TopBar';
+import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { CATEGORIES, categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -183,6 +184,12 @@ export default function ExpensesScreen() {
                 ))}
               </ScrollView>
             </Animated.View>
+
+            <UpgradeBanner
+              title="Never miss a receipt"
+              body="Upgrade to Pro for AI receipt auto-fill and zero ads."
+              delay={40}
+            />
 
             <Animated.View entering={FadeInDown.delay(70).springify().damping(16)} style={styles.statsRow}>
               <StatTile label="Total spending" value={money(total)} sub={`${count} expense${count === 1 ? '' : 's'}`} />

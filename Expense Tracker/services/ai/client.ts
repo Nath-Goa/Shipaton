@@ -3,6 +3,7 @@ import type { ReceiptExtraction } from '@/services/ai/prompts';
 import * as claude from '@/services/ai/providers/claude';
 import * as gemini from '@/services/ai/providers/gemini';
 import * as openai from '@/services/ai/providers/openai';
+import * as openrouter from '@/services/ai/providers/openrouter';
 import { parseJsonResponse } from '@/services/ai/providers/shared';
 import { useAiUsageStore } from '@/store/useAiUsageStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -61,6 +62,69 @@ export function hasSharedFallback(): boolean {
   return !!FALLBACK_API_KEY;
 }
 
+// Second, optional shared fallback (text-only) — when configured, every
+// text-based AI feature races it against Gemini and uses whichever
+// responds successfully first, so one provider having a slow/busy moment
+// doesn't slow the user down. Always runs a live-verified free model (see
+// openRouterModels.ts) — never the personal-key model override, and never
+// used for receipt image extraction (free OpenRouter models are often
+// text-only — that always goes straight to Gemini).
+const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_SHARED_OPENROUTER_API_KEY?.trim() || undefined;
+
+export function hasOpenRouterFallback(): boolean {
+  return !!OPENROUTER_API_KEY;
+}
+
+// There's no backend/queue behind this app — every install talks directly
+// to the AI provider, so a real cross-user "Max gets served before Free"
+// priority queue isn't something a client-only app can implement. What IS
+// feasible client-side: give higher tiers more automatic attempts when the
+// shared key gets rate-limited (Gemini briefly saturated), so a Max user
+// is meaningfully more likely to get through during a busy moment than a
+// Free user, who gets none. This is an approximation, not real prioritization.
+const SHARED_KEY_RETRIES: Record<'free' | 'pro' | 'max', number> = { free: 0, pro: 1, max: 3 };
+const RETRY_BASE_DELAY_MS = 700;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Resolves to the first successful result among `runners`; if every one
+// fails, resolves to whichever failure settled last. Used to race Gemini
+// against OpenRouter — both fire immediately, and whichever answers first
+// (successfully) wins, so a slow/busy moment on one provider doesn't slow
+// the user down. Both requests still run to completion in the background
+// even after one wins; there's no cancellation, so racing does cost both
+// providers' quota for that call, not just the winner's.
+function raceFirstSuccess<T>(runners: Promise<AiResult<T>>[]): Promise<AiResult<T>> {
+  return new Promise((resolve) => {
+    let remaining = runners.length;
+    let lastResult: AiResult<T>;
+    for (const runner of runners) {
+      runner.then((result) => {
+        remaining--;
+        lastResult = result;
+        if (result.ok || remaining === 0) resolve(result.ok ? result : lastResult);
+      });
+    }
+  });
+}
+
+async function callGeminiWithRetry<T>(
+  call: (client: ProviderClient, apiKey: string, model: string | undefined) => Promise<AiResult<T>>,
+  tier: 'free' | 'pro' | 'max'
+): Promise<AiResult<T>> {
+  const maxRetries = SHARED_KEY_RETRIES[tier];
+  let attempt = 0;
+  let result: AiResult<T>;
+  for (;;) {
+    result = await call(clientFor(FALLBACK_PROVIDER), FALLBACK_API_KEY!, undefined);
+    if (result.ok || result.error.type !== 'rate_limited' || attempt >= maxRetries) return result;
+    attempt++;
+    await sleep(RETRY_BASE_DELAY_MS * attempt);
+  }
+}
+
 // Central key/model/quota resolution, shared by every public function below.
 // `call` invokes whichever method (sendChatMessage / extractReceiptFromImage)
 // the caller needs against a resolved provider client.
@@ -79,13 +143,15 @@ export function hasSharedFallback(): boolean {
 //    key below rather than surfacing the error — any other error type is
 //    returned as-is, since retrying those against a different key wouldn't
 //    reflect what actually went wrong.
-// 3. The shared key is checked against the unified daily quota
+// 3. The shared key(s) are checked against the unified daily quota
 //    (AI_FEATURE_DAILY_LIMIT[tier], see constants/subscription.ts) before
-//    every call, and always runs the fallback provider's default model.
-//    Usage is recorded only on a successful call.
+//    every call. Gemini gets tier-based automatic retries on a rate limit
+//    (see callGeminiWithRetry); if `raceEligible` and OpenRouter is
+//    configured, both run concurrently and the first success wins.
+//    Usage is recorded only on a successful call, once.
 async function withResolvedKey<T>(
   call: (client: ProviderClient, apiKey: string, model: string | undefined) => Promise<AiResult<T>>,
-  opts: { applyCustomModel: boolean }
+  opts: { applyCustomModel: boolean; raceEligible?: boolean }
 ): Promise<AiResult<T>> {
   const settings = useSettingsStore.getState();
   const provider = settings.aiProvider;
@@ -110,7 +176,14 @@ async function withResolvedKey<T>(
     return { ok: false, error: { type: 'quota_exceeded' } };
   }
 
-  const result = await call(clientFor(FALLBACK_PROVIDER), FALLBACK_API_KEY, undefined);
+  const result =
+    opts.raceEligible && OPENROUTER_API_KEY
+      ? await raceFirstSuccess([
+          callGeminiWithRetry(call, tier),
+          call(openrouter, OPENROUTER_API_KEY, undefined),
+        ])
+      : await callGeminiWithRetry(call, tier);
+
   if (result.ok) useAiUsageStore.getState().recordUsage();
   return result;
 }
@@ -123,10 +196,12 @@ export async function sendChatMessage(
 ): Promise<AiResult<string>> {
   return withResolvedKey<string>(
     (client, apiKey, model) => client.sendChatMessage(systemPrompt, history, apiKey, model),
-    { applyCustomModel: true }
+    { applyCustomModel: true, raceEligible: true }
   );
 }
 
+// Never race-eligible: free OpenRouter models are frequently text-only, so
+// image extraction always goes straight to Gemini (see openrouter.ts).
 export async function extractReceiptFromImage(base64: string, mimeType: string): Promise<AiResult<ReceiptExtraction>> {
   return withResolvedKey<ReceiptExtraction>(
     (client, apiKey, model) => client.extractReceiptFromImage(base64, mimeType, apiKey, model),
@@ -142,7 +217,7 @@ export async function extractReceiptFromImage(base64: string, mimeType: string):
 export async function sendStructuredPrompt<T>(systemPrompt: string, userPrompt: string): Promise<AiResult<T>> {
   const result = await withResolvedKey<string>(
     (client, apiKey, model) => client.sendChatMessage(systemPrompt, [{ role: 'user', text: userPrompt }], apiKey, model),
-    { applyCustomModel: false }
+    { applyCustomModel: false, raceEligible: true }
   );
   if (!result.ok) return result;
   return parseJsonResponse<T>(result.data);

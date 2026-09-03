@@ -19,9 +19,19 @@ type Props = {
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 };
 
-export function EmptyState({ icon = '📭', title, message, actionLabel, onAction }: Props) {
+export function EmptyState({
+  icon = '📭',
+  title,
+  message,
+  actionLabel,
+  onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
+}: Props) {
   const { colors } = useTheme();
   const translateY = useSharedValue(0);
 
@@ -55,8 +65,11 @@ export function EmptyState({ icon = '📭', title, message, actionLabel, onActio
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       {message ? <Text style={[styles.message, { color: colors.text3 }]}>{message}</Text> : null}
       {actionLabel && onAction ? (
-        <View style={{ marginTop: spacing.md }}>
+        <View style={{ marginTop: spacing.md, gap: spacing.sm, alignItems: 'center' }}>
           <Button label={actionLabel} variant="ghost" onPress={onAction} />
+          {secondaryActionLabel && onSecondaryAction ? (
+            <Button label={secondaryActionLabel} variant="ghost" onPress={onSecondaryAction} />
+          ) : null}
         </View>
       ) : null}
     </Animated.View>
