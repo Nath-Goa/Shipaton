@@ -1,0 +1,38 @@
+name: EAS Build (Android)
+
+# Manual trigger only (not on every push) — this repo has more than one
+# contributor, and EAS's free tier has a limited number of builds per
+# month, so builds shouldn't fire on every unrelated commit. Run it from
+# the Actions tab ("Run workflow"), from GitHub mobile, or ask Claude to
+# trigger it.
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: eas-build-android
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "Expense Tracker"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK on EAS
+        run: eas build --platform android --profile preview --non-interactive --no-wait
