@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { DonutChart } from '@/components/charts/DonutChart';
 import { ExpenseListItem } from '@/components/expenses/ExpenseListItem';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -15,6 +16,8 @@ import { TopBar } from '@/components/ui/TopBar';
 import { CATEGORIES, categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { describeAiError } from '@/services/ai/errorMessage';
+import { generateSpendingInsight, type SpendingInsight } from '@/services/ai/insights';
 import { shareExpensesCsv } from '@/services/export/exportData';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -40,11 +43,19 @@ export default function ExpensesScreen() {
   const [preset, setPreset] = useState<Preset>('all');
   const [highlight, setHighlight] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [insight, setInsight] = useState<SpendingInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
 
   useEffect(() => {
     seedIfNeeded();
     generateDueRecurring();
   }, [seedIfNeeded, generateDueRecurring]);
+
+  useEffect(() => {
+    setInsight(null);
+    setInsightError(null);
+  }, [preset]);
 
   const filtered = useMemo(() => {
     if (preset === 'all') return expenses;
@@ -110,6 +121,24 @@ export default function ExpensesScreen() {
   async function handleExport() {
     const result = await shareExpensesCsv(sorted);
     if (!result.ok) showToast(result.message);
+  }
+
+  async function handleGetInsight() {
+    setInsightLoading(true);
+    setInsightError(null);
+    const payload = JSON.stringify({
+      period: PRESETS.find((p) => p.value === preset)?.label,
+      total: Number(total.toFixed(2)),
+      expenseCount: count,
+      byCategory: byCategory.filter((c) => c.value > 0).map((c) => ({ category: c.label, amount: Number(c.value.toFixed(2)) })),
+    });
+    const result = await generateSpendingInsight(payload);
+    setInsightLoading(false);
+    if (!result.ok) {
+      setInsightError(describeAiError(result.error));
+      return;
+    }
+    setInsight(result.data);
   }
 
   function onLongPressExpense(expense: Expense) {
@@ -203,6 +232,31 @@ export default function ExpensesScreen() {
               </Card>
             </Animated.View>
 
+            {total > 0 ? (
+              <Animated.View entering={FadeInDown.delay(180).springify().damping(16)}>
+                <Card>
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>AI spending insight</Text>
+                  {!insight ? (
+                    <>
+                      <Text style={[styles.insightIntro, { color: colors.text3 }]}>
+                        Ask the AI for a quick take on your spending in this range.
+                      </Text>
+                      <View style={{ marginTop: spacing.md }}>
+                        <Button label="Get AI insight" variant="ghost" loading={insightLoading} onPress={handleGetInsight} />
+                      </View>
+                      {insightError ? <Text style={[styles.insightError, { color: colors.danger }]}>{insightError}</Text> : null}
+                    </>
+                  ) : (
+                    <View style={{ gap: spacing.sm }}>
+                      <Text style={[styles.insightText, { color: colors.text2 }]}>{insight.observation}</Text>
+                      <Text style={[styles.insightTip, { color: colors.accent }]}>💡 {insight.tip}</Text>
+                      <Button label="Refresh" variant="ghost" loading={insightLoading} onPress={handleGetInsight} />
+                    </View>
+                  )}
+                </Card>
+              </Animated.View>
+            ) : null}
+
             <Text style={[styles.cardTitle, { color: colors.text, marginTop: spacing.sm }]}>
               Expenses <Text style={{ color: colors.text3 }}>({sorted.length})</Text>
             </Text>
@@ -245,6 +299,10 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: spacing.md },
   breakdown: { alignItems: 'center', gap: spacing.lg },
+  insightIntro: { fontSize: 13, lineHeight: 18, marginTop: 2 },
+  insightText: { fontSize: 13.5, lineHeight: 19 },
+  insightTip: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  insightError: { fontSize: 12.5, fontWeight: '600', marginTop: spacing.sm },
   legend: { width: '100%', gap: 8 },
   legendItem: { fontSize: 13 },
   dayHead: {

@@ -17,12 +17,11 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
 import { badgeInfo } from '@/constants/badges';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
-import { TIER_FEATURES } from '@/constants/subscription';
 import { spacing } from '@/constants/theme';
+import { useAiQuota } from '@/hooks/useAiQuota';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
-import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { todayStr } from '@/utils/date';
 
@@ -55,25 +54,23 @@ function FlameIcon() {
 
 export default function LearnScreen() {
   const { colors } = useTheme();
-  const tier = useSettingsStore((s) => s.tier);
   const upgradeToTier = useUpgradeToTier();
-  const features = TIER_FEATURES[tier];
-  const { topicProgress, getDueTopic, getNextNewTopic, attempts } = useQuizStore();
-  const { streakDays, badges, getNarrativeCompletionsToday } = useStreakStore();
+  const { topicProgress, getDueTopic, getNextNewTopic } = useQuizStore();
+  const { streakDays, badges } = useStreakStore();
+  // Quizzes and the daily challenge draw from the same unified AI quota as
+  // every other AI feature (see hooks/useAiQuota) — a working personal key
+  // is unlimited, otherwise both share one "X left today" count.
+  const { remaining: aiRemaining, locked: aiLocked } = useAiQuota();
 
   const dueTopic = getDueTopic();
   const newTopic = getNextNewTopic();
   const nextTopic = dueTopic ?? newTopic;
   const isReview = !!dueTopic;
 
-  const quizzesToday = useMemo(() => attempts.filter((a) => a.date === todayStr()).length, [attempts]);
-  const quizRemaining = features.quizDailyLimit === null ? null : Math.max(0, features.quizDailyLimit - quizzesToday);
-  const quizLocked = quizRemaining !== null && quizRemaining <= 0;
-
-  const narrativesToday = getNarrativeCompletionsToday();
-  const narrativeRemaining =
-    features.narrativeDailyLimit === null ? null : Math.max(0, features.narrativeDailyLimit - narrativesToday);
-  const narrativeLocked = narrativeRemaining !== null && narrativeRemaining <= 0;
+  const quizRemaining = aiRemaining;
+  const quizLocked = aiLocked;
+  const narrativeRemaining = aiRemaining;
+  const narrativeLocked = aiLocked;
 
   const topicsByCategory = useMemo(() => {
     const groups: Record<string, typeof QUIZ_TOPICS> = {};
@@ -122,7 +119,7 @@ export default function LearnScreen() {
                 </Text>
                 <View style={{ marginTop: spacing.md }}>
                   {quizLocked ? (
-                    <Button label="Upgrade for unlimited quizzes" variant="ghost" onPress={() => upgradeToTier('pro')} />
+                    <Button label="Upgrade for more AI actions" variant="ghost" onPress={() => upgradeToTier('pro')} />
                   ) : (
                     <Button
                       label={isReview ? 'Review now' : 'Start quiz'}
@@ -150,7 +147,7 @@ export default function LearnScreen() {
             </Text>
             <View style={{ marginTop: spacing.md }}>
               {narrativeLocked ? (
-                <Button label="Upgrade for unlimited challenges" variant="ghost" onPress={() => upgradeToTier('pro')} />
+                <Button label="Upgrade for more AI actions" variant="ghost" onPress={() => upgradeToTier('pro')} />
               ) : (
                 <Button label="Take the challenge" variant="ghost" onPress={() => router.push('/learn/narrative')} />
               )}

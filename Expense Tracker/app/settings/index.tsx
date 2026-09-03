@@ -63,7 +63,10 @@ export default function SettingsScreen() {
       () => {
         resetAllPortfolios();
         useExpenseStore.setState({ expenses: [], hasSeeded: true, lastDeleted: null });
-        useChatStore.setState({ threads: {}, dailyUsage: { date: '', count: 0 } });
+        // Chat threads are content, so they reset here — the daily AI quota
+        // (store/useAiUsageStore.ts) deliberately isn't touched, or this
+        // button would double as a way to bypass the free-tier daily limit.
+        useChatStore.setState({ threads: {} });
       }
     );
   }

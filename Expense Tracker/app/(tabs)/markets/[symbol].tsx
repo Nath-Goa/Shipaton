@@ -29,6 +29,7 @@ import { spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
+import { describeAiError } from '@/services/ai/errorMessage';
 import { detectPatterns } from '@/services/ai/learn';
 import { computeDirectionCall, computeForecastBand, computeSentiment } from '@/services/market/signals';
 import { getFullHistory, getHistory, subscribeLiveQuote } from '@/services/marketData/marketData';
@@ -138,13 +139,7 @@ export default function StockDetailScreen() {
     const result = await detectPatterns(symbol, fullHistory);
     setPatternLoading(false);
     if (!result.ok) {
-      const msg =
-        result.error.type === 'missing_key'
-          ? 'Add your API key in Settings first.'
-          : result.error.type === 'invalid_key'
-            ? 'That API key was rejected — check it in Settings.'
-            : result.error.message || 'Could not run pattern analysis.';
-      setPatternError(msg);
+      setPatternError(describeAiError(result.error));
       return;
     }
     setPatternResult(result.data);

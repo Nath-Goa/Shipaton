@@ -13,44 +13,32 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar } from '@/components/ui/TopBar';
 import { badgeInfo } from '@/constants/badges';
 import { spacing } from '@/constants/theme';
-import { TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
+import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
+import { useAiQuota } from '@/hooks/useAiQuota';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { hasSharedFallback, sendChatMessage } from '@/services/ai/client';
+import { describeAiError } from '@/services/ai/errorMessage';
 import { buildAnalystSystemPrompt } from '@/services/ai/prompts';
 import { useChatStore } from '@/store/useChatStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
-import type { AiError } from '@/types/ai';
 import type { ChatMessage, ThreadKey } from '@/types/chat';
 import { uid } from '@/utils/id';
-
-function errorMessage(error: AiError): string {
-  switch (error.type) {
-    case 'missing_key':
-      return 'Add your API key in Settings to start chatting.';
-    case 'invalid_key':
-      return 'That API key was rejected. Check it in Settings.';
-    case 'rate_limited':
-      return 'Rate limited by the provider — try again in a moment.';
-    case 'network':
-      return "Couldn't reach the API. Check your connection.";
-    default:
-      return error.message || 'Something went wrong.';
-  }
-}
 
 export default function AssistantScreen() {
   const { symbol: paramSymbol } = useLocalSearchParams<{ symbol?: string }>();
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
+  const aiProvider = useSettingsStore((s) => s.aiProvider);
+  const keyBroken = useSettingsStore((s) => !!s.brokenKeyProviders[aiProvider]);
   const upgradeToTier = useUpgradeToTier();
-  const features = TIER_FEATURES[tier];
   const { hasKey } = useHasApiKey();
-  const { threads, addMessage, remainingToday, recordUsage } = useChatStore();
+  const { remaining, locked: quotaExhausted } = useAiQuota();
+  const { threads, addMessage } = useChatStore();
   const recordAnalystQuestion = useStreakStore((s) => s.recordAnalystQuestion);
   const showToast = useToastStore((s) => s.show);
 
@@ -69,8 +57,6 @@ export default function AssistantScreen() {
   }, [threads, paramSymbol]);
 
   const messages = threads[activeThread] ?? [];
-  const remaining = remainingToday(features.assistantDailyLimit);
-  const quotaExhausted = remaining !== null && remaining <= 0;
 
   async function handleSend(text: string) {
     const userMessage: ChatMessage = { id: uid(), role: 'user', text, createdAt: Date.now() };
@@ -86,14 +72,13 @@ export default function AssistantScreen() {
 
     if (result.ok) {
       addMessage(activeThread, { id: uid(), role: 'assistant', text: result.data, createdAt: Date.now() });
-      recordUsage();
       const earned = recordAnalystQuestion();
       if (earned.length) showToast(`${badgeInfo(earned[0]).icon} Badge earned: ${badgeInfo(earned[0]).label}`);
     } else {
       addMessage(activeThread, {
         id: uid(),
         role: 'assistant',
-        text: errorMessage(result.error),
+        text: describeAiError(result.error),
         createdAt: Date.now(),
         isError: true,
       });
@@ -149,19 +134,23 @@ export default function AssistantScreen() {
           ) : quotaExhausted ? (
             <View style={styles.gate}>
               <Text style={[styles.gateText, { color: colors.text3 }]}>
-                Daily limit reached on {TIER_LABELS[tier]}. Upgrade for unlimited messages.
+                {TIER_LABELS[tier]} hit its daily AI limit on the built-in key. Upgrade for more, or add your own API key for unlimited use.
               </Text>
               <Button label="Upgrade" onPress={() => upgradeToTier('pro')} />
             </View>
           ) : (
             <>
-              {hasKey === false ? (
+              {keyBroken ? (
+                <Text style={[styles.sharedHint, { color: colors.warning }]}>
+                  Your saved API key isn't working — using the built-in key for now.
+                </Text>
+              ) : hasKey === false ? (
                 <Text style={[styles.sharedHint, { color: colors.text3 }]}>
                   Using a shared free key — add your own in Settings for faster, better responses.
                 </Text>
               ) : null}
               {remaining !== null ? (
-                <Text style={[styles.quota, { color: colors.text3 }]}>{remaining} message{remaining === 1 ? '' : 's'} left today</Text>
+                <Text style={[styles.quota, { color: colors.text3 }]}>{remaining} AI action{remaining === 1 ? '' : 's'} left today</Text>
               ) : null}
               <ChatComposer onSend={handleSend} loading={loading} />
             </>

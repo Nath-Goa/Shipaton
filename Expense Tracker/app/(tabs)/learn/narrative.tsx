@@ -19,6 +19,8 @@ import { springs, triggerHaptic } from '@/constants/animations';
 import { QUIZ_TOPICS } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
+import { describeAiError, aiErrorNeedsUpgrade } from '@/services/ai/errorMessage';
 import { generateNarrative } from '@/services/ai/learn';
 import { useActivePortfolio } from '@/store/usePortfolioStore';
 import { useStreakStore } from '@/store/useStreakStore';
@@ -101,10 +103,12 @@ export default function NarrativeScreen() {
   const { holdings } = useActivePortfolio();
   const recordNarrativeCompleted = useStreakStore((s) => s.recordNarrativeCompleted);
   const showToast = useToastStore((s) => s.show);
+  const upgradeToTier = useUpgradeToTier();
 
   const [scenario, setScenario] = useState<NarrativeScenario | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorNeedsUpgrade, setErrorNeedsUpgrade] = useState(false);
   const [chosenIndex, setChosenIndex] = useState<number | null>(null);
 
   const portfolioContext = useMemo(() => {
@@ -122,13 +126,8 @@ export default function NarrativeScreen() {
       if (!alive) return;
       setLoading(false);
       if (!result.ok) {
-        const msg =
-          result.error.type === 'missing_key'
-            ? 'Add your API key in Settings to generate a challenge.'
-            : result.error.type === 'invalid_key'
-              ? 'That API key was rejected — check it in Settings.'
-              : result.error.message || 'Could not generate a scenario.';
-        setError(msg);
+        setError(describeAiError(result.error));
+        setErrorNeedsUpgrade(aiErrorNeedsUpgrade(result.error));
         return;
       }
       setScenario(result.data);
@@ -161,8 +160,8 @@ export default function NarrativeScreen() {
             icon="⚠️"
             title="Couldn't generate a scenario"
             message={error}
-            actionLabel="Open Settings"
-            onAction={() => router.push('/settings')}
+            actionLabel={errorNeedsUpgrade ? 'Upgrade' : 'Open Settings'}
+            onAction={errorNeedsUpgrade ? () => upgradeToTier('pro') : () => router.push('/settings')}
           />
         ) : scenario ? (
           <>

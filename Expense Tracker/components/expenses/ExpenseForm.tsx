@@ -10,9 +10,11 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
+import { useAiQuota } from '@/hooks/useAiQuota';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
-import { extractReceiptFromImage, hasSharedFallback } from '@/services/ai/client';
+import { extractReceiptFromImage } from '@/services/ai/client';
+import { describeAiError } from '@/services/ai/errorMessage';
 import { captureReceiptFromCamera, deleteReceiptFile, pickReceiptFromLibrary } from '@/services/receipts/capture';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import type { RecurringFrequency } from '@/types/expense';
@@ -45,6 +47,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
   const { hasKey } = useHasApiKey();
+  const { locked: aiLocked } = useAiQuota();
 
   const [desc, setDesc] = useState(initial?.desc ?? '');
   const [amountText, setAmountText] = useState(initial?.amount ? String(initial.amount) : '');
@@ -63,7 +66,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const [autoFilling, setAutoFilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canAutoFill = features.receiptAutoFill && (hasKey === true || hasSharedFallback());
+  const canAutoFill = features.receiptAutoFill && (hasKey === true || !aiLocked);
 
   // Backstop for a captured-but-never-submitted photo (e.g. the user backs
   // out of the form): clean it up on unmount unless the form was submitted.
@@ -98,13 +101,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
     const result = await extractReceiptFromImage(photoBase64, photoMime);
     setAutoFilling(false);
     if (!result.ok) {
-      const msg =
-        result.error.type === 'missing_key'
-          ? 'Add your API key in Settings first.'
-          : result.error.type === 'invalid_key'
-            ? 'That API key was rejected — check it in Settings.'
-            : result.error.message || 'Could not read that receipt.';
-      Alert.alert('Auto-fill failed', msg);
+      Alert.alert('Auto-fill failed', describeAiError(result.error));
       return;
     }
     const data = result.data;

@@ -27,6 +27,7 @@ type Props = {
 export function ApiKeySection({ onSaved, showHint = true }: Props) {
   const { colors } = useTheme();
   const { aiProvider, setAiProvider, customModelByProvider, setCustomModel } = useSettingsStore();
+  const keyBroken = useSettingsStore((s) => !!s.brokenKeyProviders[aiProvider]);
   const { hasKey, refresh } = useHasApiKey();
   const [keyInput, setKeyInput] = useState('');
   const [savedMask, setSavedMask] = useState<string | null>(null);
@@ -91,6 +92,11 @@ export function ApiKeySection({ onSaved, showHint = true }: Props) {
                 Leave blank to use the default ({DEFAULT_AI_MODEL[aiProvider]}).
               </Text>
             </View>
+            {keyBroken ? (
+              <Text style={[styles.brokenHint, { color: colors.warning }]}>
+                This key isn't working right now — AI features are using the built-in key instead.
+              </Text>
+            ) : null}
           </>
         ) : (
           <>
@@ -136,5 +142,6 @@ const styles = StyleSheet.create({
   maskedKey: { fontSize: 14, fontWeight: '600', marginTop: 4 },
   modelRow: { marginTop: spacing.lg },
   modelHint: { fontSize: 11.5, lineHeight: 15, marginTop: spacing.sm },
+  brokenHint: { fontSize: 11.5, lineHeight: 15, marginTop: spacing.md },
   hint: { fontSize: 12, lineHeight: 16 },
 });

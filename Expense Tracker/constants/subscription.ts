@@ -2,16 +2,13 @@ export type Tier = 'free' | 'pro' | 'max';
 
 export type FeatureFlags = {
   tier: Tier;
-  assistantDailyLimit: number | null; // null = unlimited
   forecastBand: boolean;
   liveSentiment: boolean;
   receiptAutoFill: boolean;
   adsEnabled: boolean;
   pushAlerts: boolean;
   // Learn tab gates
-  stockDetailDailyLimit: number | null; // distinct stock detail pages/day
-  quizDailyLimit: number | null;
-  narrativeDailyLimit: number | null;
+  stockDetailDailyLimit: number | null; // distinct stock detail pages/day — unrelated to AI usage
   patternDetection: boolean; // AI-powered "deep pattern analysis" on a stock
   backtesting: boolean; // historical accuracy backtest of the direction-call algorithm
   multiplePortfolios: boolean; // create/switch between more than one paper portfolio
@@ -20,49 +17,52 @@ export type FeatureFlags = {
 export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
   free: {
     tier: 'free',
-    assistantDailyLimit: 3,
     forecastBand: false,
     liveSentiment: false,
     receiptAutoFill: false,
     adsEnabled: true,
     pushAlerts: false,
     stockDetailDailyLimit: 5,
-    quizDailyLimit: 3,
-    narrativeDailyLimit: 1,
     patternDetection: false,
     backtesting: false,
     multiplePortfolios: false,
   },
   pro: {
     tier: 'pro',
-    assistantDailyLimit: null,
     forecastBand: true,
     liveSentiment: true,
     receiptAutoFill: true,
     adsEnabled: false,
     pushAlerts: true,
     stockDetailDailyLimit: null,
-    quizDailyLimit: null,
-    narrativeDailyLimit: null,
     patternDetection: true,
     backtesting: false,
     multiplePortfolios: false,
   },
   max: {
     tier: 'max',
-    assistantDailyLimit: null,
     forecastBand: true,
     liveSentiment: true,
     receiptAutoFill: true,
     adsEnabled: false,
     pushAlerts: true,
     stockDetailDailyLimit: null,
-    quizDailyLimit: null,
-    narrativeDailyLimit: null,
     patternDetection: true,
     backtesting: true,
     multiplePortfolios: true,
   },
+};
+
+// Every AI feature — chat, quizzes, daily challenges, pattern detection,
+// receipt auto-fill, spending insights — draws from ONE daily pool per tier,
+// but ONLY while running on the shared free-tier key (services/ai/client.ts
+// never checks this against a working personal key, which is unlimited).
+// Kept deliberately well under the shared Gemini key's own ~1500 msgs/day
+// cap even at Max, so no single device can starve everyone else on it.
+export const AI_FEATURE_DAILY_LIMIT: Record<Tier, number> = {
+  free: 10,
+  pro: 50,
+  max: 250,
 };
 
 export const TIER_LABELS: Record<Tier, string> = {
@@ -106,9 +106,8 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Unlimited mock trading with paper money',
     'Direction call only (up / down / flat)',
     '5 stock detail lookups/day',
-    'Ask the analyst — 3 messages/day',
+    `${AI_FEATURE_DAILY_LIMIT.free} AI actions/day (chat, quizzes, challenges) on the built-in key — unlimited with your own API key`,
     '24h-delayed sentiment score',
-    '3 quizzes/day, 1 daily challenge/day',
     'Expense tracker with photo receipts',
   ],
   pro: [
@@ -116,14 +115,15 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Unlimited stock lookups',
     'Full 7-day & 30-day price-range forecasts',
     'Real-time sentiment score + top headlines',
-    'Unlimited analyst chat',
+    `${AI_FEATURE_DAILY_LIMIT.pro} AI actions/day on the built-in key — unlimited with your own API key`,
     'AI-powered deep pattern analysis',
-    'Unlimited quizzes & daily challenges',
     'Receipt "Auto-fill with AI"',
+    'AI spending insights on your expenses',
     'Zero ads',
   ],
   max: [
     'Everything in Pro',
+    `${AI_FEATURE_DAILY_LIMIT.max} AI actions/day on the built-in key — unlimited with your own API key`,
     'Historical backtesting — test the direction-call algorithm against past mock data and see its hit rate',
     // Keep this number in sync with MAX_PORTFOLIOS in store/usePortfolioStore.ts.
     'Up to 5 paper-trading portfolios, so you can run separate strategies side by side',

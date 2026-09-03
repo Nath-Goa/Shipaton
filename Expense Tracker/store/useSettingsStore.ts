@@ -22,6 +22,12 @@ type SettingsState = {
   // falling back to the shared free-tier key, so that key's cost/behavior
   // stays fixed to DEFAULT_AI_MODEL regardless of any device's overrides.
   customModelByProvider: Partial<Record<AiProvider, string>>;
+  // Set when a personal key's last attempt failed with "invalid_key" —
+  // services/ai/client.ts silently falls back to the shared key when this
+  // happens rather than erroring out, and the UI shows a small, non-blocking
+  // notice (not an alert/toast) rather than interrupting the user. Cleared
+  // automatically the next time that provider's personal key succeeds.
+  brokenKeyProviders: Partial<Record<AiProvider, boolean>>;
   // User's intent, not proof of OS permission — the actual scheduling in
   // services/notifications/notifications.ts also checks/requests permission.
   notificationsEnabled: boolean;
@@ -31,6 +37,8 @@ type SettingsState = {
   completeOnboarding: () => void;
   setAiProvider: (provider: AiProvider) => void;
   setCustomModel: (provider: AiProvider, model: string) => void;
+  markKeyBroken: (provider: AiProvider) => void;
+  clearKeyBroken: (provider: AiProvider) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
 };
 
@@ -43,6 +51,7 @@ export const useSettingsStore = create<SettingsState>()(
       onboardingComplete: false,
       aiProvider: 'claude',
       customModelByProvider: {},
+      brokenKeyProviders: {},
       notificationsEnabled: false,
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentColor: (accentColor) => set({ accentColor }),
@@ -51,6 +60,14 @@ export const useSettingsStore = create<SettingsState>()(
       setAiProvider: (aiProvider) => set({ aiProvider }),
       setCustomModel: (provider, model) =>
         set((s) => ({ customModelByProvider: { ...s.customModelByProvider, [provider]: model.trim() } })),
+      markKeyBroken: (provider) => set((s) => ({ brokenKeyProviders: { ...s.brokenKeyProviders, [provider]: true } })),
+      clearKeyBroken: (provider) =>
+        set((s) => {
+          if (!s.brokenKeyProviders[provider]) return s;
+          const next = { ...s.brokenKeyProviders };
+          delete next[provider];
+          return { brokenKeyProviders: next };
+        }),
       setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
     }),
     {

@@ -77,6 +77,19 @@ export function buildPatternDetectionPrompt(): string {
   ].join('\n');
 }
 
+// --- Expenses: AI spending insight ---
+
+export function buildSpendingInsightPrompt(): string {
+  return [
+    "You are a friendly personal-finance tutor inside an expense-tracking app. You'll be given a JSON payload summarizing the user's spending over a period: a total, an expense count, and a breakdown by category.",
+    'Write one brief, specific observation about their spending pattern (e.g. a category that dominates, an imbalance, a notable average) and one concrete, actionable tip — encouraging, never judgmental or preachy.',
+    'Keep both fields short: 1-2 plain-language sentences each, no jargon.',
+    "Never invent numbers not present in the payload — reference only what's given. If the payload has very little data (few expenses), say so plainly instead of overreaching.",
+    'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
+    '{"observation": string, "tip": string}',
+  ].join('\n');
+}
+
 export function buildNarrativePrompt(scenarioType: ScenarioType, difficulty: Difficulty, portfolioContext?: string): string {
   const scenarioLabel: Record<ScenarioType, string> = {
     market_crash: 'a sudden market crash or flash-crash event',

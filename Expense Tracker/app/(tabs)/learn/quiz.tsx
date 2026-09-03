@@ -20,6 +20,8 @@ import { springs, triggerHaptic } from '@/constants/animations';
 import { quizTopicOf } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
+import { describeAiError, aiErrorNeedsUpgrade } from '@/services/ai/errorMessage';
 import { generateQuiz } from '@/services/ai/learn';
 import { useQuizStore } from '@/store/useQuizStore';
 import { useStreakStore } from '@/store/useStreakStore';
@@ -93,6 +95,7 @@ export default function QuizScreen() {
   const { getProgressFor, recordAttempt } = useQuizStore();
   const recordQuizActivity = useStreakStore((s) => s.recordQuizActivity);
   const showToast = useToastStore((s) => s.show);
+  const upgradeToTier = useUpgradeToTier();
 
   const topicMeta = quizTopicOf(topic ?? '');
   const difficulty = getProgressFor(topic ?? '')?.currentDifficulty ?? 'easy';
@@ -100,6 +103,7 @@ export default function QuizScreen() {
   const [question, setQuestion] = useState<QuizQuestion | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorNeedsUpgrade, setErrorNeedsUpgrade] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -111,13 +115,8 @@ export default function QuizScreen() {
       if (!alive) return;
       setLoading(false);
       if (!result.ok) {
-        const msg =
-          result.error.type === 'missing_key'
-            ? 'Add your API key in Settings to generate quizzes.'
-            : result.error.type === 'invalid_key'
-              ? 'That API key was rejected — check it in Settings.'
-              : result.error.message || 'Could not generate a question.';
-        setError(msg);
+        setError(describeAiError(result.error));
+        setErrorNeedsUpgrade(aiErrorNeedsUpgrade(result.error));
         return;
       }
       setQuestion(result.data);
@@ -167,8 +166,8 @@ export default function QuizScreen() {
             icon="⚠️"
             title="Couldn't generate a question"
             message={error}
-            actionLabel="Open Settings"
-            onAction={() => router.push('/settings')}
+            actionLabel={errorNeedsUpgrade ? 'Upgrade' : 'Open Settings'}
+            onAction={errorNeedsUpgrade ? () => upgradeToTier('pro') : () => router.push('/settings')}
           />
         ) : question ? (
           <>
