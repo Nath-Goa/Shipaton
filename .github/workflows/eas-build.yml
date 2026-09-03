@@ -28,11 +28,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set up EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      # Installed directly with npm rather than via expo/expo-github-action,
+      # whose own yarn-based install step was failing on this runner image.
+      - name: Install eas-cli
+        run: npm install --global eas-cli
 
       - name: Build Android APK on EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile preview --non-interactive --no-wait
