@@ -4,7 +4,8 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 
 export function useTheme(): { scheme: 'light' | 'dark'; colors: Palette } {
   const mode = useSettingsStore((s) => s.themeMode);
+  const accentColor = useSettingsStore((s) => s.accentColor);
   const systemScheme = useColorScheme();
   const scheme: 'light' | 'dark' = mode === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : mode;
-  return { scheme, colors: paletteFor(scheme) };
+  return { scheme, colors: paletteFor(scheme, accentColor) };
 }

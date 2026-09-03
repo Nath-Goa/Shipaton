@@ -115,6 +115,22 @@ export async function fetchCurrentTier(): Promise<Tier | null> {
   }
 }
 
+// The date the customer's current paid entitlement first started (survives
+// renewals — this is the original purchase, not the latest one). Returns
+// null for Free (no active entitlement) or when RevenueCat isn't configured
+// (demo mode has no real subscription to date).
+export async function fetchSubscriptionSince(): Promise<Date | null> {
+  if (!configured) return null;
+  try {
+    const info = await Purchases.getCustomerInfo();
+    const active = info.entitlements.active;
+    const entitlement = active[ENTITLEMENT_MAX] ?? active[ENTITLEMENT_PRO] ?? active[ENTITLEMENT_APP];
+    return entitlement ? new Date(entitlement.originalPurchaseDate) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Fires on every entitlement change — purchase, renewal, expiration,
 // restore, or a refund processed server-side. Returns an unsubscribe fn.
 export function subscribeTierChanges(onTier: (tier: Tier) => void): () => void {

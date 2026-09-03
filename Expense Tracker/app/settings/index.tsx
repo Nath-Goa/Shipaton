@@ -1,21 +1,23 @@
 import { router } from 'expo-router';
-import { type ReactNode } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { spacing } from '@/constants/theme';
-import { TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
+import { radius, spacing } from '@/constants/theme';
+import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import {
   disableAllReminders,
   requestNotificationPermission,
   scheduleDailyReminder,
 } from '@/services/notifications/notifications';
+import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useChatStore } from '@/store/useChatStore';
@@ -29,9 +31,11 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 ];
 
 export default function SettingsScreen() {
-  const { themeMode, setThemeMode, tier, notificationsEnabled, setNotificationsEnabled } = useSettingsStore();
+  const { themeMode, setThemeMode, accentColor, setAccentColor, tier, notificationsEnabled, setNotificationsEnabled } =
+    useSettingsStore();
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
   const features = TIER_FEATURES[tier];
+  const [planModalOpen, setPlanModalOpen] = useState(false);
 
   async function handleToggleNotifications(next: boolean) {
     if (!next) {
@@ -68,7 +72,7 @@ export default function SettingsScreen() {
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Section title="Plan">
-          <PlanCard tier={tier} />
+          <PlanCard tier={tier} onManage={() => setPlanModalOpen(true)} />
           <View style={{ marginTop: spacing.md }}>
             <Button label="Change plan" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
           </View>
@@ -76,6 +80,9 @@ export default function SettingsScreen() {
 
         <Section title="Appearance">
           <SegmentedControl options={THEME_OPTIONS} value={themeMode} onChange={setThemeMode} />
+          <View style={{ marginTop: spacing.lg }}>
+            <AccentColorPicker value={accentColor} onChange={setAccentColor} />
+          </View>
         </Section>
 
         <Section title="AI provider" subtitle="Bring your own API key — stored only on this device.">
@@ -94,6 +101,8 @@ export default function SettingsScreen() {
           <Button label="Reset all app data" variant="danger" onPress={resetAllData} />
         </Section>
       </ScrollView>
+
+      <PlanDetailsModal visible={planModalOpen} tier={tier} onClose={() => setPlanModalOpen(false)} />
     </Screen>
   );
 }
@@ -123,7 +132,7 @@ function LockedNotificationsRow() {
   );
 }
 
-function PlanCard({ tier }: { tier: keyof typeof TIER_LABELS }) {
+function PlanCard({ tier, onManage }: { tier: keyof typeof TIER_LABELS; onManage: () => void }) {
   const { colors } = useTheme();
   return (
     <Card style={styles.planRow}>
@@ -131,8 +140,68 @@ function PlanCard({ tier }: { tier: keyof typeof TIER_LABELS }) {
         <Text style={[styles.planLabel, { color: colors.text3 }]}>Current plan</Text>
         <Text style={[styles.planValue, { color: colors.text }]}>{TIER_LABELS[tier]}</Text>
       </View>
-      <PillBadge label="Manage" />
+      <Pressable onPress={onManage} hitSlop={8}>
+        <PillBadge label="Manage" />
+      </Pressable>
     </Card>
+  );
+}
+
+function PlanDetailsModal({
+  visible,
+  tier,
+  onClose,
+}: {
+  visible: boolean;
+  tier: keyof typeof TIER_LABELS;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme();
+  const [since, setSince] = useState<Date | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!visible) {
+      setSince(undefined);
+      return;
+    }
+    let alive = true;
+    fetchSubscriptionSince().then((result) => {
+      if (alive) setSince(result);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [visible]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={[styles.modalSheet, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>{TIER_LABELS[tier]} plan</Text>
+          {tier !== 'free' ? (
+            <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>
+              {since
+                ? `Member since ${since.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`
+                : isPurchasesConfigured()
+                  ? 'Fetching subscription details…'
+                  : 'Demo mode — no real subscription on file.'}
+            </Text>
+          ) : (
+            <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>You're on the free plan.</Text>
+          )}
+
+          <View style={styles.modalFeatures}>
+            {TIER_FEATURE_COPY[tier].map((f) => (
+              <Text key={f} style={[styles.modalFeature, { color: colors.text2 }]}>
+                ✓ {f}
+              </Text>
+            ))}
+          </View>
+
+          <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -157,4 +226,10 @@ const styles = StyleSheet.create({
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   notifLabel: { fontSize: 14, fontWeight: '700' },
   notifSub: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
+  modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.sm },
+  modalTitle: { fontSize: 19, fontWeight: '700' },
+  modalSubtitle: { fontSize: 13, marginBottom: spacing.sm },
+  modalFeatures: { gap: 6, marginVertical: spacing.md },
+  modalFeature: { fontSize: 13.5 },
 });

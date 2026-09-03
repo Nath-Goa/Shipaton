@@ -56,7 +56,8 @@ export default function StockDetailScreen() {
   const upgradeToTier = useUpgradeToTier();
   const { holdings } = useActivePortfolio();
   const { watchlist, toggleWatchlist } = usePortfolioStore();
-  const stockView = useStockViewStore();
+  const recordStockView = useStockViewStore((s) => s.recordView);
+  const wouldExceedLimit = useStockViewStore((s) => s.wouldExceedLimit);
   const recordPatternDetectionViewed = useStreakStore((s) => s.recordPatternDetectionViewed);
 
   const [range, setRange] = useState<Range>('3M');
@@ -70,13 +71,13 @@ export default function StockDetailScreen() {
   const priceFlashOpacity = useSharedValue(0);
   const prevPriceRef = useRef(quote?.price);
 
-  const blocked = stockView.wouldExceedLimit(symbol, features.stockDetailDailyLimit);
+  const blocked = wouldExceedLimit(symbol, features.stockDetailDailyLimit);
 
   useEffect(() => {
     if (blocked || !symbol) return;
-    const { lookupCount } = stockView.recordView(symbol);
+    const { lookupCount } = recordStockView(symbol);
     setShowAd(features.adsEnabled && lookupCount % 3 === 0);
-  }, [symbol, blocked, features.adsEnabled, stockView]);
+  }, [symbol, blocked, features.adsEnabled, recordStockView]);
 
   useFocusEffect(
     useCallback(() => {

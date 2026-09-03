@@ -3,23 +3,50 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInRight, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
 import { Button } from '@/components/ui/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
-import { useSettingsStore } from '@/store/useSettingsStore';
+import { useSettingsStore, type ThemeMode } from '@/store/useSettingsStore';
 
-type Step = 'key' | 'stocks';
+type Step = 'theme' | 'key' | 'stocks';
+
+const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+];
 
 export function OnboardingScreen() {
   const { colors } = useTheme();
   const completeOnboarding = useSettingsStore((s) => s.completeOnboarding);
-  const [step, setStep] = useState<Step>('key');
+  const themeMode = useSettingsStore((s) => s.themeMode);
+  const setThemeMode = useSettingsStore((s) => s.setThemeMode);
+  const accentColor = useSettingsStore((s) => s.accentColor);
+  const setAccentColor = useSettingsStore((s) => s.setAccentColor);
+  const [step, setStep] = useState<Step>('theme');
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: colors.bg }]}>
-      {step === 'key' ? (
+      {step === 'theme' ? (
+        <Animated.View entering={FadeInRight.duration(350)} style={styles.content}>
+          <Text style={[styles.eyebrow, { color: colors.accent }]}>Welcome</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Make it yours</Text>
+          <Text style={[styles.subtitle, { color: colors.text2 }]}>
+            Pick a look — you can change this anytime later in Settings.
+          </Text>
+          <View style={{ marginTop: spacing.xl, gap: spacing.lg }}>
+            <SegmentedControl options={THEME_OPTIONS} value={themeMode} onChange={setThemeMode} />
+            <AccentColorPicker value={accentColor} onChange={setAccentColor} />
+          </View>
+          <View style={styles.actions}>
+            <Button label="Continue" fullWidth onPress={() => setStep('key')} />
+          </View>
+        </Animated.View>
+      ) : step === 'key' ? (
         <Animated.View entering={FadeInRight.duration(350)} style={styles.content}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>Welcome</Text>
           <Text style={[styles.title, { color: colors.text }]}>Set up your AI analyst</Text>

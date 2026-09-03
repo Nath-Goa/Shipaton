@@ -69,8 +69,60 @@ export const darkPalette: Palette = {
   onAccent: '#0d0f16',
 };
 
-export function paletteFor(scheme: 'light' | 'dark'): Palette {
-  return scheme === 'dark' ? darkPalette : lightPalette;
+export type AccentColor = 'purple' | 'red' | 'green' | 'blue' | 'orange' | 'yellow' | 'pink';
+
+export const ACCENT_COLORS: AccentColor[] = ['purple', 'red', 'green', 'blue', 'orange', 'yellow', 'pink'];
+
+export const ACCENT_LABELS: Record<AccentColor, string> = {
+  purple: 'Purple',
+  red: 'Red',
+  green: 'Green',
+  blue: 'Blue',
+  orange: 'Orange',
+  yellow: 'Yellow',
+  pink: 'Pink',
+};
+
+// Accent overrides layered on top of the light/dark base palette above —
+// only accent + accentSoft change per color, everything else (bg, surface,
+// text, semantic danger/success colors) stays the scheme's default. "purple"
+// matches the app's original default accent exactly, so picking it changes
+// nothing for existing installs.
+const ACCENT_OVERRIDES: Record<AccentColor, { light: Pick<Palette, 'accent' | 'accentSoft'>; dark: Pick<Palette, 'accent' | 'accentSoft'> }> = {
+  purple: {
+    light: { accent: '#5b5bd6', accentSoft: '#eeeeff' },
+    dark: { accent: '#8b8bf5', accentSoft: '#23264a' },
+  },
+  red: {
+    light: { accent: '#e5484d', accentSoft: '#fdeceD' },
+    dark: { accent: '#ff6369', accentSoft: '#3a2026' },
+  },
+  green: {
+    light: { accent: '#12805c', accentSoft: '#e3f6ee' },
+    dark: { accent: '#3dd68c', accentSoft: '#153229' },
+  },
+  blue: {
+    light: { accent: '#2563eb', accentSoft: '#e8f0fe' },
+    dark: { accent: '#5b9dff', accentSoft: '#16233d' },
+  },
+  orange: {
+    light: { accent: '#ea580c', accentSoft: '#fff1e8' },
+    dark: { accent: '#ff9152', accentSoft: '#3a2412' },
+  },
+  yellow: {
+    light: { accent: '#a16207', accentSoft: '#fef9e0' },
+    dark: { accent: '#f2c318', accentSoft: '#3a3010' },
+  },
+  pink: {
+    light: { accent: '#db2777', accentSoft: '#fdf0f7' },
+    dark: { accent: '#ff6fb1', accentSoft: '#3a1d2c' },
+  },
+};
+
+export function paletteFor(scheme: 'light' | 'dark', accentColor: AccentColor = 'purple'): Palette {
+  const base = scheme === 'dark' ? darkPalette : lightPalette;
+  const override = ACCENT_OVERRIDES[accentColor][scheme];
+  return { ...base, ...override };
 }
 
 export const shadow = {

@@ -31,7 +31,11 @@ function clientFor(provider: AiProvider) {
 // shared key (rate-limited across every install using it), so a personal
 // key is still the better experience — see hasSharedFallback().
 const FALLBACK_PROVIDER: AiProvider = 'gemini';
-const FALLBACK_API_KEY = process.env.EXPO_PUBLIC_SHARED_GEMINI_API_KEY;
+// Trimmed defensively — a value pasted into the EAS dashboard from a phone
+// keyboard can pick up a stray leading/trailing space or newline, which
+// would otherwise make this a non-empty-but-invalid key instead of a clean
+// missing/present check.
+const FALLBACK_API_KEY = process.env.EXPO_PUBLIC_SHARED_GEMINI_API_KEY?.trim() || undefined;
 
 export function hasSharedFallback(): boolean {
   return !!FALLBACK_API_KEY;
