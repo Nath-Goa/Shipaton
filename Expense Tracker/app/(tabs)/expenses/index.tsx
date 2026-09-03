@@ -115,8 +115,12 @@ export default function ExpensesScreen() {
   }, [sorted]);
 
   function onRefresh() {
+    // Everything here is already local/synchronous (Zustand state) — there's
+    // no real work to wait on, so this just gives the native pull gesture
+    // one frame to settle instead of holding the spinner for an artificial
+    // delay.
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 350);
+    requestAnimationFrame(() => setRefreshing(false));
   }
 
   async function handleExport() {

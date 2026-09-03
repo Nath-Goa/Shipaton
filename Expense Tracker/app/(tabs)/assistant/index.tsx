@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -44,6 +44,8 @@ function timeAgo(ts: number): string {
   if (days < 7) return `${days}d ago`;
   return new Date(ts).toLocaleDateString();
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function AssistantScreen() {
   const { symbol: paramSymbol } = useLocalSearchParams<{ symbol?: string }>();
@@ -234,9 +236,12 @@ function HistoryModal({
   }, [threads]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={[styles.modalSheet, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
+        <AnimatedPressable
+          entering={FadeInDown.springify().damping(18)}
+          style={[styles.modalSheet, { backgroundColor: colors.surface }]}
+          onPress={(e: any) => e.stopPropagation()}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>Chat history</Text>
           <ScrollView style={{ maxHeight: 420 }}>
             {rows.map((row) => (
@@ -261,8 +266,8 @@ function HistoryModal({
             ))}
           </ScrollView>
           <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
-        </Pressable>
-      </Pressable>
+        </AnimatedPressable>
+      </AnimatedPressable>
     </Modal>
   );
 }

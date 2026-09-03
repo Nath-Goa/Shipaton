@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ExpenseForm } from '@/components/expenses/ExpenseForm';
 import { Screen } from '@/components/ui/Screen';
@@ -29,22 +30,24 @@ export default function EditExpenseScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.xxl }}>
-        <ExpenseForm
-          initial={expense}
-          submitLabel="Save changes"
-          onSubmit={(values) => {
-            updateExpense(expense.id, values);
-            showToast('Expense updated.');
-            router.back();
-          }}
-          onDelete={() => {
-            confirmAction({ title: 'Delete this expense?', confirmLabel: 'Delete', destructive: true }, () => {
-              deleteExpense(expense.id);
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+          <ExpenseForm
+            initial={expense}
+            submitLabel="Save changes"
+            onSubmit={(values) => {
+              updateExpense(expense.id, values);
+              showToast('Expense updated.');
               router.back();
-              showToast('Expense deleted.', { actionLabel: 'Undo', onAction: undoDelete });
-            });
-          }}
-        />
+            }}
+            onDelete={() => {
+              confirmAction({ title: 'Delete this expense?', confirmLabel: 'Delete', destructive: true }, () => {
+                deleteExpense(expense.id);
+                router.back();
+                showToast('Expense deleted.', { actionLabel: 'Undo', onAction: undoDelete });
+              });
+            }}
+          />
+        </Animated.View>
       </ScrollView>
     </Screen>
   );

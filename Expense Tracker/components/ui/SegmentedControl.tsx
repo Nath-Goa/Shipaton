@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -80,24 +80,56 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
       {options.map((opt) => {
         const active = opt.value === value;
         return (
-          <Pressable
+          <SegmentItem
             key={opt.value}
+            label={opt.label}
+            active={active}
+            color={active ? colors.text : colors.text3}
             onPress={() => handleSelect(opt.value)}
-            style={styles.seg}>
-            <Text
-              style={[
-                styles.label,
-                { color: active ? colors.text : colors.text3 },
-                active && styles.activeLabel,
-              ]}>
-              {opt.label}
-            </Text>
-          </Pressable>
+          />
         );
       })}
     </View>
   );
 }
+
+function SegmentItem({
+  label,
+  active,
+  color,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  color: string;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.94, springs.snappy);
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.snappy);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.seg, animatedStyle]}>
+      <Text style={[styles.label, { color }, active && styles.activeLabel]}>{label}</Text>
+    </AnimatedPressable>
+  );
+}
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const styles = StyleSheet.create({
   wrap: {

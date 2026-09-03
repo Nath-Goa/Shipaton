@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
@@ -47,37 +48,40 @@ export default function LeaderboardScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.disclaimer, { color: colors.text3 }]}>
-          Simulated leaderboard — these are seeded bot traders generated from the same mock market data, not real
-          other people. Ranked by all-time return.
-        </Text>
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+          <Text style={[styles.disclaimer, { color: colors.text3 }]}>
+            Simulated leaderboard — these are seeded bot traders generated from the same mock market data, not real
+            other people. Ranked by all-time return.
+          </Text>
+        </Animated.View>
 
         <Card style={{ padding: 0 }}>
           {rows.map((r, i) => {
             const rank = i + 1;
             return (
-              <View
-                key={r.id}
-                style={[
-                  styles.row,
-                  i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
-                  r.isYou && { backgroundColor: colors.accentSoft },
-                ]}>
-                <Text style={styles.rank}>{RANK_MEDAL[rank] ?? `#${rank}`}</Text>
-                <Text style={styles.avatar}>{r.avatar}</Text>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-                      {r.name}
-                    </Text>
-                    {r.isYou ? <PillBadge label="You" /> : null}
+              <Animated.View key={r.id} entering={FadeInDown.delay(60 + Math.min(i * 35, 350)).springify().damping(16)}>
+                <View
+                  style={[
+                    styles.row,
+                    i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
+                    r.isYou && { backgroundColor: colors.accentSoft },
+                  ]}>
+                  <Text style={styles.rank}>{RANK_MEDAL[rank] ?? `#${rank}`}</Text>
+                  <Text style={styles.avatar}>{r.avatar}</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.nameRow}>
+                      <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                        {r.name}
+                      </Text>
+                      {r.isYou ? <PillBadge label="You" /> : null}
+                    </View>
+                    <Text style={[styles.netWorth, { color: colors.text3 }]}>{money(r.netWorth)}</Text>
                   </View>
-                  <Text style={[styles.netWorth, { color: colors.text3 }]}>{money(r.netWorth)}</Text>
+                  <Text style={[styles.pct, { color: r.allTimePnlPct >= 0 ? colors.success : colors.danger }]}>
+                    {signedPct(r.allTimePnlPct)}
+                  </Text>
                 </View>
-                <Text style={[styles.pct, { color: r.allTimePnlPct >= 0 ? colors.success : colors.danger }]}>
-                  {signedPct(r.allTimePnlPct)}
-                </Text>
-              </View>
+              </Animated.View>
             );
           })}
         </Card>

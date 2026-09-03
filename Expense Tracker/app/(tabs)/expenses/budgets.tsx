@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -100,32 +101,38 @@ export default function BudgetsScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.intro, { color: colors.text3 }]}>
-          Set monthly limits — this only tracks against expenses logged this calendar month.
-        </Text>
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+          <Text style={[styles.intro, { color: colors.text3 }]}>
+            Set monthly limits — this only tracks against expenses logged this calendar month.
+          </Text>
+        </Animated.View>
 
-        <Card>
-          <BudgetRow
-            label="Overall monthly budget"
-            spent={monthTotals.overall}
-            budget={overallBudget}
-            onSave={setOverallBudget}
-          />
-        </Card>
+        <Animated.View entering={FadeInDown.delay(60).springify().damping(16)}>
+          <Card>
+            <BudgetRow
+              label="Overall monthly budget"
+              spent={monthTotals.overall}
+              budget={overallBudget}
+              onSave={setOverallBudget}
+            />
+          </Card>
+        </Animated.View>
 
-        <Card style={{ gap: spacing.lg }}>
-          {CATEGORIES.map((c, i) => (
-            <View key={c.id} style={i > 0 ? [styles.divider, { borderTopColor: colors.border }] : undefined}>
-              <BudgetRow
-                label={c.label}
-                icon={c.icon}
-                spent={monthTotals.byCategory.get(c.id) ?? 0}
-                budget={categoryBudgets[c.id] ?? null}
-                onSave={(amount) => setCategoryBudget(c.id, amount)}
-              />
-            </View>
-          ))}
-        </Card>
+        <Animated.View entering={FadeInDown.delay(120).springify().damping(16)}>
+          <Card style={{ gap: spacing.lg }}>
+            {CATEGORIES.map((c, i) => (
+              <View key={c.id} style={i > 0 ? [styles.divider, { borderTopColor: colors.border }] : undefined}>
+                <BudgetRow
+                  label={c.label}
+                  icon={c.icon}
+                  spent={monthTotals.byCategory.get(c.id) ?? 0}
+                  budget={categoryBudgets[c.id] ?? null}
+                  onSave={(amount) => setCategoryBudget(c.id, amount)}
+                />
+              </View>
+            ))}
+          </Card>
+        </Animated.View>
       </ScrollView>
     </Screen>
   );

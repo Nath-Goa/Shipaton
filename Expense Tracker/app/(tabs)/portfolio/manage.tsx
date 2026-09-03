@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/IconButton';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
+import { springs, triggerHaptic } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
@@ -18,13 +20,15 @@ import { useToastStore } from '@/store/useToastStore';
 import { confirmAction } from '@/utils/confirm';
 import { money } from '@/utils/money';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 function netWorthOf(p: PortfolioData): number {
   let value = p.cash;
   for (const h of Object.values(p.holdings)) value += getQuote(h.symbol).price * h.qty;
   return value;
 }
 
-function PortfolioRow({ portfolio, isActive }: { portfolio: PortfolioData; isActive: boolean }) {
+function PortfolioRow({ portfolio, isActive, index }: { portfolio: PortfolioData; isActive: boolean; index: number }) {
   const { colors } = useTheme();
   const { switchPortfolio, renamePortfolio, deletePortfolio } = usePortfolioStore();
   const portfolioCount = usePortfolioStore((s) => Object.keys(s.portfolios).length);
@@ -32,6 +36,21 @@ function PortfolioRow({ portfolio, isActive }: { portfolio: PortfolioData; isAct
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(portfolio.name);
   const netWorth = useMemo(() => netWorthOf(portfolio), [portfolio]);
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    if (isActive) return;
+    scale.value = withSpring(0.98, springs.snappy);
+    triggerHaptic('light');
+  }, [isActive, scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.snappy);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   function saveRename() {
     renamePortfolio(portfolio.id, nameInput);
@@ -50,32 +69,41 @@ function PortfolioRow({ portfolio, isActive }: { portfolio: PortfolioData; isAct
 
   if (editing) {
     return (
-      <Card style={[styles.row, isActive && { borderColor: colors.accent, borderWidth: 1.5 }]}>
-        <TextInput
-          value={nameInput}
-          onChangeText={setNameInput}
-          autoFocus
-          style={[styles.nameInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
-        />
-        <Button label="Save" onPress={saveRename} />
-      </Card>
+      <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 240)).springify().damping(16)}>
+        <Card style={[styles.row, isActive && { borderColor: colors.accent, borderWidth: 1.5 }]}>
+          <TextInput
+            value={nameInput}
+            onChangeText={setNameInput}
+            autoFocus
+            style={[styles.nameInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+          />
+          <Button label="Save" onPress={saveRename} />
+        </Card>
+      </Animated.View>
     );
   }
 
   return (
-    <Card style={[styles.row, isActive && { borderColor: colors.accent, borderWidth: 1.5 }]}>
-      <Pressable style={{ flex: 1 }} disabled={isActive} onPress={() => switchPortfolio(portfolio.id)}>
-        <View style={styles.nameRow}>
-          <Text style={[styles.name, { color: colors.text }]}>{portfolio.name}</Text>
-          {isActive ? <PillBadge label="Active" /> : null}
+    <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 240)).springify().damping(16)}>
+      <Card style={[styles.row, isActive && { borderColor: colors.accent, borderWidth: 1.5 }]}>
+        <AnimatedPressable
+          style={[{ flex: 1 }, animatedStyle]}
+          disabled={isActive}
+          onPress={() => switchPortfolio(portfolio.id)}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}>
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { color: colors.text }]}>{portfolio.name}</Text>
+            {isActive ? <PillBadge label="Active" /> : null}
+          </View>
+          <Text style={[styles.netWorth, { color: colors.text2 }]}>{money(netWorth)} net worth</Text>
+        </AnimatedPressable>
+        <View style={styles.actions}>
+          <IconButton name="pencil-outline" size={15} onPress={() => setEditing(true)} />
+          {portfolioCount > 1 ? <IconButton name="trash-outline" size={15} onPress={handleDelete} /> : null}
         </View>
-        <Text style={[styles.netWorth, { color: colors.text2 }]}>{money(netWorth)} net worth</Text>
-      </Pressable>
-      <View style={styles.actions}>
-        <IconButton name="pencil-outline" size={15} onPress={() => setEditing(true)} />
-        {portfolioCount > 1 ? <IconButton name="trash-outline" size={15} onPress={handleDelete} /> : null}
-      </View>
-    </Card>
+      </Card>
+    </Animated.View>
   );
 }
 
@@ -105,49 +133,51 @@ export default function ManagePortfoliosScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-      {list.map((p) => (
-        <PortfolioRow key={p.id} portfolio={p} isActive={p.id === activePortfolioId} />
+      {list.map((p, i) => (
+        <PortfolioRow key={p.id} portfolio={p} isActive={p.id === activePortfolioId} index={i} />
       ))}
 
-      {!features.multiplePortfolios ? (
-        <Card style={styles.locked}>
-          <View style={styles.cardHead}>
-            <Text style={[styles.lockedTitle, { color: colors.text }]}>More portfolios</Text>
-            <Ionicons name="lock-closed" size={16} color={colors.text3} />
-          </View>
-          <Text style={[styles.lockedBody, { color: colors.text3 }]}>
-            Max unlocks up to {MAX_PORTFOLIOS} paper-trading portfolios, so you can run separate strategies side by side.
-          </Text>
-          <Button label="Upgrade to Max" variant="ghost" onPress={() => upgradeToTier('max')} />
-        </Card>
-      ) : creating ? (
-        <Card style={{ gap: spacing.md }}>
-          <TextInput
-            value={newName}
-            onChangeText={setNewName}
-            placeholder="Portfolio name"
-            placeholderTextColor={colors.text3}
-            autoFocus
-            style={[styles.nameInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+      <Animated.View entering={FadeInDown.delay(Math.min(list.length * 40, 240) + 40).springify().damping(16)}>
+        {!features.multiplePortfolios ? (
+          <Card style={styles.locked}>
+            <View style={styles.cardHead}>
+              <Text style={[styles.lockedTitle, { color: colors.text }]}>More portfolios</Text>
+              <Ionicons name="lock-closed" size={16} color={colors.text3} />
+            </View>
+            <Text style={[styles.lockedBody, { color: colors.text3 }]}>
+              Max unlocks up to {MAX_PORTFOLIOS} paper-trading portfolios, so you can run separate strategies side by side.
+            </Text>
+            <Button label="Upgrade to Max" variant="ghost" onPress={() => upgradeToTier('max')} />
+          </Card>
+        ) : creating ? (
+          <Card style={{ gap: spacing.md }}>
+            <TextInput
+              value={newName}
+              onChangeText={setNewName}
+              placeholder="Portfolio name"
+              placeholderTextColor={colors.text3}
+              autoFocus
+              style={[styles.nameInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+            />
+            <View style={styles.createRow}>
+              <View style={{ flex: 1 }}>
+                <Button label="Cancel" variant="ghost" fullWidth onPress={() => setCreating(false)} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button label="Create" fullWidth onPress={handleCreate} />
+              </View>
+            </View>
+          </Card>
+        ) : (
+          <Button
+            label={atCap ? `Portfolio limit reached (${MAX_PORTFOLIOS})` : '+ New portfolio'}
+            variant="ghost"
+            fullWidth
+            disabled={atCap}
+            onPress={() => setCreating(true)}
           />
-          <View style={styles.createRow}>
-            <View style={{ flex: 1 }}>
-              <Button label="Cancel" variant="ghost" fullWidth onPress={() => setCreating(false)} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button label="Create" fullWidth onPress={handleCreate} />
-            </View>
-          </View>
-        </Card>
-      ) : (
-        <Button
-          label={atCap ? `Portfolio limit reached (${MAX_PORTFOLIOS})` : '+ New portfolio'}
-          variant="ghost"
-          fullWidth
-          disabled={atCap}
-          onPress={() => setCreating(true)}
-        />
-      )}
+        )}
+      </Animated.View>
       </ScrollView>
     </Screen>
   );

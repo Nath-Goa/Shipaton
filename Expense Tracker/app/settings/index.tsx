@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
@@ -23,6 +24,8 @@ import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useChatStore } from '@/store/useChatStore';
 import { useSettingsStore, type ThemeMode } from '@/store/useSettingsStore';
 import { confirmAction } from '@/utils/confirm';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -74,35 +77,45 @@ export default function SettingsScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Section title="Plan">
-          <PlanCard tier={tier} onManage={() => setPlanModalOpen(true)} />
-          <View style={{ marginTop: spacing.md }}>
-            <Button label="Change plan" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
-          </View>
-        </Section>
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+          <Section title="Plan">
+            <PlanCard tier={tier} onManage={() => setPlanModalOpen(true)} />
+            <View style={{ marginTop: spacing.md }}>
+              <Button label="Change plan" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
+            </View>
+          </Section>
+        </Animated.View>
 
-        <Section title="Appearance">
-          <SegmentedControl options={THEME_OPTIONS} value={themeMode} onChange={setThemeMode} />
-          <View style={{ marginTop: spacing.lg }}>
-            <AccentColorPicker value={accentColor} onChange={setAccentColor} />
-          </View>
-        </Section>
+        <Animated.View entering={FadeInDown.delay(50).springify().damping(16)}>
+          <Section title="Appearance">
+            <SegmentedControl options={THEME_OPTIONS} value={themeMode} onChange={setThemeMode} />
+            <View style={{ marginTop: spacing.lg }}>
+              <AccentColorPicker value={accentColor} onChange={setAccentColor} />
+            </View>
+          </Section>
+        </Animated.View>
 
-        <Section title="AI provider" subtitle="Bring your own API key — stored only on this device.">
-          <ApiKeySection />
-        </Section>
+        <Animated.View entering={FadeInDown.delay(100).springify().damping(16)}>
+          <Section title="AI provider" subtitle="Bring your own API key — stored only on this device.">
+            <ApiKeySection />
+          </Section>
+        </Animated.View>
 
-        <Section title="Notifications">
-          {features.pushAlerts ? (
-            <NotificationsToggle enabled={notificationsEnabled} onToggle={handleToggleNotifications} />
-          ) : (
-            <LockedNotificationsRow />
-          )}
-        </Section>
+        <Animated.View entering={FadeInDown.delay(150).springify().damping(16)}>
+          <Section title="Notifications">
+            {features.pushAlerts ? (
+              <NotificationsToggle enabled={notificationsEnabled} onToggle={handleToggleNotifications} />
+            ) : (
+              <LockedNotificationsRow />
+            )}
+          </Section>
+        </Animated.View>
 
-        <Section title="Data">
-          <Button label="Reset all app data" variant="danger" onPress={resetAllData} />
-        </Section>
+        <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
+          <Section title="Data">
+            <Button label="Reset all app data" variant="danger" onPress={resetAllData} />
+          </Section>
+        </Animated.View>
       </ScrollView>
 
       <PlanDetailsModal visible={planModalOpen} tier={tier} onClose={() => setPlanModalOpen(false)} />
@@ -177,9 +190,12 @@ function PlanDetailsModal({
   }, [visible]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={[styles.modalSheet, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
+        <AnimatedPressable
+          entering={FadeInDown.springify().damping(18)}
+          style={[styles.modalSheet, { backgroundColor: colors.surface }]}
+          onPress={(e: any) => e.stopPropagation()}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>{TIER_LABELS[tier]} plan</Text>
           {tier !== 'free' ? (
             <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>
@@ -202,8 +218,8 @@ function PlanDetailsModal({
           </View>
 
           <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
-        </Pressable>
-      </Pressable>
+        </AnimatedPressable>
+      </AnimatedPressable>
     </Modal>
   );
 }

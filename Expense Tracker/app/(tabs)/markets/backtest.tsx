@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { DirectionBadge } from '@/components/stocks/DirectionBadge';
 import { Card } from '@/components/ui/Card';
@@ -63,69 +64,77 @@ export default function BacktestScreen() {
     <Screen edges={['left', 'right', 'bottom']}>
       <TopBar title="Backtest" subtitle="How the direction call would've done historically" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Card>
-          <Text style={[styles.label, { color: colors.text3 }]}>Horizon</Text>
-          <View style={{ marginTop: spacing.sm }}>
-            <SegmentedControl options={HORIZON_OPTIONS} value={horizon} onChange={setHorizon} />
-          </View>
-        </Card>
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+          <Card>
+            <Text style={[styles.label, { color: colors.text3 }]}>Horizon</Text>
+            <View style={{ marginTop: spacing.sm }}>
+              <SegmentedControl options={HORIZON_OPTIONS} value={horizon} onChange={setHorizon} />
+            </View>
+          </Card>
+        </Animated.View>
 
-        <View>
-          <Text style={[styles.label, { color: colors.text3 }]}>Symbol</Text>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search symbol or company"
-            placeholderTextColor={colors.text3}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
-          />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {filtered.map((t) => (
-              <Chip key={t.symbol} label={t.symbol} active={symbol === t.symbol} onPress={() => setSymbol(t.symbol)} />
-            ))}
-          </ScrollView>
-        </View>
-
-        <Card>
-          <Text style={[styles.resultTitle, { color: colors.text }]}>
-            {ticker?.name ?? symbol} · {horizon}-day calls
-          </Text>
-          <Text style={[styles.resultSub, { color: colors.text3 }]}>
-            {result.sampleSize} simulated calls across the available mock history
-          </Text>
-
-          <View style={styles.statsRow}>
-            <StatTile
-              label="Accuracy"
-              value={`${result.accuracyPct.toFixed(1)}%`}
-              sub={`${result.hits} of ${result.sampleSize} correct`}
-              valueColor={result.accuracyPct >= 50 ? colors.success : colors.danger}
+        <Animated.View entering={FadeInDown.delay(60).springify().damping(16)}>
+          <View>
+            <Text style={[styles.label, { color: colors.text3 }]}>Symbol</Text>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search symbol or company"
+              placeholderTextColor={colors.text3}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
             />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {filtered.map((t) => (
+                <Chip key={t.symbol} label={t.symbol} active={symbol === t.symbol} onPress={() => setSymbol(t.symbol)} />
+              ))}
+            </ScrollView>
           </View>
+        </Animated.View>
 
-          <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-            {(Object.keys(result.byDirection) as Direction[]).map((d) => {
-              const bucket = result.byDirection[d];
-              const pct = bucket.predicted ? (bucket.correct / bucket.predicted) * 100 : 0;
-              return (
-                <View key={d} style={[styles.directionRow, { borderColor: colors.border }]}>
-                  <DirectionBadge direction={d} size="sm" />
-                  <Text style={[styles.directionLabel, { color: colors.text2 }]}>{DIRECTION_LABEL[d]} calls</Text>
-                  <Text style={[styles.directionValue, { color: colors.text }]}>
-                    {bucket.predicted ? `${pct.toFixed(0)}% of ${bucket.predicted}` : '—'}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </Card>
+        <Animated.View entering={FadeInDown.delay(120).springify().damping(16)}>
+          <Card>
+            <Text style={[styles.resultTitle, { color: colors.text }]}>
+              {ticker?.name ?? symbol} · {horizon}-day calls
+            </Text>
+            <Text style={[styles.resultSub, { color: colors.text3 }]}>
+              {result.sampleSize} simulated calls across the available mock history
+            </Text>
 
-        <Text style={[styles.disclaimer, { color: colors.text3 }]}>
-          Simulated against this app's mock price history — a replay of the same algorithm the Direction call card
-          uses, for practice only. Not a guarantee of future accuracy, real or simulated.
-        </Text>
+            <View style={styles.statsRow}>
+              <StatTile
+                label="Accuracy"
+                value={`${result.accuracyPct.toFixed(1)}%`}
+                sub={`${result.hits} of ${result.sampleSize} correct`}
+                valueColor={result.accuracyPct >= 50 ? colors.success : colors.danger}
+              />
+            </View>
+
+            <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+              {(Object.keys(result.byDirection) as Direction[]).map((d) => {
+                const bucket = result.byDirection[d];
+                const pct = bucket.predicted ? (bucket.correct / bucket.predicted) * 100 : 0;
+                return (
+                  <View key={d} style={[styles.directionRow, { borderColor: colors.border }]}>
+                    <DirectionBadge direction={d} size="sm" />
+                    <Text style={[styles.directionLabel, { color: colors.text2 }]}>{DIRECTION_LABEL[d]} calls</Text>
+                    <Text style={[styles.directionValue, { color: colors.text }]}>
+                      {bucket.predicted ? `${pct.toFixed(0)}% of ${bucket.predicted}` : '—'}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </Card>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(180).springify().damping(16)}>
+          <Text style={[styles.disclaimer, { color: colors.text3 }]}>
+            Simulated against this app's mock price history — a replay of the same algorithm the Direction call card
+            uses, for practice only. Not a guarantee of future accuracy, real or simulated.
+          </Text>
+        </Animated.View>
       </ScrollView>
     </Screen>
   );

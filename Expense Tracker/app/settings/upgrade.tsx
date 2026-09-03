@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -99,60 +100,66 @@ export default function UpgradeScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.intro, { color: colors.text3 }]}>
-          {configured
-            ? 'Purchases are processed by the App Store / Google Play — pricing and billing period are shown on the next screen.'
-            : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
-        </Text>
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+          <Text style={[styles.intro, { color: colors.text3 }]}>
+            {configured
+              ? 'Purchases are processed by the App Store / Google Play — pricing and billing period are shown on the next screen.'
+              : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
+          </Text>
+        </Animated.View>
 
-        {TIERS.map((t) => {
+        {TIERS.map((t, i) => {
           const isCurrent = tier === t;
 
           return (
-            <Card key={t} style={[styles.card, isCurrent && { borderColor: colors.accent, borderWidth: 1.5 }]}>
-              <View style={styles.headRow}>
-                <Text style={[styles.tierName, { color: colors.text }]}>{TIER_LABELS[t]}</Text>
-                {isCurrent ? <PillBadge label="Current" /> : null}
-              </View>
-              <Text style={[styles.price, { color: colors.text }]}>
-                {t === 'free' ? TIER_PRICE.free : `From ${TIER_PRICE[t]}`}
-              </Text>
-              <Text style={[styles.headline, { color: colors.text2 }]}>{TIER_HEADLINE[t]}</Text>
+            <Animated.View key={t} entering={FadeInDown.delay(60 + i * 60).springify().damping(16)}>
+              <Card style={[styles.card, isCurrent && { borderColor: colors.accent, borderWidth: 1.5 }]}>
+                <View style={styles.headRow}>
+                  <Text style={[styles.tierName, { color: colors.text }]}>{TIER_LABELS[t]}</Text>
+                  {isCurrent ? <PillBadge label="Current" /> : null}
+                </View>
+                <Text style={[styles.price, { color: colors.text }]}>
+                  {t === 'free' ? TIER_PRICE.free : `From ${TIER_PRICE[t]}`}
+                </Text>
+                <Text style={[styles.headline, { color: colors.text2 }]}>{TIER_HEADLINE[t]}</Text>
 
-              <View style={styles.features}>
-                {TIER_FEATURE_COPY[t].map((f) => (
-                  <Text key={f} style={[styles.feature, { color: colors.text2 }]}>
-                    ✓ {f}
-                  </Text>
-                ))}
-              </View>
+                <View style={styles.features}>
+                  {TIER_FEATURE_COPY[t].map((f) => (
+                    <Text key={f} style={[styles.feature, { color: colors.text2 }]}>
+                      ✓ {f}
+                    </Text>
+                  ))}
+                </View>
 
-              {t === 'free' ? (
-                isCurrent ? (
+                {t === 'free' ? (
+                  isCurrent ? (
+                    <Button label="Current plan" variant="ghost" disabled fullWidth />
+                  ) : configured ? (
+                    <Button label="Manage subscription" variant="ghost" loading={openingCenter} fullWidth onPress={handleManage} />
+                  ) : (
+                    <Button label="Choose Free" variant="ghost" fullWidth onPress={() => chooseDemo(t)} />
+                  )
+                ) : isCurrent ? (
                   <Button label="Current plan" variant="ghost" disabled fullWidth />
                 ) : configured ? (
-                  <Button label="Manage subscription" variant="ghost" loading={openingCenter} fullWidth onPress={handleManage} />
+                  <Button
+                    label={`View ${TIER_LABELS[t]} plan`}
+                    loading={busyTier === t}
+                    fullWidth
+                    onPress={() => handleChoose(t)}
+                  />
                 ) : (
-                  <Button label="Choose Free" variant="ghost" fullWidth onPress={() => chooseDemo(t)} />
-                )
-              ) : isCurrent ? (
-                <Button label="Current plan" variant="ghost" disabled fullWidth />
-              ) : configured ? (
-                <Button
-                  label={`View ${TIER_LABELS[t]} plan`}
-                  loading={busyTier === t}
-                  fullWidth
-                  onPress={() => handleChoose(t)}
-                />
-              ) : (
-                <Button label={`Choose ${TIER_LABELS[t]} (Demo)`} fullWidth onPress={() => chooseDemo(t)} />
-              )}
-            </Card>
+                  <Button label={`Choose ${TIER_LABELS[t]} (Demo)`} fullWidth onPress={() => chooseDemo(t)} />
+                )}
+              </Card>
+            </Animated.View>
           );
         })}
 
         {configured ? (
-          <Button label="Restore purchases" variant="ghost" fullWidth loading={restoring} onPress={handleRestore} />
+          <Animated.View entering={FadeInDown.delay(60 + TIERS.length * 60).springify().damping(16)}>
+            <Button label="Restore purchases" variant="ghost" fullWidth loading={restoring} onPress={handleRestore} />
+          </Animated.View>
         ) : null}
       </ScrollView>
     </Screen>
