@@ -1,10 +1,15 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
+import { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
-const RISE_DISTANCE = 20;
-const FADE_DURATION = 220;
-const RISE_SPRING = { damping: 16, stiffness: 100, mass: 1 };
+const RISE_DISTANCE = 14;
+// A plain ease-out timing, not a spring — a spring's slight overshoot-and-
+// settle reads as a "flutter" once it's replaying on every tab switch
+// instead of once per session. Worst case across the app is a 260ms stagger
+// delay (Home's last section) plus this duration, ~520ms total — well
+// under the 1.5s ceiling every tab entrance must stay under.
+const ENTRANCE_DURATION = 260;
+const ENTRANCE_EASING = Easing.out(Easing.cubic);
 
 // Tab root screens stay mounted in the background after their first visit
 // (CLAUDE.md §5.1), so a plain Reanimated `entering=` prop — which only
@@ -17,20 +22,17 @@ const RISE_SPRING = { damping: 16, stiffness: 100, mass: 1 };
 // mount-transition machinery (CLAUDE.md §7 rule #2), which this hook never
 // invokes.
 export function useTabEntrance(delayMs = 0) {
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(RISE_DISTANCE);
+  const progress = useSharedValue(0);
 
   useFocusEffect(
     useCallback(() => {
-      opacity.value = 0;
-      translateY.value = RISE_DISTANCE;
-      opacity.value = withDelay(delayMs, withTiming(1, { duration: FADE_DURATION }));
-      translateY.value = withDelay(delayMs, withSpring(0, RISE_SPRING));
-    }, [delayMs, opacity, translateY])
+      progress.value = 0;
+      progress.value = withDelay(delayMs, withTiming(1, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING }));
+    }, [delayMs, progress])
   );
 
   return useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * RISE_DISTANCE }],
   }));
 }
