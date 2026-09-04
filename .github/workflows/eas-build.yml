@@ -33,14 +33,14 @@ jobs:
       - name: Install eas-cli
         run: npm install --global eas-cli
 
-      # First run creates the EAS project (under the nath_goa account) and
-      # writes its id into app.json for this job's checkout; later runs just
-      # link to that same existing project — either way this is idempotent,
-      # so it's safe to run on every build rather than only once.
+      # First run creates the EAS project (under the nathgoas-team account)
+      # and writes its id into app.json for this job's checkout; later runs
+      # just link to that same existing project — either way this is
+      # idempotent, so it's safe to run on every build rather than only once.
       - name: Link or create EAS project
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas init --non-interactive --account nath_goa
+        run: eas init --non-interactive --account nathgoas-team
 
       - name: Build Android APK on EAS
         env:
