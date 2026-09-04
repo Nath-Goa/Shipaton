@@ -73,6 +73,14 @@
           "project": "react-native",
           "disableAutoUpload": true
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "abiFilters": ["arm64-v8a"]
+          }
+        }
       ]
     ],
     "experiments": {

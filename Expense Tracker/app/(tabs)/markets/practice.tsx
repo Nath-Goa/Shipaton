@@ -1,22 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Animated, {
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { StockListItem } from '@/components/stocks/StockListItem';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QtyStepperButton } from '@/components/ui/QtyStepperButton';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StatTile } from '@/components/ui/StatTile';
 import { Text } from '@/components/ui/Text';
-import { springs, triggerFeedback } from '@/constants/animations';
+import { triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS, tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
@@ -27,38 +23,6 @@ const SANDBOX_CASH = 100_000;
 
 type SandboxHolding = { symbol: string; qty: number; avgCost: number };
 type Side = 'buy' | 'sell';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function PracticeQtyButton({ label, onPress }: { label: string; onPress: () => void }) {
-  const { colors } = useTheme();
-  const scale = useSharedValue(1);
-
-  const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.88, springs.snappy);
-    triggerFeedback('selection');
-  }, [scale]);
-
-  const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
-  }, [scale]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
-
-  return (
-    <AnimatedPressable
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[styles.qtyBtn, { borderColor: colors.border }, animatedStyle]}>
-      <Text style={[styles.qtyBtnText, { color: colors.text }]}>{label}</Text>
-    </AnimatedPressable>
-  );
-}
 
 // A consequence-free scratchpad: local component state only, never touches
 // usePortfolioStore. Resets automatically every time this screen is opened.
@@ -244,14 +208,14 @@ export default function PracticeTradeScreen() {
             <Card>
               <Text style={[styles.label, { color: colors.text3 }]}>Quantity</Text>
               <View style={styles.qtyRow}>
-                <PracticeQtyButton label="−" onPress={() => adjustQty(-1)} />
+                <QtyStepperButton label="−" onPress={() => adjustQty(-1)} />
                 <TextInput
                   value={qtyText}
                   onChangeText={setQtyText}
                   keyboardType="number-pad"
                   style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]}
                 />
-                <PracticeQtyButton label="+" onPress={() => adjustQty(1)} />
+                <QtyStepperButton label="+" onPress={() => adjustQty(1)} />
               </View>
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryRowLabel, { color: colors.text3 }]}>Estimated total</Text>
@@ -302,15 +266,6 @@ const styles = StyleSheet.create({
   stockPrice: { fontSize: 22, fontWeight: '700', marginTop: 2 },
   label: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
-  qtyBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyBtnText: { fontSize: 20, fontWeight: '600' },
   qtyInput: {
     flex: 1,
     textAlign: 'center',

@@ -2,19 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Animated, {
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { QtyStepperButton } from '@/components/ui/QtyStepperButton';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
-import { springs, triggerFeedback } from '@/constants/animations';
 import { badgeInfo } from '@/constants/badges';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
@@ -36,38 +31,6 @@ const FREQUENCY_OPTIONS: { value: RecurringFrequency; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function QtyButton({ label, onPress }: { label: string; onPress: () => void }) {
-  const { colors } = useTheme();
-  const scale = useSharedValue(1);
-
-  const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.88, springs.snappy);
-    triggerFeedback('selection');
-  }, [scale]);
-
-  const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
-  }, [scale]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
-
-  return (
-    <AnimatedPressable
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[styles.qtyBtn, { borderColor: colors.border }, animatedStyle]}>
-      <Text style={[styles.qtyBtnText, { color: colors.text }]}>{label}</Text>
-    </AnimatedPressable>
-  );
-}
 
 export default function TradeScreen() {
   const { symbol: rawSymbol, side: rawSide } = useLocalSearchParams<{ symbol: string; side?: string }>();
@@ -279,14 +242,14 @@ export default function TradeScreen() {
             <Card>
               <Text style={[styles.label, { color: colors.text3 }]}>Quantity</Text>
               <View style={styles.qtyRow}>
-                <QtyButton label="−" onPress={() => adjustQty(-1)} />
+                <QtyStepperButton label="−" onPress={() => adjustQty(-1)} />
                 <TextInput
                   value={qtyText}
                   onChangeText={setQtyText}
                   keyboardType="number-pad"
                   style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]}
                 />
-                <QtyButton label="+" onPress={() => adjustQty(1)} />
+                <QtyStepperButton label="+" onPress={() => adjustQty(1)} />
               </View>
 
               {orderType === 'limit' ? (
@@ -385,15 +348,6 @@ const styles = StyleSheet.create({
   price: { fontSize: 26, fontWeight: '700', marginTop: 2 },
   label: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
-  qtyBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyBtnText: { fontSize: 20, fontWeight: '600' },
   qtyInput: {
     flex: 1,
     textAlign: 'center',
