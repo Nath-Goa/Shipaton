@@ -5,11 +5,16 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { badgeInfo } from '@/constants/badges';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
-import { todayStr } from '@/utils/date';
+import type { RecurringFrequency } from '@/types/expense';
+import { addDaysStr, addMonthsStr, todayStr } from '@/utils/date';
 import { money } from '@/utils/money';
 import { uid } from '@/utils/id';
 
 export const MAX_SAVINGS_GOALS = 20;
+
+function nextOccurrence(dateStr: string, freq: RecurringFrequency): string {
+  return freq === 'weekly' ? addDaysStr(dateStr, 7) : addMonthsStr(dateStr, 1);
+}
 
 export type SavingsGoal = {
   id: string;
@@ -20,6 +25,9 @@ export type SavingsGoal = {
   targetDate: string | null;
   createdAt: number;
   completedAt: string | null;
+  recurringAmount: number | null;
+  recurringFrequency: RecurringFrequency | null;
+  nextContributionDate: string | null;
 };
 
 export type CreateGoalResult = { ok: true; id: string } | { ok: false; message: string };
@@ -34,6 +42,15 @@ type SavingsGoalState = {
   // milestones (they don't get revoked).
   addContribution: (goalId: string, delta: number) => void;
   deleteGoal: (goalId: string) => void;
+  // Sets up (or replaces) a recurring auto-contribution for a goal, mirroring
+  // usePortfolioStore's auto-invest plans. Keeps running on schedule even
+  // after the goal is reached — cancel it explicitly if that's not wanted.
+  setRecurringContribution: (goalId: string, amount: number, frequency: RecurringFrequency) => void;
+  cancelRecurringContribution: (goalId: string) => void;
+  // Catches up every goal's recurring contribution to today, same
+  // cursor+guard idempotent pattern as usePortfolioStore.processAutoInvests.
+  // Safe to call on every app open.
+  processRecurringContributions: () => void;
 };
 
 export const useSavingsGoalStore = create<SavingsGoalState>()(
@@ -58,6 +75,9 @@ export const useSavingsGoalStore = create<SavingsGoalState>()(
           targetDate,
           createdAt: Date.now(),
           completedAt: null,
+          recurringAmount: null,
+          recurringFrequency: null,
+          nextContributionDate: null,
         };
         set({ goals: [goal, ...goals] });
         return { ok: true, id: goal.id };
@@ -82,10 +102,85 @@ export const useSavingsGoalStore = create<SavingsGoalState>()(
       deleteGoal: (goalId) => {
         set({ goals: get().goals.filter((g) => g.id !== goalId) });
       },
+
+      setRecurringContribution: (goalId, amount, frequency) => {
+        if (!(amount > 0)) return;
+        const { goals } = get();
+        set({
+          goals: goals.map((g) =>
+            g.id === goalId
+              ? { ...g, recurringAmount: amount, recurringFrequency: frequency, nextContributionDate: nextOccurrence(todayStr(), frequency) }
+              : g
+          ),
+        });
+      },
+
+      cancelRecurringContribution: (goalId) => {
+        const { goals } = get();
+        set({
+          goals: goals.map((g) =>
+            g.id === goalId ? { ...g, recurringAmount: null, recurringFrequency: null, nextContributionDate: null } : g
+          ),
+        });
+      },
+
+      processRecurringContributions: () => {
+        const today = todayStr();
+        const { goals } = get();
+        const notices: string[] = [];
+        let changed = false;
+
+        const nextGoals = goals.map((g) => {
+          if (!g.recurringAmount || !g.recurringFrequency || !g.nextContributionDate) return g;
+          let amount = g.currentAmount;
+          let nextRun = g.nextContributionDate;
+          let completedAt = g.completedAt;
+          let cycles = 0;
+          let guard = 0;
+          while (guard < 24 && nextRun <= today) {
+            amount += g.recurringAmount;
+            cycles++;
+            if (!completedAt && amount >= g.targetAmount) completedAt = nextRun;
+            nextRun = nextOccurrence(nextRun, g.recurringFrequency);
+            guard++;
+          }
+          if (cycles === 0) return g;
+          changed = true;
+
+          const justCompleted = completedAt !== g.completedAt;
+          if (justCompleted) {
+            const earned = useStreakStore.getState().awardBadge('goal_reached');
+            const base = `🎉 "${g.name}" goal reached — ${money(amount)} saved!`;
+            notices.push(earned.length ? `${base} · 🏅 ${badgeInfo(earned[0]).label} badge earned!` : base);
+          } else {
+            notices.push(`💰 Auto-saved ${money(cycles * g.recurringAmount)} into "${g.name}"`);
+          }
+
+          return { ...g, currentAmount: amount, nextContributionDate: nextRun, completedAt };
+        });
+
+        if (!changed) return;
+        set({ goals: nextGoals });
+        for (const notice of notices) useToastStore.getState().show(notice);
+      },
     }),
     {
       name: 'savings-goal-store',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      // v0 goals didn't have recurring-contribution fields — backfill them
+      // to null so existing installs don't crash reading undefined.
+      migrate: (persisted: any) => {
+        if (persisted?.goals) {
+          persisted.goals = persisted.goals.map((g: any) => ({
+            ...g,
+            recurringAmount: g.recurringAmount ?? null,
+            recurringFrequency: g.recurringFrequency ?? null,
+            nextContributionDate: g.nextContributionDate ?? null,
+          }));
+        }
+        return persisted;
+      },
     }
   )
 );

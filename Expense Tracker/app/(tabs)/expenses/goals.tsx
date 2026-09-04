@@ -11,21 +11,30 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { MAX_SAVINGS_GOALS, type SavingsGoal, useSavingsGoalStore } from '@/store/useSavingsGoalStore';
 import { useToastStore } from '@/store/useToastStore';
+import type { RecurringFrequency } from '@/types/expense';
 import { confirmAction } from '@/utils/confirm';
 import { formatShortDate, parseDateLocal, todayStr } from '@/utils/date';
 import { money } from '@/utils/money';
 
 const GOAL_ICONS = ['🎯', '✈️', '🏠', '🚗', '💻', '🎓', '💍', '🎁'];
+const FREQUENCY_OPTIONS: { value: RecurringFrequency; label: string }[] = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
 
 function GoalCard({ goal, index }: { goal: SavingsGoal; index: number }) {
   const { colors } = useTheme();
-  const { addContribution, deleteGoal } = useSavingsGoalStore();
+  const { addContribution, deleteGoal, setRecurringContribution, cancelRecurringContribution } = useSavingsGoalStore();
   const [expanded, setExpanded] = useState(false);
   const [amountText, setAmountText] = useState('');
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [autoAmountText, setAutoAmountText] = useState('');
+  const [autoFreq, setAutoFreq] = useState<RecurringFrequency>('monthly');
 
   const pct = goal.targetAmount ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
   const done = !!goal.completedAt;
@@ -35,6 +44,14 @@ function GoalCard({ goal, index }: { goal: SavingsGoal; index: number }) {
     if (!Number.isFinite(parsed) || parsed <= 0) return;
     addContribution(goal.id, parsed);
     setAmountText('');
+  }
+
+  function handleStartAuto() {
+    const parsed = parseFloat(autoAmountText);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    setRecurringContribution(goal.id, parsed, autoFreq);
+    setAutoAmountText('');
+    setAutoOpen(false);
   }
 
   function handleDelete() {
@@ -70,16 +87,56 @@ function GoalCard({ goal, index }: { goal: SavingsGoal; index: number }) {
         {done ? <Text style={[styles.doneText, { color: colors.success }]}>🎉 Goal reached!</Text> : null}
 
         {expanded ? (
-          <View style={styles.contribRow}>
-            <TextInput
-              value={amountText}
-              onChangeText={setAmountText}
-              placeholder="Add amount"
-              placeholderTextColor={colors.text3}
-              keyboardType="decimal-pad"
-              style={[styles.contribInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
-            />
-            <Button label="Add" onPress={handleAdd} />
+          <View style={{ gap: spacing.md }}>
+            <View style={styles.contribRow}>
+              <TextInput
+                value={amountText}
+                onChangeText={setAmountText}
+                placeholder="Add amount"
+                placeholderTextColor={colors.text3}
+                keyboardType="decimal-pad"
+                style={[styles.contribInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+              />
+              <Button label="Add" onPress={handleAdd} />
+            </View>
+
+            <View style={[styles.autoSection, { borderTopColor: colors.border }]}>
+              {goal.recurringAmount && goal.recurringFrequency ? (
+                <View style={styles.autoRow}>
+                  <Text style={[styles.autoText, { color: colors.text2 }]}>
+                    💸 Auto-saving {money(goal.recurringAmount)}/{goal.recurringFrequency === 'weekly' ? 'week' : 'month'}
+                  </Text>
+                  <IconButton
+                    name="close-circle-outline"
+                    size={15}
+                    onPress={() => cancelRecurringContribution(goal.id)}
+                    category="destructive"
+                  />
+                </View>
+              ) : autoOpen ? (
+                <View style={{ gap: spacing.sm }}>
+                  <TextInput
+                    value={autoAmountText}
+                    onChangeText={setAutoAmountText}
+                    placeholder="Amount per cycle"
+                    placeholderTextColor={colors.text3}
+                    keyboardType="decimal-pad"
+                    style={[styles.contribInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
+                  />
+                  <SegmentedControl options={FREQUENCY_OPTIONS} value={autoFreq} onChange={setAutoFreq} />
+                  <View style={styles.createRow}>
+                    <View style={{ flex: 1 }}>
+                      <Button label="Cancel" variant="ghost" fullWidth onPress={() => setAutoOpen(false)} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Button label="Start" fullWidth onPress={handleStartAuto} />
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <Button label="+ Auto-save" variant="ghost" fullWidth onPress={() => setAutoOpen(true)} />
+              )}
+            </View>
           </View>
         ) : null}
       </Card>
@@ -242,6 +299,9 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '700' },
   sub: { fontSize: 12.5, marginTop: 2 },
   doneText: { fontSize: 12.5, fontWeight: '600' },
+  autoSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md },
+  autoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
+  autoText: { fontSize: 12.5, fontWeight: '600', flexShrink: 1 },
   contribRow: { flexDirection: 'row', gap: spacing.sm },
   contribInput: {
     flex: 1,

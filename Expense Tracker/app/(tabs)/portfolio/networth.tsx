@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -12,6 +12,7 @@ import { spacing } from '@/constants/theme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { useActivePortfolio } from '@/store/usePortfolioStore';
+import { useSavingsGoalStore } from '@/store/useSavingsGoalStore';
 import { money, signedMoney, signedPct } from '@/utils/money';
 import { computeNetWorthHistory, summarizePortfolio } from '@/utils/portfolioMath';
 import type { PriceBar } from '@/types/stock';
@@ -20,10 +21,13 @@ export default function NetWorthScreen() {
   const { colors } = useTheme();
   const portfolio = useActivePortfolio();
   const { cash, holdings } = portfolio;
+  const goals = useSavingsGoalStore((s) => s.goals);
 
   const symbols = useMemo(() => Object.keys(holdings), [holdings]);
   const { quotes } = useQuotes(symbols);
   const summary = useMemo(() => summarizePortfolio(cash, holdings, quotes), [cash, holdings, quotes]);
+  const goalsSaved = useMemo(() => goals.reduce((sum, g) => sum + g.currentAmount, 0), [goals]);
+  const goalsReached = useMemo(() => goals.filter((g) => g.completedAt).length, [goals]);
 
   const history = useMemo(() => computeNetWorthHistory(portfolio, 90), [portfolio]);
   const bars: PriceBar[] = useMemo(
@@ -95,6 +99,24 @@ export default function NetWorthScreen() {
             </View>
           </Card>
         </Animated.View>
+
+        {goals.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(160).springify().damping(16)}>
+            <Card style={styles.goalsCard}>
+              <View style={styles.goalsHead}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Savings goals</Text>
+                <Text style={[styles.goalsLink, { color: colors.accent }]} onPress={() => router.push('/expenses/goals')}>
+                  View all →
+                </Text>
+              </View>
+              <Text style={[styles.goalsTotal, { color: colors.text }]}>{money(goalsSaved)} saved</Text>
+              <Text style={[styles.goalsSub, { color: colors.text2 }]}>
+                Across {goals.length} goal{goals.length === 1 ? '' : 's'}
+                {goalsReached > 0 ? ` · ${goalsReached} reached` : ''}
+              </Text>
+            </Card>
+          </Animated.View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -112,4 +134,10 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontSize: 12.5, fontWeight: '600' },
+  goalsCard: { gap: spacing.xs },
+  goalsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700' },
+  goalsLink: { fontSize: 12.5, fontWeight: '600' },
+  goalsTotal: { fontSize: 20, fontWeight: '700', marginTop: 2 },
+  goalsSub: { fontSize: 12.5 },
 });

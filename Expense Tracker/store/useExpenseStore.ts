@@ -11,6 +11,39 @@ function nextOccurrence(dateStr: string, freq: RecurringFrequency): string {
   return freq === 'weekly' ? addDaysStr(dateStr, 7) : addMonthsStr(dateStr, 1);
 }
 
+// A template per series (desc/category/amount/frequency) — whichever
+// instance is still around, not necessarily the most recent one, since the
+// actual "how far have we generated" position comes from seriesCursor, not
+// from what's currently in the list.
+function templateBySeriesOf(expenses: Expense[]): Map<string, Expense> {
+  const map = new Map<string, Expense>();
+  for (const e of expenses) {
+    if (!e.recurring || !e.seriesId) continue;
+    const cur = map.get(e.seriesId);
+    if (!cur || e.date > cur.date) map.set(e.seriesId, e);
+  }
+  return map;
+}
+
+export type UpcomingRecurring = { seriesId: string; desc: string; amount: number; dueDate: string };
+
+// Pure — safe to call from a component's useMemo. Returns each recurring
+// series' next due date computed from its cursor, same as
+// generateDueRecurring's own loop but without generating anything, for
+// scheduling "due tomorrow" bill reminders. A selector must never construct
+// a fresh array itself (breaks useSyncExternalStore's referential-stability
+// contract), so this takes the store's raw `expenses`/`seriesCursor` as
+// plain arguments instead of reading the store directly.
+export function computeUpcomingRecurring(expenses: Expense[], seriesCursor: Record<string, string>): UpcomingRecurring[] {
+  const out: UpcomingRecurring[] = [];
+  for (const [seriesId, template] of templateBySeriesOf(expenses)) {
+    const cursor = seriesCursor[seriesId] ?? template.date;
+    const dueDate = nextOccurrence(cursor, template.recurring!);
+    out.push({ seriesId, desc: template.desc, amount: template.amount, dueDate });
+  }
+  return out;
+}
+
 function seedExpenses(): Expense[] {
   return [
     { id: uid(), desc: 'Grocery run', category: 'food', amount: 64.32, date: daysAgo(1) },
@@ -105,16 +138,7 @@ export const useExpenseStore = create<ExpenseState>()(
       generateDueRecurring: () => {
         const today = todayStr();
         const { expenses, seriesCursor } = get();
-        // A template per series (desc/category/amount/frequency) — whichever
-        // instance is still around, not necessarily the most recent one, since
-        // the actual "how far have we generated" position comes from
-        // seriesCursor below, not from what's currently in the list.
-        const templateBySeries = new Map<string, Expense>();
-        for (const e of expenses) {
-          if (!e.recurring || !e.seriesId) continue;
-          const cur = templateBySeries.get(e.seriesId);
-          if (!cur || e.date > cur.date) templateBySeries.set(e.seriesId, e);
-        }
+        const templateBySeries = templateBySeriesOf(expenses);
 
         const generated: Expense[] = [];
         const nextCursor = { ...seriesCursor };
