@@ -6,6 +6,7 @@ import type { AccentColor } from '@/constants/theme';
 import type { FontOption, TextScale } from '@/constants/fonts';
 import type { Tier } from '@/constants/subscription';
 import type { AiProvider } from '@/types/ai';
+import { clearStoredPin, type BiometricType } from '@/services/security/appLock';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type TutorPersona = 'coach' | 'professor' | 'casual';
@@ -35,9 +36,13 @@ type SettingsState = {
   // User's intent, not proof of OS permission — the actual scheduling in
   // services/notifications/notifications.ts also checks/requests permission.
   notificationsEnabled: boolean;
-  // Only ever set true from a screen that already confirmed
-  // hasHardwareAsync() + isEnrolledAsync() — see components/security/AppLockGate.tsx.
-  biometricLockEnabled: boolean;
+  // App lock: requires PIN or Face ID/Fingerprint
+  appLockEnabled: boolean;
+  biometricLockEnabled: boolean; // Kept in sync with appLockEnabled for backwards compatibility
+  pinLength: 4 | 6;
+  hasConfiguredPin: boolean;
+  useBiometrics: boolean;
+  biometricType: BiometricType;
   // Learning Environment (Settings) — typography.
   fontOption: FontOption;
   textScale: TextScale;
@@ -62,7 +67,14 @@ type SettingsState = {
   markKeyBroken: (provider: AiProvider) => void;
   clearKeyBroken: (provider: AiProvider) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
+  setAppLockEnabled: (enabled: boolean) => void;
   setBiometricLockEnabled: (enabled: boolean) => void;
+  setPinConfig: (config: { pinLength: 4 | 6; hasConfiguredPin: boolean }) => void;
+  setUseBiometrics: (use: boolean) => void;
+  setBiometricType: (type: BiometricType) => void;
+  disableAppLock: () => void;
+  lockTrigger: number;
+  lockAppNow: () => void;
   setFontOption: (font: FontOption) => void;
   setTextScale: (scale: TextScale) => void;
   setTutorPersona: (persona: TutorPersona) => void;
@@ -82,7 +94,12 @@ export const useSettingsStore = create<SettingsState>()(
       customModelByProvider: {},
       brokenKeyProviders: {},
       notificationsEnabled: false,
+      appLockEnabled: false,
       biometricLockEnabled: false,
+      pinLength: 4,
+      hasConfiguredPin: false,
+      useBiometrics: true,
+      biometricType: 'none',
       fontOption: 'system',
       textScale: 1,
       tutorPersona: 'coach',
@@ -106,7 +123,19 @@ export const useSettingsStore = create<SettingsState>()(
           return { brokenKeyProviders: next };
         }),
       setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
-      setBiometricLockEnabled: (biometricLockEnabled) => set({ biometricLockEnabled }),
+      setAppLockEnabled: (appLockEnabled) =>
+        set({ appLockEnabled, biometricLockEnabled: appLockEnabled }),
+      setBiometricLockEnabled: (biometricLockEnabled) =>
+        set({ biometricLockEnabled, appLockEnabled: biometricLockEnabled }),
+      setPinConfig: ({ pinLength, hasConfiguredPin }) => set({ pinLength, hasConfiguredPin }),
+      setUseBiometrics: (useBiometrics) => set({ useBiometrics }),
+      setBiometricType: (biometricType) => set({ biometricType }),
+      lockTrigger: 0,
+      lockAppNow: () => set((s) => ({ lockTrigger: s.lockTrigger + 1 })),
+      disableAppLock: () => {
+        clearStoredPin();
+        set({ appLockEnabled: false, biometricLockEnabled: false, hasConfiguredPin: false });
+      },
       setFontOption: (fontOption) => set({ fontOption }),
       setTextScale: (textScale) => set({ textScale }),
       setTutorPersona: (tutorPersona) => set({ tutorPersona }),

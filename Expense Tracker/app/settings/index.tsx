@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
+import { PinSetupModal } from '@/components/security/PinSetupModal';
 import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
 import { FontPicker } from '@/components/settings/FontPicker';
@@ -22,8 +22,13 @@ import {
   disableAllReminders,
   requestNotificationPermission,
   scheduleDailyReminder,
+  sendTestNotification,
 } from '@/services/notifications/notifications';
 import { refreshStudyNudge } from '@/services/notifications/studyNudge';
+import {
+  getBiometricCapabilities,
+  type BiometricCapabilities,
+} from '@/services/security/appLock';
 import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
@@ -71,8 +76,6 @@ export default function SettingsScreen() {
     tier,
     notificationsEnabled,
     setNotificationsEnabled,
-    biometricLockEnabled,
-    setBiometricLockEnabled,
     fontOption,
     setFontOption,
     textScale,
@@ -84,11 +87,30 @@ export default function SettingsScreen() {
     preferredStudyWindow,
     setPreferredStudyWindow,
   } = useSettingsStore();
+
+  const appLockEnabled = useSettingsStore((s) => s.appLockEnabled || s.biometricLockEnabled);
+  const pinLength = useSettingsStore((s) => s.pinLength);
+  const hasConfiguredPin = useSettingsStore((s) => s.hasConfiguredPin);
+  const useBiometrics = useSettingsStore((s) => s.useBiometrics);
+  const setUseBiometrics = useSettingsStore((s) => s.setUseBiometrics);
+  const setAppLockEnabled = useSettingsStore((s) => s.setAppLockEnabled);
+  const disableAppLock = useSettingsStore((s) => s.disableAppLock);
+  const lockAppNow = useSettingsStore((s) => s.lockAppNow);
+
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
   const badgeCount = useStreakStore((s) => s.badges.length);
   const getSuggestedHour = useUsageStore((s) => s.getSuggestedHour);
   const features = TIER_FEATURES[tier];
+
   const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [isChangingPin, setIsChangingPin] = useState(false);
+  const [biometricCaps, setBiometricCaps] = useState<BiometricCapabilities | null>(null);
+  const [testingNotif, setTestingNotif] = useState(false);
+
+  useEffect(() => {
+    getBiometricCapabilities().then(setBiometricCaps);
+  }, []);
 
   async function handleToggleSmartNudges(next: boolean) {
     if (!next) {
@@ -135,27 +157,55 @@ export default function SettingsScreen() {
     await scheduleDailyReminder();
   }
 
-  async function handleToggleBiometricLock(next: boolean) {
-    if (!next) {
-      setBiometricLockEnabled(false);
-      return;
-    }
-    let isEnrolled = false;
-    try {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      isEnrolled = hasHardware && (await LocalAuthentication.isEnrolledAsync());
-    } catch {
-      // Treated the same as "not enrolled" below — the alert covers both
-      // "nothing set up" and "couldn't check", and the switch just stays off.
-    }
-    if (!isEnrolled) {
-      Alert.alert(
-        'No biometrics set up',
-        'Set up Face ID, Touch ID, or a fingerprint in your device Settings first, then turn this on.'
+  function handleToggleAppLock(next: boolean) {
+    if (next) {
+      if (!hasConfiguredPin) {
+        setIsChangingPin(false);
+        setPinModalOpen(true);
+      } else {
+        setAppLockEnabled(true);
+      }
+    } else {
+      confirmAction(
+        {
+          title: 'Turn off App Lock?',
+          message: 'This removes your PIN and biometric protection when opening the app.',
+          confirmLabel: 'Turn Off',
+          destructive: true,
+        },
+        () => {
+          disableAppLock();
+        }
       );
-      return;
     }
-    setBiometricLockEnabled(true);
+  }
+
+  function handleChangePin() {
+    setIsChangingPin(true);
+    setPinModalOpen(true);
+  }
+
+  async function handleSendTestNotification() {
+    try {
+      setTestingNotif(true);
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        Alert.alert(
+          'Notifications disabled',
+          'Allow notifications for this app in your device Settings to receive alerts.'
+        );
+        return;
+      }
+      await sendTestNotification();
+      Alert.alert(
+        'Notification sent',
+        'A test notification has been sent! Check your notification center or lock screen.'
+      );
+    } catch {
+      Alert.alert('Error', 'Could not send test notification.');
+    } finally {
+      setTestingNotif(false);
+    }
   }
 
   function resetAllData() {
@@ -244,18 +294,81 @@ export default function SettingsScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(175).springify().damping(16)}>
-          <Section title="Notifications">
-            {features.pushAlerts ? (
+          <Section title="Notifications" subtitle="Daily market reviews, learning check-ins, and study alerts.">
+            <View style={{ gap: spacing.md }}>
               <NotificationsToggle enabled={notificationsEnabled} onToggle={handleToggleNotifications} />
-            ) : (
-              <LockedNotificationsRow />
-            )}
+              <Button
+                label={testingNotif ? 'Sending notification…' : 'Send test notification'}
+                variant="ghost"
+                onPress={handleSendTestNotification}
+              />
+            </View>
           </Section>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
-          <Section title="Security">
-            <BiometricLockToggle enabled={biometricLockEnabled} onToggle={handleToggleBiometricLock} />
+          <Section
+            title="Security"
+            subtitle={
+              biometricCaps?.isEnrolled
+                ? `Protect your account with a ${pinLength}-digit PIN and ${biometricCaps.label}.`
+                : `Protect your account with a ${pinLength}-digit PIN.`
+            }>
+            <View style={{ gap: spacing.md }}>
+              <Card style={styles.notifRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.notifLabel, { color: colors.text }]}>App Lock</Text>
+                  <Text style={[styles.notifSub, { color: colors.text3 }]}>
+                    {appLockEnabled
+                      ? `Active • Protected by ${pinLength}-digit PIN${useBiometrics && biometricCaps?.isEnrolled ? ` + ${biometricCaps.label}` : ''}`
+                      : hasConfiguredPin
+                        ? 'PIN configured. Turn on to lock app.'
+                        : 'Require PIN or biometrics to open the app.'}
+                  </Text>
+                </View>
+                <Switch
+                  value={appLockEnabled}
+                  onValueChange={handleToggleAppLock}
+                  trackColor={{ true: colors.accent }}
+                />
+              </Card>
+
+              {appLockEnabled && biometricCaps && biometricCaps.isEnrolled ? (
+                <Card style={styles.notifRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.notifLabel, { color: colors.text }]}>Unlock with {biometricCaps.label}</Text>
+                    <Text style={[styles.notifSub, { color: colors.text3 }]}>
+                      Fast biometric access. Your PIN remains available as a backup.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={useBiometrics}
+                    onValueChange={(val) => setUseBiometrics(val)}
+                    trackColor={{ true: colors.accent }}
+                  />
+                </Card>
+              ) : null}
+
+              {appLockEnabled ? (
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Change PIN" variant="ghost" fullWidth onPress={handleChangePin} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button label="Lock app now" variant="ghost" fullWidth onPress={lockAppNow} />
+                  </View>
+                </View>
+              ) : !hasConfiguredPin ? (
+                <Button
+                  label={biometricCaps?.isEnrolled ? `Set up ${biometricCaps.label} & PIN` : 'Set up PIN Lock'}
+                  variant="primary"
+                  onPress={() => {
+                    setIsChangingPin(false);
+                    setPinModalOpen(true);
+                  }}
+                />
+              ) : null}
+            </View>
           </Section>
         </Animated.View>
 
@@ -273,22 +386,12 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <PlanDetailsModal visible={planModalOpen} tier={tier} onClose={() => setPlanModalOpen(false)} />
+      <PinSetupModal
+        visible={pinModalOpen}
+        isChangingPin={isChangingPin}
+        onClose={() => setPinModalOpen(false)}
+      />
     </Screen>
-  );
-}
-
-function BiometricLockToggle({ enabled, onToggle }: { enabled: boolean; onToggle: (next: boolean) => void }) {
-  const { colors } = useTheme();
-  return (
-    <Card style={styles.notifRow}>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.notifLabel, { color: colors.text }]}>App lock</Text>
-        <Text style={[styles.notifSub, { color: colors.text3 }]}>
-          Require Face ID, Touch ID, or a fingerprint to open the app.
-        </Text>
-      </View>
-      <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: colors.accent }} />
-    </Card>
   );
 }
 
@@ -337,15 +440,6 @@ function SmartNudgesToggle({ enabled, onToggle }: { enabled: boolean; onToggle: 
   );
 }
 
-function LockedNotificationsRow() {
-  const { colors } = useTheme();
-  return (
-    <Card style={styles.notifRow}>
-      <Text style={{ flex: 1, fontSize: 13, color: colors.text2 }}>Daily reminders and streak nudges — a Pro/Max feature.</Text>
-      <Button label="Upgrade" variant="ghost" onPress={() => router.push('/settings/upgrade')} />
-    </Card>
-  );
-}
 
 function PlanCard({ tier, onManage }: { tier: keyof typeof TIER_LABELS; onManage: () => void }) {
   const { colors } = useTheme();

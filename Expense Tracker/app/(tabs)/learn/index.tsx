@@ -65,12 +65,6 @@ export default function LearnScreen() {
   const { streakDays, badges } = useStreakStore();
   const levelSelected = useSettingsStore((s) => s.levelSelected);
 
-  // First-ever visit to the Learn tab: ask "what's your level?" before
-  // showing anything else. Every learner's course/quiz progress starts at
-  // Beginner regardless of the answer — see store/useSettingsStore.ts.
-  useEffect(() => {
-    if (!levelSelected) router.push('/learn/level-select');
-  }, [levelSelected]);
   // Quizzes and the daily challenge draw from the same unified AI quota as
   // every other AI feature (see hooks/useAiQuota) — a working personal key
   // is unlimited, otherwise both share one "X left today" count.
@@ -131,6 +125,23 @@ export default function LearnScreen() {
               const info = badgeInfo(b);
               return <PillBadge key={b} label={`${info.icon} ${info.label}`} />;
             })}
+          </Animated.View>
+        ) : null}
+
+        {!levelSelected ? (
+          <Animated.View style={coursePathEntrance}>
+            <Card style={styles.levelCard}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.levelCardEyebrow, { color: colors.accent }]}>Personalize your path</Text>
+                <Text style={[styles.levelCardTitle, { color: colors.text }]}>What&apos;s your investing level?</Text>
+                <Text style={[styles.levelCardSub, { color: colors.text3 }]}>
+                  Beginner, intermediate, or advanced — pick anytime to personalize the curriculum.
+                </Text>
+              </View>
+              <View style={{ marginTop: spacing.sm }}>
+                <Button label="Choose level" variant="ghost" fullWidth onPress={() => router.push('/learn/level-select')} />
+              </View>
+            </Card>
           </Animated.View>
         ) : null}
 
@@ -249,4 +260,8 @@ const styles = StyleSheet.create({
   topicRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
   topicRowLabel: { fontSize: 13.5, fontWeight: '500' },
   topicRowStatus: { fontSize: 12, fontWeight: '700' },
+  levelCard: { gap: spacing.xs },
+  levelCardEyebrow: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  levelCardTitle: { fontSize: 15, fontWeight: '700' },
+  levelCardSub: { fontSize: 12.5, lineHeight: 17 },
 });

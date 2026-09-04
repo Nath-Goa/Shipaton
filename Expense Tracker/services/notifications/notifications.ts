@@ -20,15 +20,29 @@ const BILL_REMINDER_PREFIX = 'bill-reminder-';
 const DAILY_REMINDER_HOUR = 20; // 8 PM local time
 const STREAK_RISK_HOUR = 21; // 9 PM local time
 const BILL_REMINDER_HOUR = 9; // 9 AM local time, the day before it's due
+export const DEFAULT_CHANNEL_ID = 'default';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
+    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
   }),
 });
+
+export async function setupNotificationChannel(): Promise<void> {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync(DEFAULT_CHANNEL_ID, {
+      name: 'Reminders & Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#6366f1',
+      sound: 'default',
+    }).catch(() => {});
+  }
+}
 
 export async function hasNotificationPermission(): Promise<boolean> {
   const settings = await Notifications.getPermissionsAsync();
@@ -36,15 +50,17 @@ export async function hasNotificationPermission(): Promise<boolean> {
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  await setupNotificationChannel();
   const existing = await Notifications.getPermissionsAsync();
   if (existing.granted) return true;
   const requested = await Notifications.requestPermissionsAsync({
-    ios: { allowAlert: true, allowSound: true, allowBadge: false },
+    ios: { allowAlert: true, allowSound: true, allowBadge: true },
   });
   return requested.granted;
 }
 
 export async function scheduleDailyReminder(): Promise<void> {
+  await setupNotificationChannel();
   await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => {});
   // Permission can still be revoked between requestNotificationPermission()
   // succeeding and this call (or on a later app open with the toggle still
@@ -54,13 +70,34 @@ export async function scheduleDailyReminder(): Promise<void> {
     content: {
       title: 'Quick check-in',
       body: "Log today's spending or check your portfolio — takes a minute.",
+      sound: true,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: DAILY_REMINDER_HOUR,
       minute: 0,
+      channelId: DEFAULT_CHANNEL_ID,
     },
   }).catch(() => {});
+}
+
+export async function sendTestNotification(): Promise<boolean> {
+  const granted = await requestNotificationPermission();
+  if (!granted) return false;
+  await setupNotificationChannel();
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: '🔔 Notification Test',
+      body: 'Notifications are working! You will receive daily check-ins and streak nudges.',
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+      channelId: DEFAULT_CHANNEL_ID,
+    },
+  }).catch(() => {});
+  return true;
 }
 
 // Called on every activity that keeps the streak alive — cancels today's
@@ -92,8 +129,9 @@ export async function refreshStreakRiskReminder(params: {
     content: {
       title: `Don't lose your ${params.streakDays}-day streak!`,
       body: 'Take a quick quiz or challenge before the day ends.',
+      sound: true,
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: target },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: target, channelId: DEFAULT_CHANNEL_ID },
   }).catch(() => {});
 }
 
@@ -104,6 +142,7 @@ export async function refreshStreakRiskReminder(params: {
 export async function refreshBillReminders(
   bills: { seriesId: string; desc: string; amount: number; dueDate: string }[]
 ): Promise<void> {
+  await setupNotificationChannel();
   const scheduled = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
   for (const n of scheduled) {
     if (n.identifier.startsWith(BILL_REMINDER_PREFIX)) {
@@ -124,8 +163,9 @@ export async function refreshBillReminders(
       content: {
         title: 'Bill due tomorrow',
         body: `${bill.desc || 'Recurring expense'} — ${money(bill.amount)} logs tomorrow.`,
+        sound: true,
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: target },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: target, channelId: DEFAULT_CHANNEL_ID },
     }).catch(() => {});
   }
 }

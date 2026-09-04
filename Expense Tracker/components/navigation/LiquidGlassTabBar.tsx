@@ -42,7 +42,7 @@ export function LiquidGlassTabBar() {
   const translateX = useSharedValue(activeIndexFor(pathname) * tabWidth + centerOffset);
 
   useEffect(() => {
-    translateX.value = withSpring(activeIndexFor(pathname) * tabWidth + centerOffset, springs.gentle);
+    translateX.value = withSpring(activeIndexFor(pathname) * tabWidth + centerOffset, springs.snappy);
   }, [pathname, tabWidth, centerOffset, translateX]);
 
   const pillStyle = useAnimatedStyle(() => ({

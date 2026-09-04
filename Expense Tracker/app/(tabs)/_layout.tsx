@@ -81,7 +81,7 @@ function AnimatedTabButton(props: any) {
   // tapping back to an already-passed-over tab unreliable or a no-op.
   const handlePressIn = useCallback(
     (e: any) => {
-      scale.value = withSpring(0.88, springs.snappy);
+      scale.value = withSpring(0.94, springs.snappy);
       props.onPressIn?.(e);
     },
     [scale, props.onPressIn]

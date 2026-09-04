@@ -1,76 +1,262 @@
-import * as LocalAuthentication from 'expo-local-authentication';
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { spacing } from '@/constants/theme';
+import { springs, triggerFeedback } from '@/constants/animations';
+import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import {
+  authenticateWithBiometrics,
+  getBiometricCapabilities,
+  verifyPin,
+  type BiometricCapabilities,
+} from '@/services/security/appLock';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
-// Gates all app content behind Face ID/fingerprint when the user has turned
-// biometric lock on in Settings. Web has no biometric APIs and no
-// backgrounding concept the same way, so this is a no-op passthrough there
-// (see useSettingsStore's biometricLockEnabled, only ever settable where
-// hasHardwareAsync() says the device supports it).
 export function AppLockGate({ children }: { children: ReactNode }) {
   const { colors } = useTheme();
-  const enabled = useSettingsStore((s) => s.biometricLockEnabled);
-  const [locked, setLocked] = useState(enabled);
-  const [authenticating, setAuthenticating] = useState(false);
+  const appLockEnabled = useSettingsStore((s) => s.appLockEnabled || s.biometricLockEnabled);
+  const pinLength = useSettingsStore((s) => s.pinLength);
+  const useBiometrics = useSettingsStore((s) => s.useBiometrics);
+  const lockTrigger = useSettingsStore((s) => s.lockTrigger);
+
+  const [locked, setLocked] = useState(appLockEnabled);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [biometrics, setBiometrics] = useState<BiometricCapabilities | null>(null);
+
   const authenticatingRef = useRef(false);
   const appState = useRef(AppState.currentState);
+  const shakeTranslate = useSharedValue(0);
 
-  const attemptUnlock = useCallback(async () => {
-    if (authenticatingRef.current) return;
-    authenticatingRef.current = true;
-    setAuthenticating(true);
-    try {
-      const result = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock to continue' });
-      if (result.success) setLocked(false);
-    } catch {
-      // Leave the lock screen up — the visible "Unlock" button lets the
-      // person retry.
-    } finally {
-      authenticatingRef.current = false;
-      setAuthenticating(false);
-    }
+  // Check biometric capability
+  useEffect(() => {
+    getBiometricCapabilities().then(setBiometrics);
   }, []);
 
-  // Re-lock whenever the setting itself changes (turned on, or an
-  // already-locked session turns it off).
-  useEffect(() => {
-    setLocked(enabled);
-  }, [enabled]);
+  const triggerShake = useCallback(() => {
+    triggerFeedback('error');
+    shakeTranslate.value = withSequence(
+      withTiming(-12, { duration: 50 }),
+      withSpring(12, springs.snappy),
+      withSpring(-8, springs.snappy),
+      withSpring(8, springs.snappy),
+      withSpring(0, springs.snappy)
+    );
+  }, [shakeTranslate]);
 
-  // Re-lock on backgrounding, so switching apps or the app switcher can't
-  // be used to skip the lock screen.
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeTranslate.value }],
+  }));
+
+  const attemptBiometricUnlock = useCallback(async () => {
+    if (authenticatingRef.current || !useBiometrics) return;
+    authenticatingRef.current = true;
+    try {
+      const success = await authenticateWithBiometrics('Unlock to continue');
+      if (success) {
+        triggerFeedback('success');
+        setLocked(false);
+        setEnteredPin('');
+        setErrorMsg(null);
+      }
+    } finally {
+      authenticatingRef.current = false;
+    }
+  }, [useBiometrics]);
+
+  // Re-lock whenever the setting itself turns on/off
   useEffect(() => {
-    if (!enabled) return;
+    setLocked(appLockEnabled);
+    if (appLockEnabled) {
+      setEnteredPin('');
+      setErrorMsg(null);
+    }
+  }, [appLockEnabled]);
+
+  // Manual lock trigger from settings
+  useEffect(() => {
+    if (lockTrigger > 0 && appLockEnabled) {
+      setLocked(true);
+      setEnteredPin('');
+      setErrorMsg(null);
+    }
+  }, [lockTrigger, appLockEnabled]);
+
+  // Re-lock on backgrounding
+  useEffect(() => {
+    if (!appLockEnabled) return;
     const sub = AppState.addEventListener('change', (next) => {
       const wasActive = appState.current === 'active';
       appState.current = next;
-      if (wasActive && next !== 'active' && !authenticatingRef.current) setLocked(true);
+      if (wasActive && next !== 'active' && !authenticatingRef.current) {
+        setLocked(true);
+        setEnteredPin('');
+        setErrorMsg(null);
+      }
     });
     return () => sub.remove();
-  }, [enabled]);
+  }, [appLockEnabled]);
 
-  // Prompt immediately whenever a lock takes effect.
+  // Prompt biometric unlock automatically when locked
   useEffect(() => {
-    if (locked && enabled) attemptUnlock();
-  }, [locked, enabled, attemptUnlock]);
+    if (locked && appLockEnabled && useBiometrics) {
+      attemptBiometricUnlock();
+    }
+  }, [locked, appLockEnabled, useBiometrics, attemptBiometricUnlock]);
 
-  if (!enabled || !locked) return <>{children}</>;
+  const handleKeyPress = useCallback(
+    async (num: string) => {
+      triggerFeedback('selection');
+      setErrorMsg(null);
+
+      if (enteredPin.length < pinLength) {
+        const next = enteredPin + num;
+        setEnteredPin(next);
+
+        if (next.length === pinLength) {
+          const isValid = await verifyPin(next);
+          if (isValid) {
+            triggerFeedback('success');
+            setLocked(false);
+            setEnteredPin('');
+          } else {
+            triggerShake();
+            setErrorMsg('Incorrect PIN');
+            setTimeout(() => {
+              setEnteredPin('');
+            }, 300);
+          }
+        }
+      }
+    },
+    [enteredPin, pinLength, triggerShake]
+  );
+
+  const handleDelete = useCallback(() => {
+    triggerFeedback('secondary');
+    setErrorMsg(null);
+    setEnteredPin((p) => p.slice(0, -1));
+  }, []);
+
+  if (!appLockEnabled || !locked) return <>{children}</>;
+
+  const hasBiometricBtn = biometrics?.isEnrolled && useBiometrics;
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <View style={styles.center}>
-        <Text style={styles.icon}>🔒</Text>
-        <Text style={[styles.title, { color: colors.text }]}>App locked</Text>
-        <Text style={[styles.subtitle, { color: colors.text3 }]}>Authenticate to continue.</Text>
-        <View style={{ marginTop: spacing.xl, alignSelf: 'stretch' }}>
-          <Button label="Unlock" fullWidth onPress={attemptUnlock} loading={authenticating} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={styles.centerContent}>
+        <View style={[styles.iconWrap, { backgroundColor: colors.accentSoft }]}>
+          <Ionicons name="lock-closed" size={32} color={colors.accent} />
+        </View>
+        <Text style={[styles.title, { color: colors.text }]}>App Locked</Text>
+        <Text style={[styles.subtitle, { color: colors.text3 }]}>
+          {hasBiometricBtn
+            ? `Use ${biometrics?.label} or enter your PIN`
+            : `Enter your ${pinLength}-digit PIN`}
+        </Text>
+
+        {/* PIN Dots */}
+        <Animated.View style={[styles.dotsRow, shakeStyle]}>
+          {Array.from({ length: pinLength }).map((_, i) => {
+            const isFilled = i < enteredPin.length;
+            return (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  {
+                    borderColor: errorMsg ? colors.danger : colors.accent,
+                    backgroundColor: isFilled
+                      ? errorMsg
+                        ? colors.danger
+                        : colors.accent
+                      : 'transparent',
+                  },
+                ]}
+              />
+            );
+          })}
+        </Animated.View>
+
+        {errorMsg ? <Text style={[styles.errorText, { color: colors.danger }]}>{errorMsg}</Text> : null}
+
+        {/* Numeric Keypad */}
+        <View style={styles.keypad}>
+          {[
+            ['1', '2', '3'],
+            ['4', '5', '6'],
+            ['7', '8', '9'],
+            [hasBiometricBtn ? 'bio' : '', '0', 'del'],
+          ].map((row, rowIdx) => (
+            <View key={rowIdx} style={styles.keypadRow}>
+              {row.map((btn, colIdx) => {
+                if (btn === '') {
+                  return <View key={colIdx} style={styles.keyEmpty} />;
+                }
+                if (btn === 'del') {
+                  return (
+                    <Pressable
+                      key={colIdx}
+                      hitSlop={10}
+                      onPress={handleDelete}
+                      disabled={enteredPin.length === 0}
+                      style={({ pressed }) => [
+                        styles.keyBtn,
+                        { opacity: pressed ? 0.6 : enteredPin.length === 0 ? 0.3 : 1 },
+                      ]}>
+                      <Ionicons name="backspace-outline" size={24} color={colors.text} />
+                    </Pressable>
+                  );
+                }
+                if (btn === 'bio') {
+                  return (
+                    <Pressable
+                      key={colIdx}
+                      hitSlop={10}
+                      onPress={attemptBiometricUnlock}
+                      style={({ pressed }) => [
+                        styles.keyBtn,
+                        {
+                          backgroundColor: pressed ? colors.surface2 : 'transparent',
+                          borderColor: colors.border,
+                        },
+                      ]}>
+                      <Ionicons
+                        name={biometrics?.biometricType === 'face' ? 'scan-outline' : 'finger-print-outline'}
+                        size={26}
+                        color={colors.accent}
+                      />
+                    </Pressable>
+                  );
+                }
+                return (
+                  <Pressable
+                    key={colIdx}
+                    hitSlop={6}
+                    onPress={() => handleKeyPress(btn)}
+                    style={({ pressed }) => [
+                      styles.keyBtn,
+                      {
+                        backgroundColor: pressed ? colors.surface2 : 'transparent',
+                        borderColor: colors.border,
+                      },
+                    ]}>
+                    <Text style={[styles.keyText, { color: colors.text }]}>{btn}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
         </View>
       </View>
     </SafeAreaView>
@@ -78,9 +264,48 @@ export function AppLockGate({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  icon: { fontSize: 48 },
-  title: { fontSize: 20, fontWeight: '700', marginTop: spacing.md },
-  subtitle: { fontSize: 13, marginTop: spacing.xs, textAlign: 'center' },
+  container: { flex: 1 },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  title: { fontSize: 22, fontWeight: '700' },
+  subtitle: { fontSize: 13.5, marginTop: spacing.xs, textAlign: 'center' },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  dot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+  },
+  errorText: { fontSize: 13, fontWeight: '600', marginBottom: spacing.xs },
+  keypad: { gap: 12, marginTop: spacing.lg, width: '100%', maxWidth: 280 },
+  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 14 },
+  keyBtn: {
+    flex: 1,
+    height: 58,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  keyEmpty: { flex: 1, height: 58 },
+  keyText: { fontSize: 24, fontWeight: '600' },
 });

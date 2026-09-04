@@ -23,7 +23,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     liveSentiment: false,
     receiptAutoFill: false,
     adsEnabled: true,
-    pushAlerts: false,
+    pushAlerts: true,
     stockDetailDailyLimit: 5,
     patternDetection: false,
     backtesting: false,

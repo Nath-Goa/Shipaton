@@ -58,6 +58,13 @@ function RootLayout() {
   const [portfolioHydrated, setPortfolioHydrated] = useState(usePortfolioStore.persist.hasHydrated());
   const processRecurringContributions = useSavingsGoalStore((s) => s.processRecurringContributions);
   const [savingsGoalHydrated, setSavingsGoalHydrated] = useState(useSavingsGoalStore.persist.hasHydrated());
+  const [settingsHydrated, setSettingsHydrated] = useState(useSettingsStore.persist.hasHydrated());
+
+  useEffect(() => {
+    if (settingsHydrated) return;
+    return useSettingsStore.persist.onFinishHydration(() => setSettingsHydrated(true));
+  }, [settingsHydrated]);
+
   // Raw, referentially-stable store fields — computeUpcomingRecurring builds
   // the actual (fresh-array) result in a useMemo below, never inside a
   // selector itself (see LimitOrderWatcher for why that distinction matters).
@@ -66,9 +73,9 @@ function RootLayout() {
   const upcomingRecurring = useMemo(() => computeUpcomingRecurring(expenses, seriesCursor), [expenses, seriesCursor]);
 
   useEffect(() => {
-    if (!fontsLoaded && !fontsError) return;
+    if ((!fontsLoaded && !fontsError) || !settingsHydrated) return;
     SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded, fontsError]);
+  }, [fontsLoaded, fontsError, settingsHydrated]);
 
   // Once per app open — builds store/useUsageStore's hour-of-day histogram
   // that the smart study-nudge suggestion (below) is derived from.
@@ -129,17 +136,10 @@ function RootLayout() {
   // a stale "enabled" flag if the user's tier no longer includes pushAlerts
   // (e.g. a subscription lapsed).
   useEffect(() => {
-    if (!TIER_FEATURES[tier].pushAlerts) {
-      if (notificationsEnabled) {
-        setNotificationsEnabled(false);
-        disableAllReminders();
-      }
-      return;
-    }
     if (!notificationsEnabled) return;
     refreshStreakRiskReminder({ streakDays, activityDoneToday: lastActivityDate === todayStr() });
     refreshBillReminders(upcomingRecurring);
-  }, [tier, notificationsEnabled, streakDays, lastActivityDate, upcomingRecurring, setNotificationsEnabled]);
+  }, [notificationsEnabled, streakDays, lastActivityDate, upcomingRecurring]);
 
   // Smart study-time nudge: independent of the pushAlerts tier gate above
   // (it's a core engagement feature, not a paid perk) and of the OS
@@ -174,7 +174,7 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <RootLayoutNav />
+        <RootLayoutNav ready={settingsHydrated} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -182,12 +182,14 @@ function RootLayout() {
 
 export default Sentry.wrap(RootLayout);
 
-function RootLayoutNav() {
+function RootLayoutNav({ ready }: { ready: boolean }) {
   const { scheme, colors } = useTheme();
   const onboardingComplete = useSettingsStore((s) => s.onboardingComplete);
   const badgeCount = useStreakStore((s) => s.badges.length);
-  const tradeCount = usePortfolioStore((s) =>
-    Object.values(s.portfolios).reduce((total, p) => total + p.trades.length, 0)
+  const portfolios = usePortfolioStore((s) => s.portfolios);
+  const tradeCount = useMemo(
+    () => Object.values(portfolios).reduce((total, p) => total + p.trades.length, 0),
+    [portfolios]
   );
   const hasPrompted = useReviewStore((s) => s.hasPrompted);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -206,9 +208,17 @@ function RootLayoutNav() {
   // earned (Learn/Markets) or a few trades (Portfolio) — rather than
   // nagging on first open.
   useEffect(() => {
-    if (!onboardingComplete || !reviewStoreHydrated || hasPrompted) return;
+    if (!ready || !onboardingComplete || !reviewStoreHydrated || hasPrompted) return;
     if (badgeCount >= 1 || tradeCount >= REVIEW_PROMPT_MIN_TRADES) setReviewModalVisible(true);
-  }, [onboardingComplete, reviewStoreHydrated, hasPrompted, badgeCount, tradeCount]);
+  }, [ready, onboardingComplete, reviewStoreHydrated, hasPrompted, badgeCount, tradeCount]);
+
+  if (!ready) {
+    return (
+      <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
