@@ -18,6 +18,7 @@ import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
+import { useFocusRemountKey } from '@/hooks/useFocusRemountKey';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
@@ -101,6 +102,7 @@ function StarButton({ symbol, watched, onToggle }: { symbol: string; watched: bo
 
 export default function MarketsScreen() {
   const { colors } = useTheme();
+  const remountKey = useFocusRemountKey();
   const [query, setQuery] = useState('');
   const { watchlist, toggleWatchlist } = usePortfolioStore();
   const showToast = useToastStore((s) => s.show);
@@ -144,44 +146,46 @@ export default function MarketsScreen() {
   return (
     <Screen>
       <TopBar title="Markets" subtitle={liveData ? 'Mock trading — real live prices' : 'Mock stocks — simulated prices, real symbols'} />
-      <Animated.View entering={FadeInDown.duration(300).springify().damping(16)} style={styles.searchWrap}>
-        <View style={[styles.searchBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
-          <Ionicons name="search" size={16} color={colors.text3} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search symbol or company"
-            placeholderTextColor={colors.text3}
-            style={[styles.searchInput, { color: colors.text }]}
-            autoCapitalize="characters"
-            autoCorrect={false}
+      <View key={remountKey}>
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)} style={styles.searchWrap}>
+          <View style={[styles.searchBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+            <Ionicons name="search" size={16} color={colors.text3} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search symbol or company"
+              placeholderTextColor={colors.text3}
+              style={[styles.searchInput, { color: colors.text }]}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+          </View>
+        </Animated.View>
+        <View style={styles.bannerWrap}>
+          <UpgradeBanner
+            title="Unlock full forecasts"
+            body="Upgrade to Pro for price-range forecasts, live sentiment, and deep pattern analysis."
+            delay={40}
           />
         </View>
-      </Animated.View>
-      <View style={styles.bannerWrap}>
-        <UpgradeBanner
-          title="Unlock full forecasts"
-          body="Upgrade to Pro for price-range forecasts, live sentiment, and deep pattern analysis."
-          delay={40}
-        />
+        <Animated.View entering={FadeInDown.delay(60).springify().damping(16)} style={styles.actionsRow}>
+          <MarketActionBtn
+            icon="flask-outline"
+            label="Practice trade"
+            onPress={() => router.push('/markets/practice')}
+          />
+          <MarketActionBtn
+            icon={liveData ? 'refresh-outline' : 'shuffle-outline'}
+            label={liveData ? 'Refresh prices' : 'Regenerate market'}
+            onPress={confirmRegenerate}
+          />
+          <MarketActionBtn
+            icon="analytics-outline"
+            label="Backtest"
+            onPress={() => router.push('/markets/backtest')}
+          />
+        </Animated.View>
       </View>
-      <Animated.View entering={FadeInDown.delay(60).springify().damping(16)} style={styles.actionsRow}>
-        <MarketActionBtn
-          icon="flask-outline"
-          label="Practice trade"
-          onPress={() => router.push('/markets/practice')}
-        />
-        <MarketActionBtn
-          icon={liveData ? 'refresh-outline' : 'shuffle-outline'}
-          label={liveData ? 'Refresh prices' : 'Regenerate market'}
-          onPress={confirmRegenerate}
-        />
-        <MarketActionBtn
-          icon="analytics-outline"
-          label="Backtest"
-          onPress={() => router.push('/markets/backtest')}
-        />
-      </Animated.View>
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.symbol}

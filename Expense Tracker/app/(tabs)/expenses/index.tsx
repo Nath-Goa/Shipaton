@@ -16,6 +16,7 @@ import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { CATEGORIES, categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
+import { useFocusRemountKey } from '@/hooks/useFocusRemountKey';
 import { useTheme } from '@/hooks/useTheme';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { generateSpendingInsight, type SpendingInsight } from '@/services/ai/insights';
@@ -39,6 +40,7 @@ type Row = { kind: 'header'; date: string; total: number } | { kind: 'item'; exp
 
 export default function ExpensesScreen() {
   const { colors } = useTheme();
+  const remountKey = useFocusRemountKey();
   const { expenses, seedIfNeeded, generateDueRecurring, deleteExpense, undoDelete } = useExpenseStore();
   const showToast = useToastStore((s) => s.show);
   const [preset, setPreset] = useState<Preset>('all');
@@ -181,7 +183,7 @@ export default function ExpensesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
-          <View style={styles.headerBlock}>
+          <View key={remountKey} style={styles.headerBlock}>
             <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {PRESETS.map((p) => (

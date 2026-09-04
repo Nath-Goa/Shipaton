@@ -21,6 +21,7 @@ import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { SECTOR_COLORS, tickerOf } from '@/constants/tickers';
+import { useFocusRemountKey } from '@/hooks/useFocusRemountKey';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { sharePortfolioSummary } from '@/services/export/exportData';
@@ -117,6 +118,7 @@ function HoldingRow({
 
 export default function PortfolioScreen() {
   const { colors } = useTheme();
+  const remountKey = useFocusRemountKey();
   const activePortfolio = useActivePortfolio();
   const { name, cash, holdings, trades, dividends, autoInvests } = activePortfolio;
   const portfolioCount = usePortfolioStore((s) => Object.keys(s.portfolios).length);
@@ -176,6 +178,7 @@ export default function PortfolioScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
+        <View key={remountKey} style={styles.sections}>
         {/* Animated Staggered Stats */}
         <Animated.View entering={FadeInDown.duration(350).springify().damping(16)} style={styles.statsRow}>
           <NetWorthTile value={summary.netWorth} />
@@ -347,6 +350,7 @@ export default function PortfolioScreen() {
             )}
           </Card>
         </Animated.View>
+        </View>
       </ScrollView>
 
       <ResultsCardModal
@@ -364,7 +368,8 @@ export default function PortfolioScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.xl, paddingTop: 0, gap: spacing.xl, paddingBottom: spacing.xxl },
+  content: { padding: spacing.xl, paddingTop: 0, paddingBottom: spacing.xxl },
+  sections: { gap: spacing.xl },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   netWorthTileWrap: { flexGrow: 1, flexBasis: '47%' },
   sectionTitle: { fontSize: 15.5, fontWeight: '700' },
