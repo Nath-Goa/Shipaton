@@ -13,6 +13,7 @@ export type FeatureFlags = {
   backtesting: boolean; // historical accuracy backtest of the direction-call algorithm
   multiplePortfolios: boolean; // create/switch between more than one paper portfolio
   limitOrders: boolean; // place buy/sell orders that fill automatically at a target price
+  savedChartLimit: number; // how many named/saved expense pie charts a user can keep
 };
 
 export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
@@ -28,6 +29,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     backtesting: false,
     multiplePortfolios: false,
     limitOrders: false,
+    savedChartLimit: 5,
   },
   pro: {
     tier: 'pro',
@@ -41,6 +43,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     backtesting: false,
     multiplePortfolios: false,
     limitOrders: false,
+    savedChartLimit: 20,
   },
   max: {
     tier: 'max',
@@ -54,6 +57,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     backtesting: true,
     multiplePortfolios: true,
     limitOrders: true,
+    savedChartLimit: 100,
   },
 };
 
@@ -113,6 +117,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     `${AI_FEATURE_DAILY_LIMIT.free} AI actions/day (chat, quizzes, challenges) on the built-in key — unlimited with your own API key`,
     '24h-delayed sentiment score',
     'Expense tracker with photo receipts',
+    'Up to 5 saved spending-breakdown charts',
   ],
   pro: [
     'Everything in Free',
@@ -123,6 +128,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'AI-powered deep pattern analysis',
     'Receipt "Auto-fill with AI"',
     'AI spending insights on your expenses',
+    'Up to 20 saved spending-breakdown charts',
     'Zero ads',
   ],
   max: [
@@ -132,6 +138,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     // Keep this number in sync with MAX_PORTFOLIOS in store/usePortfolioStore.ts.
     'Up to 5 paper-trading portfolios, so you can run separate strategies side by side',
     'Limit orders — buy or sell automatically once a stock hits your target price',
+    'Up to 100 saved spending-breakdown charts',
   ],
 };
 

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, {
@@ -13,12 +14,13 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { StatTile } from '@/components/ui/StatTile';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS, tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
-import { money, signedMoney } from '@/utils/money';
+import { money, signedMoney, signedPct } from '@/utils/money';
 
 const SANDBOX_CASH = 100_000;
 
@@ -84,6 +86,8 @@ export default function PracticeTradeScreen() {
   );
   const netWorth = cash + holdingsValue;
   const pnl = netWorth - SANDBOX_CASH;
+  const pnlPct = (pnl / SANDBOX_CASH) * 100;
+  const pnlColor = pnl >= 0 ? colors.success : colors.danger;
 
   const ticker = selected ? tickerOf(selected) : undefined;
   const price = selected ? (quotes.get(selected)?.price ?? ticker?.basePrice ?? 0) : 0;
@@ -148,16 +152,31 @@ export default function PracticeTradeScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <Animated.View entering={FadeInDown.duration(300).springify().damping(16)} style={styles.content}>
-        <Card style={styles.summary}>
-          <View>
-            <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Sandbox net worth</Text>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>{money(netWorth)}</Text>
-            <Text style={[styles.summarySub, { color: pnl >= 0 ? colors.success : colors.danger }]}>
-              {signedMoney(pnl)} vs starting $100,000
-            </Text>
-          </View>
+        <View style={styles.summaryHead}>
+          <Text style={[styles.summaryHeadLabel, { color: colors.text3 }]}>Practice performance</Text>
           <Button label="Reset" variant="ghost" onPress={resetSandbox} />
+        </View>
+
+        <View style={styles.statsRow}>
+          {/* The number that actually moves the instant you buy — shown
+              separately from net worth so a purchase visibly "costs"
+              something, not just a net-worth figure that (correctly)
+              doesn't move until the stock's price does. */}
+          <StatTile label="Sandbox balance" value={money(cash)} />
+          <StatTile label="Net worth" value={money(netWorth)} />
+        </View>
+
+        <Card style={styles.pnlCard}>
+          <Text style={[styles.pnlLabel, { color: colors.text3 }]}>vs starting $100,000</Text>
+          <View style={styles.pnlRow}>
+            <View style={styles.pnlPctGroup}>
+              <Ionicons name={pnl >= 0 ? 'trending-up' : 'trending-down'} size={22} color={pnlColor} />
+              <Text style={[styles.pnlValue, { color: pnlColor }]}>{signedPct(pnlPct)}</Text>
+            </View>
+            <Text style={[styles.pnlValue, { color: pnlColor }]}>{signedMoney(pnl)}</Text>
+          </View>
         </Card>
+
         <Text style={[styles.disclaimer, { color: colors.text3 }]}>
           Practice sandbox — trades here are separate from your real mock portfolio and reset when you leave.
         </Text>
@@ -263,10 +282,14 @@ export default function PracticeTradeScreen() {
 
 const styles = StyleSheet.create({
   content: { flex: 1, padding: spacing.xl, gap: spacing.md },
-  summary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  summaryValue: { fontSize: 20, fontWeight: '700', marginTop: 2 },
-  summarySub: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  summaryHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  summaryHeadLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statsRow: { flexDirection: 'row', gap: spacing.md },
+  pnlCard: { gap: spacing.sm },
+  pnlLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  pnlRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pnlPctGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pnlValue: { fontSize: 26, fontWeight: '700', letterSpacing: -0.4 },
   disclaimer: { fontSize: 12, lineHeight: 16 },
   searchBox: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.sm, paddingHorizontal: spacing.md },
   searchInput: { paddingVertical: 10, fontSize: 14 },

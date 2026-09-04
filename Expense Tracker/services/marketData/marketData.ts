@@ -1,17 +1,16 @@
 import * as live from '@/services/marketData/liveMarketData';
-import * as mock from '@/services/marketData/mockMarketData';
-import { isLiveMarketDataConfigured } from '@/services/marketData/twelveData';
+import { isLiveMarketDataConfigured } from '@/services/marketData/liveMarketData';
 import type { PriceBar, Quote, Range } from '@/types/stock';
 
 // Public entry point for stock price data — every screen imports from here,
-// never from mockMarketData or liveMarketData directly. Dispatches to real
-// prices (Twelve Data, via liveMarketData.ts) when
-// EXPO_PUBLIC_TWELVEDATA_API_KEY is set, otherwise falls back to the fully
-// local mock engine — same "configured vs. demo" pattern used for
-// RevenueCat, Sentry, and the shared AI key elsewhere in this app.
+// never from mockMarketData or liveMarketData directly. Always dispatches to
+// the live engine now: it prefers Twelve Data when a paid key is configured,
+// otherwise Yahoo Finance's free unofficial endpoint (no key needed), and
+// falls back to the local mock engine per symbol on any failure — see
+// liveMarketData.ts for the full precedence chain.
 export { isLiveMarketDataConfigured };
 
-const engine = isLiveMarketDataConfigured() ? live : mock;
+const engine = live;
 
 export function getFullHistory(symbol: string): PriceBar[] {
   return engine.getFullHistory(symbol);
