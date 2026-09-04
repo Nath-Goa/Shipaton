@@ -51,12 +51,21 @@ type SavingsGoalState = {
   // cursor+guard idempotent pattern as usePortfolioStore.processAutoInvests.
   // Safe to call on every app open.
   processRecurringContributions: () => void;
+  // The goal every logged expense's spare change (rounded up to the next
+  // dollar) gets routed into, or null if round-up saving is off.
+  roundUpGoalId: string | null;
+  setRoundUpGoal: (goalId: string | null) => void;
+  // Called from useExpenseStore.addExpense with the expense amount that was
+  // just logged — no-ops if round-up saving is off or its target goal was
+  // since deleted.
+  contributeRoundUp: (expenseAmount: number) => void;
 };
 
 export const useSavingsGoalStore = create<SavingsGoalState>()(
   persist(
     (set, get) => ({
       goals: [],
+      roundUpGoalId: null,
 
       createGoal: (name, icon, targetAmount, targetDate) => {
         const trimmed = name.trim();
@@ -100,7 +109,11 @@ export const useSavingsGoalStore = create<SavingsGoalState>()(
       },
 
       deleteGoal: (goalId) => {
-        set({ goals: get().goals.filter((g) => g.id !== goalId) });
+        const { roundUpGoalId } = get();
+        set({
+          goals: get().goals.filter((g) => g.id !== goalId),
+          roundUpGoalId: roundUpGoalId === goalId ? null : roundUpGoalId,
+        });
       },
 
       setRecurringContribution: (goalId, amount, frequency) => {
@@ -162,6 +175,16 @@ export const useSavingsGoalStore = create<SavingsGoalState>()(
         if (!changed) return;
         set({ goals: nextGoals });
         for (const notice of notices) useToastStore.getState().show(notice);
+      },
+
+      setRoundUpGoal: (goalId) => set({ roundUpGoalId: goalId }),
+
+      contributeRoundUp: (expenseAmount) => {
+        const { roundUpGoalId, goals } = get();
+        if (!roundUpGoalId || !goals.some((g) => g.id === roundUpGoalId)) return;
+        const roundUp = Math.round((Math.ceil(expenseAmount) - expenseAmount) * 100) / 100;
+        if (roundUp <= 0) return;
+        get().addContribution(roundUpGoalId, roundUp);
       },
     }),
     {

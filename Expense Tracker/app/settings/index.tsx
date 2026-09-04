@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { BADGE_INFO } from '@/constants/badges';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
@@ -24,6 +25,7 @@ import { useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useChatStore } from '@/store/useChatStore';
 import { useSettingsStore, type ThemeMode } from '@/store/useSettingsStore';
+import { useStreakStore } from '@/store/useStreakStore';
 import { confirmAction } from '@/utils/confirm';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -47,6 +49,7 @@ export default function SettingsScreen() {
     setBiometricLockEnabled,
   } = useSettingsStore();
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
+  const badgeCount = useStreakStore((s) => s.badges.length);
   const features = TIER_FEATURES[tier];
   const [planModalOpen, setPlanModalOpen] = useState(false);
 
@@ -150,6 +153,12 @@ export default function SettingsScreen() {
           </Section>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(225).springify().damping(16)}>
+          <Section title="Achievements">
+            <AchievementsRow badgeCount={badgeCount} />
+          </Section>
+        </Animated.View>
+
         <Animated.View entering={FadeInDown.delay(250).springify().damping(16)}>
           <Section title="Data">
             <Button label="Reset all app data" variant="danger" onPress={resetAllData} />
@@ -173,6 +182,21 @@ function BiometricLockToggle({ enabled, onToggle }: { enabled: boolean; onToggle
         </Text>
       </View>
       <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: colors.accent }} />
+    </Card>
+  );
+}
+
+function AchievementsRow({ badgeCount }: { badgeCount: number }) {
+  const { colors } = useTheme();
+  return (
+    <Card style={styles.notifRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>Badges</Text>
+        <Text style={[styles.notifSub, { color: colors.text3 }]}>
+          {badgeCount} / {Object.keys(BADGE_INFO).length} earned across the app
+        </Text>
+      </View>
+      <Button label="View all" variant="ghost" onPress={() => router.push('/settings/achievements')} />
     </Card>
   );
 }

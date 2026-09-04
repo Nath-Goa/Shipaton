@@ -148,6 +148,8 @@ export default function GoalsScreen() {
   const { colors } = useTheme();
   const goals = useSavingsGoalStore((s) => s.goals);
   const createGoal = useSavingsGoalStore((s) => s.createGoal);
+  const roundUpGoalId = useSavingsGoalStore((s) => s.roundUpGoalId);
+  const setRoundUpGoal = useSavingsGoalStore((s) => s.setRoundUpGoal);
   const showToast = useToastStore((s) => s.show);
 
   const [creating, setCreating] = useState(false);
@@ -190,6 +192,28 @@ export default function GoalsScreen() {
             Set targets — a trip, a laptop, an emergency fund — and add contributions manually as you save.
           </Text>
         </Animated.View>
+
+        {goals.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(15).springify().damping(16)}>
+            <Card style={{ gap: spacing.sm }}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Round-up savings</Text>
+              <Text style={[styles.roundUpSub, { color: colors.text3 }]}>
+                Every expense you log rounds up to the next dollar — the spare change goes into a goal.
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.iconRow}>
+                <Chip label="Off" active={!roundUpGoalId} onPress={() => setRoundUpGoal(null)} />
+                {goals.map((g) => (
+                  <Chip
+                    key={g.id}
+                    label={`${g.icon} ${g.name}`}
+                    active={roundUpGoalId === g.id}
+                    onPress={() => setRoundUpGoal(g.id)}
+                  />
+                ))}
+              </ScrollView>
+            </Card>
+          </Animated.View>
+        ) : null}
 
         {sorted.length === 0 && !creating ? (
           <EmptyState
@@ -293,6 +317,8 @@ export default function GoalsScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   intro: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700' },
+  roundUpSub: { fontSize: 12, lineHeight: 16 },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   headLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   icon: { fontSize: 24 },
