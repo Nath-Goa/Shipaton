@@ -22,13 +22,19 @@ export function isLiveMarketDataConfigured(): boolean {
 }
 
 // Fetches are TTL-gated per symbol (not per render): daily bars barely move
-// intraday so a 6h TTL is plenty, and quotes refresh at most once a minute
-// even if a screen polls this every few seconds. Twelve Data's free tier
-// (8 req/min, 800 credits/day) is the tighter budget these were originally
-// tuned for; Yahoo's endpoint has no published limit but the same TTLs keep
-// this app a well-behaved caller either way.
+// intraday so a 6h TTL is plenty. Quotes are trickier — Twelve Data bills 1
+// credit PER SYMBOL on its batched /quote call (confirmed in their docs),
+// not 1 credit per request, so a single batch across TICKERS' ~26 symbols
+// costs ~26 credits regardless of the 8-req/min cap being nowhere near hit.
+// At the old 60s TTL that's ~26 credits/minute of active screen time — the
+// free tier's 800 credits/day budget was gone after about half an hour of
+// use, after which every quote silently fell back to cached/mock for the
+// rest of the day. 5 minutes stretches the same budget across ~2.5 hours of
+// continuous use, which is a much better match for how this app is actually
+// used (opened for a few minutes at a time, not left open all day). Yahoo's
+// endpoint has no published limit but shares the same TTL either way.
 const BARS_TTL_MS = 6 * 60 * 60 * 1000;
-const QUOTE_TTL_MS = 60 * 1000;
+const QUOTE_TTL_MS = 5 * 60 * 1000;
 const STORAGE_KEY = 'live-market-data-cache-v1';
 
 const barsCache = new Map<string, PriceBar[]>();
