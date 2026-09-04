@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -205,180 +205,182 @@ export default function TradeScreen() {
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <Stack.Screen options={{ title: `Trade ${symbol}` }} />
-      <Animated.View entering={FadeInDown.duration(300).springify().damping(16)} style={styles.content}>
-        <View>
-          <Text style={[styles.name, { color: colors.text3 }]}>{ticker.name}</Text>
-          <Text style={[styles.price, { color: colors.text }]}>{money(price)}</Text>
-        </View>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+          <View>
+            <Text style={[styles.name, { color: colors.text3 }]}>{ticker.name}</Text>
+            <Text style={[styles.price, { color: colors.text }]}>{money(price)}</Text>
+          </View>
 
-        <SegmentedControl
-          options={[
-            { value: 'buy', label: 'Buy' },
-            { value: 'sell', label: 'Sell' },
-          ]}
-          value={side}
-          onChange={(v) => {
-            setSide(v as Side);
-            setError(null);
-          }}
-        />
+          <SegmentedControl
+            options={[
+              { value: 'buy', label: 'Buy' },
+              { value: 'sell', label: 'Sell' },
+            ]}
+            value={side}
+            onChange={(v) => {
+              setSide(v as Side);
+              setError(null);
+            }}
+          />
 
-        <SegmentedControl
-          options={orderTypeOptions}
-          value={orderType}
-          onChange={(v) => {
-            setOrderType(v as OrderType);
-            setError(null);
-          }}
-        />
+          <SegmentedControl
+            options={orderTypeOptions}
+            value={orderType}
+            onChange={(v) => {
+              setOrderType(v as OrderType);
+              setError(null);
+            }}
+          />
 
-        {!features.limitOrders ? (
-          <Pressable onPress={() => upgradeToTier('max')}>
-            <Card style={styles.lockedRow}>
-              <Ionicons name="lock-closed" size={14} color={colors.text3} />
-              <Text style={[styles.lockedText, { color: colors.text3 }]}>
-                Limit orders — fill automatically at a target price. Max only.
-              </Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.text3} />
-            </Card>
-          </Pressable>
-        ) : null}
+          {!features.limitOrders ? (
+            <Pressable onPress={() => upgradeToTier('max')}>
+              <Card style={styles.lockedRow}>
+                <Ionicons name="lock-closed" size={14} color={colors.text3} />
+                <Text style={[styles.lockedText, { color: colors.text3 }]}>
+                  Limit orders — fill automatically at a target price. Max only.
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.text3} />
+              </Card>
+            </Pressable>
+          ) : null}
 
-        {orderType === 'autoInvest' ? (
-          <Card>
-            <Text style={[styles.label, { color: colors.text3 }]}>Amount per contribution</Text>
-            <TextInput
-              value={autoAmountText}
-              onChangeText={setAutoAmountText}
-              keyboardType="decimal-pad"
-              placeholder="50"
-              placeholderTextColor={colors.text3}
-              style={[styles.limitInput, { color: colors.text, borderColor: colors.border, marginTop: spacing.sm }]}
-            />
-
-            <View style={{ marginTop: spacing.lg }}>
-              <Text style={[styles.label, { color: colors.text3 }]}>Frequency</Text>
-              <View style={{ marginTop: spacing.sm }}>
-                <SegmentedControl options={FREQUENCY_OPTIONS} value={frequency} onChange={(v) => setFrequency(v as RecurringFrequency)} />
-              </View>
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Buys fractional shares worth</Text>
-              <Text style={[styles.summaryValue, { color: colors.text }]}>{money(autoAmount)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Cash available</Text>
-              <Text style={[styles.summaryValue, { color: colors.text2 }]}>{money(cash)}</Text>
-            </View>
-          </Card>
-        ) : (
-          <Card>
-            <Text style={[styles.label, { color: colors.text3 }]}>Quantity</Text>
-            <View style={styles.qtyRow}>
-              <QtyButton label="−" onPress={() => adjustQty(-1)} />
+          {orderType === 'autoInvest' ? (
+            <Card>
+              <Text style={[styles.label, { color: colors.text3 }]}>Amount per contribution</Text>
               <TextInput
-                value={qtyText}
-                onChangeText={setQtyText}
-                keyboardType="number-pad"
-                style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]}
+                value={autoAmountText}
+                onChangeText={setAutoAmountText}
+                keyboardType="decimal-pad"
+                placeholder="50"
+                placeholderTextColor={colors.text3}
+                style={[styles.limitInput, { color: colors.text, borderColor: colors.border, marginTop: spacing.sm }]}
               />
-              <QtyButton label="+" onPress={() => adjustQty(1)} />
-            </View>
 
-            {orderType === 'limit' ? (
               <View style={{ marginTop: spacing.lg }}>
-                <Text style={[styles.label, { color: colors.text3 }]}>
-                  Target price ({side === 'buy' ? 'fills at or below' : 'fills at or above'})
-                </Text>
+                <Text style={[styles.label, { color: colors.text3 }]}>Frequency</Text>
+                <View style={{ marginTop: spacing.sm }}>
+                  <SegmentedControl options={FREQUENCY_OPTIONS} value={frequency} onChange={(v) => setFrequency(v as RecurringFrequency)} />
+                </View>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Buys fractional shares worth</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{money(autoAmount)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Cash available</Text>
+                <Text style={[styles.summaryValue, { color: colors.text2 }]}>{money(cash)}</Text>
+              </View>
+            </Card>
+          ) : (
+            <Card>
+              <Text style={[styles.label, { color: colors.text3 }]}>Quantity</Text>
+              <View style={styles.qtyRow}>
+                <QtyButton label="−" onPress={() => adjustQty(-1)} />
                 <TextInput
-                  value={limitPriceText}
-                  onChangeText={setLimitPriceText}
-                  keyboardType="decimal-pad"
-                  placeholder={price.toFixed(2)}
-                  placeholderTextColor={colors.text3}
-                  style={[styles.limitInput, { color: colors.text, borderColor: colors.border, marginTop: spacing.sm }]}
+                  value={qtyText}
+                  onChangeText={setQtyText}
+                  keyboardType="number-pad"
+                  style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]}
                 />
+                <QtyButton label="+" onPress={() => adjustQty(1)} />
               </View>
-            ) : null}
 
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              {orderType === 'limit' ? (
+                <View style={{ marginTop: spacing.lg }}>
+                  <Text style={[styles.label, { color: colors.text3 }]}>
+                    Target price ({side === 'buy' ? 'fills at or below' : 'fills at or above'})
+                  </Text>
+                  <TextInput
+                    value={limitPriceText}
+                    onChangeText={setLimitPriceText}
+                    keyboardType="decimal-pad"
+                    placeholder={price.toFixed(2)}
+                    placeholderTextColor={colors.text3}
+                    style={[styles.limitInput, { color: colors.text, borderColor: colors.border, marginTop: spacing.sm }]}
+                  />
+                </View>
+              ) : null}
 
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Estimated total</Text>
-              <Text style={[styles.summaryValue, { color: colors.text }]}>{money(total)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>
-                {side === 'buy' ? 'Cash available' : 'Shares owned'}
-              </Text>
-              <Text style={[styles.summaryValue, { color: colors.text2 }]}>
-                {side === 'buy' ? money(cash) : `${owned} sh`}
-              </Text>
-            </View>
-          </Card>
-        )}
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-        {symbolAutoInvests.length > 0 ? (
-          <Card style={{ gap: spacing.sm }}>
-            <Text style={[styles.label, { color: colors.text3 }]}>Auto-invest plans</Text>
-            {symbolAutoInvests.map((p) => (
-              <View key={p.id} style={styles.pendingRow}>
-                <Text style={[styles.pendingText, { color: colors.text }]}>
-                  {money(p.amount)} {p.frequency === 'weekly' ? 'weekly' : 'monthly'} · next {p.nextRunDate}
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Estimated total</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{money(total)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: colors.text3 }]}>
+                  {side === 'buy' ? 'Cash available' : 'Shares owned'}
                 </Text>
-                <Pressable hitSlop={8} onPress={() => cancelAutoInvest(p.id)}>
-                  <Ionicons name="close-circle" size={20} color={colors.text3} />
-                </Pressable>
-              </View>
-            ))}
-          </Card>
-        ) : null}
-
-        {symbolOrders.length > 0 ? (
-          <Card style={{ gap: spacing.sm }}>
-            <Text style={[styles.label, { color: colors.text3 }]}>Pending orders</Text>
-            {symbolOrders.map((o) => (
-              <View key={o.id} style={styles.pendingRow}>
-                <Text style={[styles.pendingText, { color: colors.text }]}>
-                  {o.side === 'buy' ? 'Buy' : 'Sell'} {o.qty} @ {money(o.targetPrice)}
+                <Text style={[styles.summaryValue, { color: colors.text2 }]}>
+                  {side === 'buy' ? money(cash) : `${owned} sh`}
                 </Text>
-                <Pressable hitSlop={8} onPress={() => cancelLimitOrder(o.id)}>
-                  <Ionicons name="close-circle" size={20} color={colors.text3} />
-                </Pressable>
               </View>
-            ))}
-          </Card>
-        ) : null}
+            </Card>
+          )}
 
-        {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+          {symbolAutoInvests.length > 0 ? (
+            <Card style={{ gap: spacing.sm }}>
+              <Text style={[styles.label, { color: colors.text3 }]}>Auto-invest plans</Text>
+              {symbolAutoInvests.map((p) => (
+                <View key={p.id} style={styles.pendingRow}>
+                  <Text style={[styles.pendingText, { color: colors.text }]}>
+                    {money(p.amount)} {p.frequency === 'weekly' ? 'weekly' : 'monthly'} · next {p.nextRunDate}
+                  </Text>
+                  <Pressable hitSlop={8} onPress={() => cancelAutoInvest(p.id)}>
+                    <Ionicons name="close-circle" size={20} color={colors.text3} />
+                  </Pressable>
+                </View>
+              ))}
+            </Card>
+          ) : null}
 
-        <Button
-          label={
-            orderType === 'autoInvest'
-              ? `Set up ${symbol} auto-invest`
-              : orderType === 'limit'
-                ? `Place ${side === 'buy' ? 'buy' : 'sell'} limit order`
-                : `${side === 'buy' ? 'Buy' : 'Sell'} ${qty || ''} ${symbol}`.trim()
-          }
-          variant={side === 'buy' ? 'primary' : 'danger'}
-          fullWidth
-          disabled={
-            orderType === 'autoInvest'
-              ? autoAmount <= 0
-              : qty <= 0 || (orderType === 'limit' && limitPrice <= 0)
-          }
-          onPress={submit}
-        />
-      </Animated.View>
+          {symbolOrders.length > 0 ? (
+            <Card style={{ gap: spacing.sm }}>
+              <Text style={[styles.label, { color: colors.text3 }]}>Pending orders</Text>
+              {symbolOrders.map((o) => (
+                <View key={o.id} style={styles.pendingRow}>
+                  <Text style={[styles.pendingText, { color: colors.text }]}>
+                    {o.side === 'buy' ? 'Buy' : 'Sell'} {o.qty} @ {money(o.targetPrice)}
+                  </Text>
+                  <Pressable hitSlop={8} onPress={() => cancelLimitOrder(o.id)}>
+                    <Ionicons name="close-circle" size={20} color={colors.text3} />
+                  </Pressable>
+                </View>
+              ))}
+            </Card>
+          ) : null}
+
+          {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+
+          <Button
+            label={
+              orderType === 'autoInvest'
+                ? `Set up ${symbol} auto-invest`
+                : orderType === 'limit'
+                  ? `Place ${side === 'buy' ? 'buy' : 'sell'} limit order`
+                  : `${side === 'buy' ? 'Buy' : 'Sell'} ${qty || ''} ${symbol}`.trim()
+            }
+            variant={side === 'buy' ? 'primary' : 'danger'}
+            fullWidth
+            disabled={
+              orderType === 'autoInvest'
+                ? autoAmount <= 0
+                : qty <= 0 || (orderType === 'limit' && limitPrice <= 0)
+            }
+            onPress={submit}
+          />
+        </Animated.View>
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.xl, gap: spacing.lg },
+  content: { padding: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.lg },
   name: { fontSize: 13, fontWeight: '600' },
   price: { fontSize: 26, fontWeight: '700', marginTop: 2 },
   label: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },

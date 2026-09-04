@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -215,7 +215,9 @@ export default function PracticeTradeScreen() {
             />
           </>
         ) : (
-          <View style={{ gap: spacing.lg }}>
+          <ScrollView
+            contentContainerStyle={{ gap: spacing.lg, paddingBottom: spacing.xxl }}
+            keyboardShouldPersistTaps="handled">
             <Pressable onPress={() => setSelected(null)}>
               <Text style={[styles.changeStock, { color: colors.accent }]}>← Choose a different stock</Text>
             </Pressable>
@@ -274,7 +276,7 @@ export default function PracticeTradeScreen() {
               disabled={qty <= 0}
               onPress={trade}
             />
-          </View>
+          </ScrollView>
         )}
       </Animated.View>
     </Screen>
