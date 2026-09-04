@@ -10,7 +10,6 @@ import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useReviewStore } from '@/store/useReviewStore';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const STARS = [1, 2, 3, 4, 5];
 // Only ask the OS for a native store rating once the person has already
 // told us they're happy — never surface it to someone giving 1-3 stars.
@@ -60,14 +59,15 @@ export function ReviewPromptModal({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={handleNotNow}>
-      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.backdrop} onPress={handleNotNow}>
+      <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>
         {/* The entrance animation lives on this plain, non-touchable
-            Animated.View — never on the Pressable below. A Reanimated
-            `entering=` view can have unreliable touch hit-testing for its
-            first tap or two while it's still settling, so putting it on the
-            SAME native view that also needs to catch presses (here, to stop
-            the backdrop's dismiss-on-tap from firing) made every button
-            inside intermittently unresponsive right after the sheet opened. */}
+            Animated.View — never on a Pressable. A Reanimated `entering=`
+            view can have unreliable touch hit-testing for its first tap or
+            two while it's still settling, so the dismiss-on-tap area is a
+            separate absolute-fill Pressable rather than being on this view
+            itself — otherwise every button inside was intermittently
+            unresponsive right after the sheet opened. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleNotNow} />
         <Animated.View entering={FadeInDown.springify().damping(18)}>
           <Pressable
             style={[styles.sheet, { backgroundColor: colors.surface }]}
@@ -112,7 +112,7 @@ export function ReviewPromptModal({ visible, onClose }: Props) {
             </View>
           </Pressable>
         </Animated.View>
-      </AnimatedPressable>
+      </Animated.View>
     </Modal>
   );
 }

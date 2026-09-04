@@ -11,8 +11,6 @@ import { useToastStore } from '@/store/useToastStore';
 
 // Structural copy of components/portfolio/ResultsCardModal.tsx — same
 // backdrop/entrance-animation split and ViewShot + expo-sharing flow.
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 type Stat = { label: string; value: string };
 
 type Props = {
@@ -47,7 +45,8 @@ export function RecordsCardModal({ visible, onClose, stats }: Props) {
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.backdrop} onPress={onClose}>
+      <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.wrap}>
           <Pressable onPress={(e: any) => e.stopPropagation()}>
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -69,7 +68,7 @@ export function RecordsCardModal({ visible, onClose, stats }: Props) {
             </View>
           </Pressable>
         </Animated.View>
-      </AnimatedPressable>
+      </Animated.View>
     </Modal>
   );
 }

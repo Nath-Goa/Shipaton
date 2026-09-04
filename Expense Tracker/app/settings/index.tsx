@@ -39,8 +39,6 @@ import {
 import { useStreakStore } from '@/store/useStreakStore';
 import { confirmAction } from '@/utils/confirm';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -391,11 +389,12 @@ function PlanDetailsModal({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
-        {/* Entrance animation on this plain Animated.View, not the Pressable
-            below — a Reanimated `entering=` view can drop the first tap or
-            two while it's still settling, so it must never share a native
-            view with the Pressable that also has to catch presses here. */}
+      <Animated.View entering={FadeIn.duration(180)} style={styles.modalBackdrop}>
+        {/* Entrance animation on this plain Animated.View, not a Pressable —
+            a Reanimated `entering=` view can drop the first tap or two while
+            it's still settling, so the dismiss-on-tap area is a separate
+            absolute-fill Pressable instead. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)}>
           <Pressable
             style={[styles.modalSheet, { backgroundColor: colors.surface }]}
@@ -424,7 +423,7 @@ function PlanDetailsModal({
             <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
           </Pressable>
         </Animated.View>
-      </AnimatedPressable>
+      </Animated.View>
     </Modal>
   );
 }

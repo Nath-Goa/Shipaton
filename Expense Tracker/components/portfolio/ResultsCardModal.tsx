@@ -10,8 +10,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { useToastStore } from '@/store/useToastStore';
 import { money, signedMoney, signedPct } from '@/utils/money';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -60,12 +58,12 @@ export function ResultsCardModal({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.backdrop} onPress={onClose}>
+      <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>
         {/* Entrance animation on this plain, non-touchable Animated.View —
-            never on the Pressable below. A Reanimated `entering=` view can
-            drop the first tap or two while it's still settling, so it must
-            never share a native view with the Pressable that also has to
-            catch presses here (to stop the backdrop's dismiss from firing). */}
+            never on a Pressable. A Reanimated `entering=` view can drop the
+            first tap or two while it's still settling, so the dismiss-on-tap
+            area is a separate absolute-fill Pressable instead. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.wrap}>
           <Pressable onPress={(e: any) => e.stopPropagation()}>
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -98,7 +96,7 @@ export function ResultsCardModal({
             </View>
           </Pressable>
         </Animated.View>
-      </AnimatedPressable>
+      </Animated.View>
     </Modal>
   );
 }

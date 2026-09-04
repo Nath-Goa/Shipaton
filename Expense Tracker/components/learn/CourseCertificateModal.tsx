@@ -14,7 +14,6 @@ import { useToastStore } from '@/store/useToastStore';
 // backdrop/entrance-animation split (a Reanimated `entering=` view must
 // never also carry the Pressable catching taps, or the first tap or two can
 // drop) and the same ViewShot + expo-sharing share-as-image flow.
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Props = {
   visible: boolean;
@@ -51,7 +50,8 @@ export function CourseCertificateModal({ visible, onClose, courseTitle, stageLab
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.backdrop} onPress={onClose}>
+      <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.wrap}>
           <Pressable onPress={(e: any) => e.stopPropagation()}>
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -73,7 +73,7 @@ export function CourseCertificateModal({ visible, onClose, courseTitle, stageLab
             </View>
           </Pressable>
         </Animated.View>
-      </AnimatedPressable>
+      </Animated.View>
     </Modal>
   );
 }

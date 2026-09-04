@@ -338,12 +338,12 @@ function QuizHistoryModal({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
+      <Animated.View entering={FadeIn.duration(180)} style={styles.modalBackdrop}>
         {/* Entrance animation on this plain, non-touchable Animated.View —
-            never on the Pressable below. A Reanimated `entering=` view can
-            drop the first tap or two while it's still settling, so it must
-            never share a native view with the Pressable that also has to
-            catch presses here (to stop the backdrop's dismiss from firing). */}
+            never on a Pressable. A Reanimated `entering=` view can drop the
+            first tap or two while it's still settling, so the dismiss-on-tap
+            area is a separate absolute-fill Pressable instead. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)}>
           <Pressable
             style={[styles.modalSheet, { backgroundColor: colors.surface }]}
@@ -387,7 +387,7 @@ function QuizHistoryModal({
             </View>
           </Pressable>
         </Animated.View>
-      </AnimatedPressable>
+      </Animated.View>
     </Modal>
   );
 }
