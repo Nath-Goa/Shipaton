@@ -30,7 +30,7 @@ import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
-import { detectPatterns } from '@/services/ai/learn';
+import { detectPatterns, explainChartPoint } from '@/services/ai/learn';
 import { computeDirectionCall, computeForecastBand, computeSentiment } from '@/services/market/signals';
 import { getFullHistory, getHistory, subscribeLiveQuote } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
@@ -38,7 +38,8 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStockViewStore } from '@/store/useStockViewStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import type { PatternDetectionResult } from '@/types/pattern';
-import type { Quote, Range } from '@/types/stock';
+import type { PriceBar, Quote, Range } from '@/types/stock';
+import { formatShortDate } from '@/utils/date';
 import { money, signedMoney, signedPct } from '@/utils/money';
 
 const RANGE_OPTIONS: { value: Range; label: string }[] = [
@@ -67,6 +68,11 @@ export default function StockDetailScreen() {
   const [patternResult, setPatternResult] = useState<PatternDetectionResult | null>(null);
   const [patternLoading, setPatternLoading] = useState(false);
   const [patternError, setPatternError] = useState<string | null>(null);
+
+  const [explainBar, setExplainBar] = useState<PriceBar | null>(null);
+  const [explainText, setExplainText] = useState<string | null>(null);
+  const [explainLoading, setExplainLoading] = useState(false);
+  const [explainError, setExplainError] = useState<string | null>(null);
 
   const starScale = useSharedValue(1);
   const priceFlashOpacity = useSharedValue(0);
@@ -131,6 +137,22 @@ export default function StockDetailScreen() {
       opacity: priceFlashOpacity.value,
     };
   });
+
+  function handleChartPointPress(bar: PriceBar, index: number) {
+    triggerFeedback('selection');
+    setExplainBar(bar);
+    setExplainText(null);
+    setExplainError(null);
+    setExplainLoading(true);
+    explainChartPoint(symbol, bars, index).then((result) => {
+      setExplainLoading(false);
+      if (!result.ok) {
+        setExplainError(describeAiError(result.error));
+        return;
+      }
+      setExplainText(result.data);
+    });
+  }
 
   async function runPatternAnalysis() {
     triggerFeedback('primary');
@@ -248,9 +270,32 @@ export default function StockDetailScreen() {
               forecast={features.forecastBand ? forecast : undefined}
               trend={directionCall.direction}
               height={190}
+              onPointPress={handleChartPointPress}
             />
+            <Text style={[styles.tapHint, { color: colors.text3 }]}>Tap the chart to ask about a specific day</Text>
           </Card>
         </Animated.View>
+
+        {explainBar ? (
+          <Animated.View entering={FadeInUp.springify().damping(16)}>
+            <Card>
+              <View style={styles.cardHead}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{formatShortDate(explainBar.date)}</Text>
+                <Pressable hitSlop={8} onPress={() => setExplainBar(null)}>
+                  <Ionicons name="close" size={18} color={colors.text3} />
+                </Pressable>
+              </View>
+              <Text style={[styles.reason, { color: colors.text3 }]}>Close {money(explainBar.close)}</Text>
+              {explainLoading ? (
+                <Text style={[styles.reason, { color: colors.text3, marginTop: spacing.sm }]}>Thinking…</Text>
+              ) : explainError ? (
+                <Text style={[styles.patternError, { color: colors.danger }]}>{explainError}</Text>
+              ) : explainText ? (
+                <Text style={[styles.reason, { color: colors.text2, marginTop: spacing.sm }]}>{explainText}</Text>
+              ) : null}
+            </Card>
+          </Animated.View>
+        ) : null}
 
         {/* Direction Call */}
         <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
@@ -421,6 +466,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: '700' },
   reason: { fontSize: 13.5, lineHeight: 19 },
   confidence: { fontSize: 12, marginTop: spacing.sm },
+  tapHint: { fontSize: 11, textAlign: 'center', marginTop: spacing.sm },
   forecastRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   forecastCol: { alignItems: 'center', flex: 1 },
   forecastLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },

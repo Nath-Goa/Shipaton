@@ -3,10 +3,14 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { AccentColor } from '@/constants/theme';
+import type { FontOption, TextScale } from '@/constants/fonts';
 import type { Tier } from '@/constants/subscription';
 import type { AiProvider } from '@/types/ai';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type TutorPersona = 'coach' | 'professor' | 'casual';
+export type StudyWindow = 'morning' | 'afternoon' | 'evening' | 'night';
+export type LearnerLevel = 'beginner' | 'intermediate' | 'advanced';
 
 type SettingsState = {
   themeMode: ThemeMode;
@@ -34,6 +38,21 @@ type SettingsState = {
   // Only ever set true from a screen that already confirmed
   // hasHardwareAsync() + isEnrolledAsync() — see components/security/AppLockGate.tsx.
   biometricLockEnabled: boolean;
+  // Learning Environment (Settings) — typography.
+  fontOption: FontOption;
+  textScale: TextScale;
+  // The Assistant chat's tone only — never threaded into the strict-JSON
+  // quiz/pattern/narrative prompts. See services/ai/prompts.ts.
+  tutorPersona: TutorPersona;
+  // Smart study-time nudges (store/useUsageStore.ts + services/notifications).
+  // Independent of tier/pushAlerts — a core engagement feature, not a perk.
+  smartNudgesEnabled: boolean;
+  preferredStudyWindow: StudyWindow | null;
+  // Learn tab's first-visit "what's your level?" gate. selectedLevel is
+  // stored for future personalization but currently has no effect — every
+  // learner's course/quiz progress starts at Beginner regardless.
+  levelSelected: boolean;
+  selectedLevel: LearnerLevel | null;
   setThemeMode: (mode: ThemeMode) => void;
   setAccentColor: (color: AccentColor) => void;
   setTier: (tier: Tier) => void;
@@ -44,6 +63,12 @@ type SettingsState = {
   clearKeyBroken: (provider: AiProvider) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setBiometricLockEnabled: (enabled: boolean) => void;
+  setFontOption: (font: FontOption) => void;
+  setTextScale: (scale: TextScale) => void;
+  setTutorPersona: (persona: TutorPersona) => void;
+  setSmartNudgesEnabled: (enabled: boolean) => void;
+  setPreferredStudyWindow: (window: StudyWindow | null) => void;
+  selectLevel: (level: LearnerLevel) => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -58,6 +83,13 @@ export const useSettingsStore = create<SettingsState>()(
       brokenKeyProviders: {},
       notificationsEnabled: false,
       biometricLockEnabled: false,
+      fontOption: 'system',
+      textScale: 1,
+      tutorPersona: 'coach',
+      smartNudgesEnabled: true,
+      preferredStudyWindow: null,
+      levelSelected: false,
+      selectedLevel: null,
       setThemeMode: (themeMode) => set({ themeMode }),
       setAccentColor: (accentColor) => set({ accentColor }),
       setTier: (tier) => set({ tier }),
@@ -75,6 +107,14 @@ export const useSettingsStore = create<SettingsState>()(
         }),
       setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
       setBiometricLockEnabled: (biometricLockEnabled) => set({ biometricLockEnabled }),
+      setFontOption: (fontOption) => set({ fontOption }),
+      setTextScale: (textScale) => set({ textScale }),
+      setTutorPersona: (tutorPersona) => set({ tutorPersona }),
+      setSmartNudgesEnabled: (smartNudgesEnabled) => set({ smartNudgesEnabled }),
+      setPreferredStudyWindow: (preferredStudyWindow) => set({ preferredStudyWindow }),
+      // Every learner currently starts at Beginner regardless of the answer —
+      // see the `selectedLevel` field doc comment above.
+      selectLevel: (selectedLevel) => set({ selectedLevel, levelSelected: true }),
     }),
     {
       name: 'settings-store',

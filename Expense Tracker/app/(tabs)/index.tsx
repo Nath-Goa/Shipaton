@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
+import { MarketSpotlightCard } from '@/components/home/MarketSpotlightCard';
 import { DirectionBadge } from '@/components/stocks/DirectionBadge';
 import { StockListItem } from '@/components/stocks/StockListItem';
 import { Button } from '@/components/ui/Button';
@@ -188,6 +189,8 @@ export default function HomeScreen() {
             )}
           </Card>
         </Animated.View>
+
+        <MarketSpotlightCard />
 
         {/* Quick Actions with Spring Press Scale */}
         <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>

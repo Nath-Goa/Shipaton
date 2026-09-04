@@ -10,6 +10,20 @@ export const BADGE_INFO: Record<string, BadgeInfo> = {
   diversified: { label: 'Diversified', icon: '🧺' },
   budget_met: { label: 'Budget Met', icon: '🎯' },
   goal_reached: { label: 'Goal Reached', icon: '🏁' },
+  // Course-path badges — see constants/courses.ts and store/useCourseStore.ts.
+  course_market_basics: { label: 'Market Basics', icon: '🏢' },
+  course_reading_charts: { label: 'Chart Reader', icon: '📊' },
+  course_company_fundamentals: { label: 'Fundamentals', icon: '📄' },
+  course_risk_diversification: { label: 'Risk-Aware', icon: '🛡️' },
+  course_technical_analysis: { label: 'Technical Analyst', icon: '📈' },
+  course_market_psychology: { label: 'Mind Reader', icon: '🌡️' },
+  course_order_types: { label: 'Order Pro', icon: '🔁' },
+  course_dividends_income: { label: 'Income Investor', icon: '💵' },
+  course_macro_sectors: { label: 'Macro Thinker', icon: '🌐' },
+  course_building_strategy: { label: 'Strategist', icon: '🚩' },
+  stage_1_complete: { label: 'Foundations Complete', icon: '🥉' },
+  stage_2_complete: { label: 'Building Skills Complete', icon: '🥈' },
+  stage_3_complete: { label: 'Advanced Strategy Complete', icon: '🥇' },
 };
 
 export function badgeInfo(id: string): BadgeInfo {

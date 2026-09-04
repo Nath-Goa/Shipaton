@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -18,9 +18,12 @@ type Props = {
   forecast?: ForecastBand | null;
   height?: number;
   trend?: 'up' | 'down' | 'flat';
+  // Optional — fully additive. Existing call sites that don't pass this see
+  // no behavior change at all; the Svg just isn't wrapped in a Pressable.
+  onPointPress?: (bar: PriceBar, index: number) => void;
 };
 
-export function PriceChart({ bars, forecast, height = 180, trend }: Props) {
+export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }: Props) {
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
 
@@ -83,6 +86,19 @@ export function PriceChart({ bars, forecast, height = 180, trend }: Props) {
   const lineColor = trend === 'up' ? colors.success : trend === 'down' ? colors.danger : colors.accent;
   const lastPoint = points[points.length - 1];
 
+  function handlePress(e: GestureResponderEvent) {
+    if (!onPointPress || bars.length === 0) return;
+    const x = e.nativeEvent.locationX;
+    // locationX can come back non-finite when the touch target is a nested
+    // SVG child rather than the Pressable itself (seen on the web preview
+    // target) — never let a bad coordinate reach an out-of-range index.
+    if (!Number.isFinite(x) || x > historyWidth) return;
+    const index = Math.max(0, Math.min(bars.length - 1, Math.round(x / stepX)));
+    const bar = bars[index];
+    if (!bar) return;
+    onPointPress(bar, index);
+  }
+
   let forecastNode = null;
   if (forecast && forecastWidth > 4) {
     const fx = historyWidth + forecastWidth;
@@ -109,19 +125,24 @@ export function PriceChart({ bars, forecast, height = 180, trend }: Props) {
 
   return (
     <Animated.View entering={FadeIn.duration(300)} style={{ height, position: 'relative' }} onLayout={onLayout}>
-      <Svg width={width} height={height}>
-        <Path d={areaPath} fill={lineColor} fillOpacity={0.08} />
-        <Path
-          d={linePath}
-          stroke={lineColor}
-          strokeWidth={2.5}
-          fill="none"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        <Circle cx={lastPoint[0]} cy={lastPoint[1]} r={4} fill={lineColor} />
-        {forecastNode}
-      </Svg>
+      {/* A plain Pressable nested inside the entering= view, never carrying
+          its own entrance animation — see the Reanimated+touch rule this
+          codebase already follows elsewhere (e.g. ResultsCardModal). */}
+      <Pressable onPress={onPointPress ? handlePress : undefined} disabled={!onPointPress}>
+        <Svg width={width} height={height}>
+          <Path d={areaPath} fill={lineColor} fillOpacity={0.08} />
+          <Path
+            d={linePath}
+            stroke={lineColor}
+            strokeWidth={2.5}
+            fill="none"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          <Circle cx={lastPoint[0]} cy={lastPoint[1]} r={4} fill={lineColor} />
+          {forecastNode}
+        </Svg>
+      </Pressable>
       {/* 60fps Live Pulsing Beacon Ring over latest price coordinate */}
       <Animated.View
         pointerEvents="none"

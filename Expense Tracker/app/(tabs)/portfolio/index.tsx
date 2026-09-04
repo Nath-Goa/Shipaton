@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,6 +12,7 @@ import Animated, {
 import { BenchmarkChart } from '@/components/charts/BenchmarkChart';
 import { DonutChart, type DonutSegment } from '@/components/charts/DonutChart';
 import { ResultsCardModal } from '@/components/portfolio/ResultsCardModal';
+import { TradeReflectionsCard } from '@/components/portfolio/TradeReflectionsCard';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
@@ -145,6 +147,21 @@ export default function PortfolioScreen() {
     return { segments, total, topShare, topSector: segments[0]?.label };
   }, [holdingList, quotes]);
 
+  // Contextual micro-lesson: the single biggest same-day move among actual
+  // holdings (not the whole universe — that's components/home/
+  // MarketSpotlightCard's job), read-only against the existing quotes.
+  const bigMoveHolding = useMemo(() => {
+    let biggest: { symbol: string; changePct: number } | null = null;
+    for (const h of holdingList) {
+      const changePct = quotes.get(h.symbol)?.changePct;
+      if (changePct == null) continue;
+      if (Math.abs(changePct) >= 5 && (!biggest || Math.abs(changePct) > Math.abs(biggest.changePct))) {
+        biggest = { symbol: h.symbol, changePct };
+      }
+    }
+    return biggest;
+  }, [holdingList, quotes]);
+
   const [resultsCardOpen, setResultsCardOpen] = useState(false);
 
   async function handleShare() {
@@ -206,6 +223,22 @@ export default function PortfolioScreen() {
           body="Upgrade to Max for historical backtesting and up to 5 separate paper portfolios."
           delay={40}
         />
+
+        <TradeReflectionsCard />
+
+        {bigMoveHolding ? (
+          <Animated.View entering={FadeInDown.delay(75).springify().damping(16)}>
+            <Pressable onPress={() => router.push({ pathname: '/learn/quiz', params: { topic: 'volatility' } })}>
+              <Card style={[styles.moveBanner, { borderColor: colors.accent }]}>
+                <Ionicons name="pulse-outline" size={18} color={colors.accent} />
+                <Text style={[styles.moveBannerText, { color: colors.text2 }]}>
+                  {bigMoveHolding.symbol} moved {signedPct(bigMoveHolding.changePct)} today — want to understand why
+                  prices move like this?
+                </Text>
+              </Card>
+            </Pressable>
+          </Animated.View>
+        ) : null}
 
         {/* Holdings Section */}
         <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
@@ -368,6 +401,8 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   netWorthTileWrap: { flexGrow: 1, flexBasis: '47%' },
   sectionTitle: { fontSize: 15.5, fontWeight: '700' },
+  moveBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
+  moveBannerText: { flex: 1, fontSize: 12.5, lineHeight: 17 },
   holdingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 2, gap: spacing.md },
   holdingRight: { alignItems: 'flex-end' },
   symbol: { fontSize: 14.5, fontWeight: '700' },

@@ -29,6 +29,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError, aiErrorActions } from '@/services/ai/errorMessage';
 import { generateQuiz } from '@/services/ai/learn';
+import { awardCourseCompletionBadges } from '@/utils/courseBadges';
+import { courseOf } from '@/constants/courses';
+import { useCourseStore } from '@/store/useCourseStore';
 import { useQuizStore } from '@/store/useQuizStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -98,15 +101,20 @@ function QuizOptionItem({
 }
 
 export default function QuizScreen() {
-  const { topic } = useLocalSearchParams<{ topic: string }>();
+  const { topic, mode, fromCourse } = useLocalSearchParams<{ topic: string; mode?: string; fromCourse?: string }>();
+  const isMastery = mode === 'mastery';
   const { colors } = useTheme();
   const { getProgressFor, recordAttempt, seenBankIndices, markBankSeen, history, addHistoryEntry, clearHistory } = useQuizStore();
   const recordQuizActivity = useStreakStore((s) => s.recordQuizActivity);
+  const completeSubpart = useCourseStore((s) => s.completeSubpart);
   const showToast = useToastStore((s) => s.show);
   const upgradeToTier = useUpgradeToTier();
 
   const topicMeta = quizTopicOf(topic ?? '');
-  const adaptiveDifficulty = getProgressFor(topic ?? '')?.currentDifficulty ?? 'easy';
+  // A course's mastery check always targets a hard question — the store's
+  // own regular spaced-repetition difficulty ladder is used for a normal
+  // course "quiz" subpart, same as the free-form Learn hub flow.
+  const adaptiveDifficulty = isMastery ? 'hard' : (getProgressFor(topic ?? '')?.currentDifficulty ?? 'easy');
 
   const [question, setQuestion] = useState<QuizQuestion | null>(null);
   const [questionDifficulty, setQuestionDifficulty] = useState<Difficulty>('easy');
@@ -127,7 +135,10 @@ export default function QuizScreen() {
       if (!forceAi) {
         const bank = bankQuestionsFor(topic);
         const seen = new Set(seenBankIndices[topic] ?? []);
-        const unseen = bank.map((_, i) => i).filter((i) => !seen.has(i));
+        let unseen = bank.map((_, i) => i).filter((i) => !seen.has(i));
+        // A course's mastery check always wants a hard question, not
+        // whatever random unseen bank entry comes up.
+        if (isMastery) unseen = unseen.filter((i) => bank[i].difficulty === 'hard');
         if (unseen.length > 0) {
           const idx = unseen[Math.floor(Math.random() * unseen.length)];
           setQuestion(bank[idx]);
@@ -152,7 +163,7 @@ export default function QuizScreen() {
       }
       setQuestion(result.data);
     },
-    [topic, topicMeta, adaptiveDifficulty, seenBankIndices]
+    [topic, topicMeta, adaptiveDifficulty, seenBankIndices, isMastery]
   );
 
   useEffect(() => {
@@ -190,8 +201,21 @@ export default function QuizScreen() {
       createdAt: Date.now(),
     });
 
+    // A course's "quiz" subpart just needs an honest attempt to move on —
+    // matches flashcards' looser "seen it" completion. The "mastery" subpart
+    // is stricter: only a correct answer on a hard question counts.
+    let courseBadges: string[] = [];
+    if (fromCourse && !isMastery) {
+      completeSubpart(fromCourse, 'quiz');
+    } else if (fromCourse && isMastery && isCorrect) {
+      const { courseCompleted } = completeSubpart(fromCourse, 'mastery');
+      if (courseCompleted) courseBadges = awardCourseCompletionBadges(fromCourse);
+    }
+
     if (mastered) showToast(`🎉 You've mastered ${topicMeta?.label}!`);
+    else if (courseBadges.length) showToast(`${badgeInfo(courseBadges[0]).icon} Badge earned: ${badgeInfo(courseBadges[0]).label}`);
     else if (earnedBadges.length) showToast(`${badgeInfo(earnedBadges[0]).icon} Badge earned: ${badgeInfo(earnedBadges[0]).label}`);
+    else if (isMastery && !isCorrect) showToast("Not quite — that's a hard one. Try again!");
     else showToast(score === 100 ? 'Nailed it!' : "Not quite — here's why.");
   }
 
@@ -216,7 +240,7 @@ export default function QuizScreen() {
           <Text style={[styles.topicLabel, { color: colors.text3 }]}>
             {topicMeta.label} · {questionDifficulty}
           </Text>
-          <PillBadge label={source === 'bank' ? 'Built-in' : 'AI-generated'} />
+          <PillBadge label={isMastery ? 'Mastery check' : source === 'bank' ? 'Built-in' : 'AI-generated'} />
         </View>
 
         {!loading && question ? (
@@ -276,8 +300,10 @@ export default function QuizScreen() {
                   <Text style={[styles.explanation, { color: colors.text2 }]}>{question.explanation}</Text>
                   <Text style={[styles.followUp, { color: colors.accent }]}>Next up: {question.followUpTopic}</Text>
                   <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-                    <Button label="Another question" fullWidth variant="ghost" onPress={() => loadQuestion(false)} />
-                    <Button label="Back to Learn" fullWidth onPress={() => router.back()} />
+                    {!(isMastery && selectedIndex === question.correctIndex) ? (
+                      <Button label="Another question" fullWidth variant="ghost" onPress={() => loadQuestion(false)} />
+                    ) : null}
+                    <Button label={fromCourse ? 'Back to course' : 'Back to Learn'} fullWidth onPress={() => router.back()} />
                   </View>
                 </Card>
               </Animated.View>

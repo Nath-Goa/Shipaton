@@ -6,12 +6,14 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
+import { FontPicker } from '@/components/settings/FontPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { BADGE_INFO } from '@/constants/badges';
+import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
@@ -20,11 +22,20 @@ import {
   requestNotificationPermission,
   scheduleDailyReminder,
 } from '@/services/notifications/notifications';
+import { refreshStudyNudge } from '@/services/notifications/studyNudge';
 import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useChatStore } from '@/store/useChatStore';
-import { useSettingsStore, type ThemeMode } from '@/store/useSettingsStore';
+import { useQuizStore } from '@/store/useQuizStore';
+import { useCourseStore } from '@/store/useCourseStore';
+import { useUsageStore } from '@/store/useUsageStore';
+import {
+  useSettingsStore,
+  type StudyWindow,
+  type ThemeMode,
+  type TutorPersona,
+} from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { confirmAction } from '@/utils/confirm';
 
@@ -36,7 +47,23 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'System' },
 ];
 
+const PERSONA_OPTIONS: { value: TutorPersona; label: string }[] = [
+  { value: 'coach', label: 'Coach' },
+  { value: 'professor', label: 'Professor' },
+  { value: 'casual', label: 'Casual' },
+];
+
+const STUDY_WINDOW_OPTIONS: { value: StudyWindow; label: string }[] = [
+  { value: 'morning', label: 'Morning' },
+  { value: 'afternoon', label: 'Afternoon' },
+  { value: 'evening', label: 'Evening' },
+  { value: 'night', label: 'Night' },
+];
+
+const TEXT_SCALE_SEGMENT_OPTIONS = TEXT_SCALE_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }));
+
 export default function SettingsScreen() {
+  const { colors } = useTheme();
   const {
     themeMode,
     setThemeMode,
@@ -47,11 +74,52 @@ export default function SettingsScreen() {
     setNotificationsEnabled,
     biometricLockEnabled,
     setBiometricLockEnabled,
+    fontOption,
+    setFontOption,
+    textScale,
+    setTextScale,
+    tutorPersona,
+    setTutorPersona,
+    smartNudgesEnabled,
+    setSmartNudgesEnabled,
+    preferredStudyWindow,
+    setPreferredStudyWindow,
   } = useSettingsStore();
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
   const badgeCount = useStreakStore((s) => s.badges.length);
+  const getSuggestedHour = useUsageStore((s) => s.getSuggestedHour);
   const features = TIER_FEATURES[tier];
   const [planModalOpen, setPlanModalOpen] = useState(false);
+
+  async function handleToggleSmartNudges(next: boolean) {
+    if (!next) {
+      setSmartNudgesEnabled(false);
+      await refreshStudyNudge({ suggestedHour: null, enabled: false });
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      Alert.alert('Notifications disabled', 'Allow notifications for this app in your device Settings to turn this on.');
+      return;
+    }
+    setSmartNudgesEnabled(true);
+    await refreshStudyNudge({ suggestedHour: getSuggestedHour(preferredStudyWindow), enabled: true });
+  }
+
+  function resetLearningProgress() {
+    confirmAction(
+      {
+        title: 'Reset learning progress?',
+        message: 'This clears your course path, quiz topic progress, and spaced-repetition schedule. Streaks and badges are kept.',
+        confirmLabel: 'Reset',
+        destructive: true,
+      },
+      () => {
+        useQuizStore.setState({ attempts: [], topicProgress: {}, seenBankIndices: {}, history: {} });
+        useCourseStore.setState({ courseProgress: {} });
+      }
+    );
+  }
 
   async function handleToggleNotifications(next: boolean) {
     if (!next) {
@@ -132,12 +200,51 @@ export default function SettingsScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).springify().damping(16)}>
+          <Section title="Learning Environment" subtitle="Fonts, study reminders, and your AI tutor's tone.">
+            <View style={{ gap: spacing.lg }}>
+              <View>
+                <Text style={[styles.fieldLabel, { color: colors.text3 }]}>Font</Text>
+                <FontPicker value={fontOption} onChange={setFontOption} />
+              </View>
+              <View>
+                <Text style={[styles.fieldLabel, { color: colors.text3 }]}>Text size</Text>
+                <SegmentedControl
+                  options={TEXT_SCALE_SEGMENT_OPTIONS}
+                  value={String(textScale)}
+                  onChange={(v) => setTextScale(Number(v) as TextScale)}
+                />
+              </View>
+              <View>
+                <Text style={[styles.fieldLabel, { color: colors.text3 }]}>AI tutor tone</Text>
+                <SegmentedControl options={PERSONA_OPTIONS} value={tutorPersona} onChange={setTutorPersona} />
+              </View>
+              <SmartNudgesToggle enabled={smartNudgesEnabled} onToggle={handleToggleSmartNudges} />
+              {smartNudgesEnabled ? (
+                <View>
+                  <Text style={[styles.fieldLabel, { color: colors.text3 }]}>When are you usually free to learn?</Text>
+                  <SegmentedControl
+                    options={STUDY_WINDOW_OPTIONS}
+                    value={preferredStudyWindow ?? 'evening'}
+                    onChange={(w) => {
+                      setPreferredStudyWindow(w);
+                      refreshStudyNudge({ suggestedHour: getSuggestedHour(w), enabled: true });
+                    }}
+                  />
+                </View>
+              ) : null}
+              <Button label="Personal records" variant="ghost" onPress={() => router.push('/settings/records')} />
+              <Button label="Reset learning progress" variant="ghost" onPress={resetLearningProgress} />
+            </View>
+          </Section>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(150).springify().damping(16)}>
           <Section title="AI provider" subtitle="Bring your own API key — stored only on this device.">
             <ApiKeySection />
           </Section>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(150).springify().damping(16)}>
+        <Animated.View entering={FadeInDown.delay(175).springify().damping(16)}>
           <Section title="Notifications">
             {features.pushAlerts ? (
               <NotificationsToggle enabled={notificationsEnabled} onToggle={handleToggleNotifications} />
@@ -209,6 +316,21 @@ function NotificationsToggle({ enabled, onToggle }: { enabled: boolean; onToggle
         <Text style={[styles.notifLabel, { color: colors.text }]}>Daily reminders</Text>
         <Text style={[styles.notifSub, { color: colors.text3 }]}>
           A check-in reminder each evening, plus a nudge if your Learn streak is about to lapse.
+        </Text>
+      </View>
+      <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: colors.accent }} />
+    </Card>
+  );
+}
+
+function SmartNudgesToggle({ enabled, onToggle }: { enabled: boolean; onToggle: (next: boolean) => void }) {
+  const { colors } = useTheme();
+  return (
+    <Card style={styles.notifRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>Smart study reminders</Text>
+        <Text style={[styles.notifSub, { color: colors.text3 }]}>
+          Learns when you usually open the app and nudges you at a good moment to learn.
         </Text>
       </View>
       <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: colors.accent }} />
@@ -322,6 +444,7 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.xl, paddingBottom: spacing.xxl },
   sectionTitle: { fontSize: 15, fontWeight: '700' },
   sectionSubtitle: { fontSize: 12.5, marginTop: 2 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: spacing.sm },
   planRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   planLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   planValue: { fontSize: 16, fontWeight: '700', marginTop: 2 },

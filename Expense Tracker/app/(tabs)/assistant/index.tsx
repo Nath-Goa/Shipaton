@@ -40,6 +40,7 @@ export default function AssistantScreen() {
   const { symbol: paramSymbol } = useLocalSearchParams<{ symbol?: string }>();
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
+  const tutorPersona = useSettingsStore((s) => s.tutorPersona);
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const keyBroken = useSettingsStore((s) => !!s.brokenKeyProviders[aiProvider]);
   const upgradeToTier = useUpgradeToTier();
@@ -72,7 +73,7 @@ export default function AssistantScreen() {
     setLoading(true);
 
     const context = activeThread !== 'general' ? { symbol: activeThread, name: tickerOf(activeThread)?.name ?? activeThread } : undefined;
-    const systemPrompt = buildAnalystSystemPrompt(context);
+    const systemPrompt = buildAnalystSystemPrompt(context, tutorPersona);
     const history = [...messages, userMessage].map((m) => ({ role: m.role, text: m.text }));
 
     const result = await sendChatMessage(systemPrompt, history);

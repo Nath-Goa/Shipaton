@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { badgeInfo } from '@/constants/badges';
 import { tickerOf } from '@/constants/tickers';
 import { getQuote } from '@/services/marketData/marketData';
+import { useMistakeJournalStore } from '@/store/useMistakeJournalStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { RecurringFrequency } from '@/types/expense';
@@ -199,16 +200,20 @@ export const usePortfolioStore = create<PortfolioState>()(
           nextHoldings[symbol] = { ...existing, qty: remainingQty };
         }
 
+        const sellTrade: Trade = { id: uid(), symbol, side: 'sell', qty, price, total: proceeds, date: Date.now() };
         const updated: PortfolioData = {
           ...active,
           cash: active.cash + proceeds,
           holdings: nextHoldings,
-          trades: [{ id: uid(), symbol, side: 'sell', qty, price, total: proceeds, date: Date.now() }, ...active.trades],
+          trades: [sellTrade, ...active.trades],
           dividendCursor: dividendCursorChanged
             ? Object.fromEntries(Object.entries(active.dividendCursor).filter(([s]) => s !== symbol))
             : active.dividendCursor,
         };
         set({ portfolios: { ...portfolios, [activePortfolioId]: updated } });
+        // Synchronous, no AI call — just pattern detection. See
+        // store/useMistakeJournalStore.ts for what "mistake" means here.
+        useMistakeJournalStore.getState().recordIfMistake(sellTrade, updated.trades);
         return { ok: true };
       },
 
@@ -437,7 +442,11 @@ export const usePortfolioStore = create<PortfolioState>()(
                 holdings[order.symbol] = { ...existing, qty: remainingQty };
               }
               cash += proceeds;
-              trades.unshift({ id: uid(), symbol: order.symbol, side: 'sell', qty: order.qty, price, total: proceeds, date: Date.now() });
+              const sellTrade: Trade = { id: uid(), symbol: order.symbol, side: 'sell', qty: order.qty, price, total: proceeds, date: Date.now() };
+              trades.unshift(sellTrade);
+              // Synchronous, no AI call. Uses `trades` (already includes
+              // this fill) so the pairing sees the full history so far.
+              useMistakeJournalStore.getState().recordIfMistake(sellTrade, trades);
             }
             fills.push({ symbol: order.symbol, side: order.side, qty: order.qty, price, badgeEarned });
             changed = true;

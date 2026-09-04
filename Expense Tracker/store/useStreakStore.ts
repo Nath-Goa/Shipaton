@@ -10,6 +10,7 @@ const ANALYST_BADGE_THRESHOLD = 10;
 
 type StreakState = {
   streakDays: number;
+  bestStreakDays: number;
   lastActivityDate: string | null;
   badges: string[];
   patternDetectionsViewed: number;
@@ -40,6 +41,7 @@ export const useStreakStore = create<StreakState>()(
   persist(
     (set, get) => ({
       streakDays: 0,
+      bestStreakDays: 0,
       lastActivityDate: null,
       badges: [],
       patternDetectionsViewed: 0,
@@ -55,7 +57,12 @@ export const useStreakStore = create<StreakState>()(
         const newStreak = wasYesterday ? state.streakDays + 1 : 1;
         const earned = awardMilestoneBadges(state.badges, newStreak, STREAK_MILESTONES, 'streak_');
 
-        set({ streakDays: newStreak, lastActivityDate: today, badges: [...state.badges, ...earned] });
+        set({
+          streakDays: newStreak,
+          bestStreakDays: Math.max(state.bestStreakDays, newStreak),
+          lastActivityDate: today,
+          badges: [...state.badges, ...earned],
+        });
         return earned;
       },
 

@@ -1,5 +1,11 @@
-import { sendStructuredPrompt } from '@/services/ai/client';
-import { buildFlashcardsPrompt, buildNarrativePrompt, buildPatternDetectionPrompt, buildQuizPrompt } from '@/services/ai/prompts';
+import { sendChatMessage, sendStructuredPrompt } from '@/services/ai/client';
+import {
+  buildFlashcardsPrompt,
+  buildNarrativePrompt,
+  buildPatternDetectionPrompt,
+  buildQuizPrompt,
+  buildTradeReflectionPrompt,
+} from '@/services/ai/prompts';
 import type { AiResult } from '@/types/ai';
 import type { Flashcard } from '@/types/flashcard';
 import type { ScenarioType, NarrativeScenario } from '@/types/narrative';
@@ -39,6 +45,33 @@ export async function detectPatterns(symbol: string, bars: PriceBar[]): Promise<
     })),
   });
   return sendStructuredPrompt<PatternDetectionResult>(buildPatternDetectionPrompt(), payload);
+}
+
+// Tap-to-explain on a stock chart — a focused single-turn question about
+// one specific point, with a small window of surrounding bars for context.
+export async function explainChartPoint(symbol: string, bars: PriceBar[], index: number): Promise<AiResult<string>> {
+  const window = bars.slice(Math.max(0, index - 5), index + 1);
+  const payload = window
+    .map((b) => `${b.date}: open ${b.open.toFixed(2)}, close ${b.close.toFixed(2)}`)
+    .join('\n');
+  const target = bars[index];
+  const systemPrompt = [
+    'You are a stock-chart tutor inside a mock-trading education app. The user tapped one specific point on a price chart.',
+    `Explain in 2-3 short, plain-English sentences what the price did around ${target.date} for ${symbol}, based only on the data given — trend, direction, or a notable move.`,
+    'This is simulated price data, not real market history — never claim to know a real news event caused it; describe the price action itself.',
+    'Respond with plain text only, 2-3 sentences, no markdown, no JSON.',
+  ].join(' ');
+  return sendChatMessage(systemPrompt, [{ role: 'user', text: `Recent bars leading up to the tapped point:\n${payload}` }]);
+}
+
+export async function generateTradeReflection(params: {
+  symbol: string;
+  gainPct: number;
+  heldMs: number;
+}): Promise<AiResult<string>> {
+  const heldMinutes = Math.max(1, Math.round(params.heldMs / 60000));
+  const userPrompt = `Symbol: ${params.symbol}. Held for about ${heldMinutes} minute(s). Result: ${params.gainPct.toFixed(1)}% loss.`;
+  return sendChatMessage(buildTradeReflectionPrompt(), [{ role: 'user', text: userPrompt }]);
 }
 
 export async function generateNarrative(

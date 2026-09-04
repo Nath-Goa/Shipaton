@@ -20,14 +20,24 @@ import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
-import { useSettingsStore, type ThemeMode } from '@/store/useSettingsStore';
+import { useSettingsStore, type StudyWindow, type ThemeMode } from '@/store/useSettingsStore';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-type StepId = 'welcome' | 'portfolio' | 'learn' | 'markets' | 'expenses' | 'assistant' | 'appearance' | 'aiKey' | 'final';
+type StepId =
+  | 'welcome'
+  | 'portfolio'
+  | 'learn'
+  | 'markets'
+  | 'expenses'
+  | 'assistant'
+  | 'appearance'
+  | 'studyTime'
+  | 'aiKey'
+  | 'final';
 
 // A full feature tour, not just settings setup — walks through every tab
-// before handing off to the appearance/AI-key/"get started" steps.
+// before handing off to the appearance/study-time/AI-key/"get started" steps.
 const STEP_ORDER: StepId[] = [
   'welcome',
   'portfolio',
@@ -36,8 +46,16 @@ const STEP_ORDER: StepId[] = [
   'expenses',
   'assistant',
   'appearance',
+  'studyTime',
   'aiKey',
   'final',
+];
+
+const STUDY_WINDOW_CHOICES: { value: StudyWindow; label: string; icon: IconName }[] = [
+  { value: 'morning', label: 'Morning', icon: 'sunny-outline' },
+  { value: 'afternoon', label: 'Afternoon', icon: 'partly-sunny-outline' },
+  { value: 'evening', label: 'Evening', icon: 'moon-outline' },
+  { value: 'night', label: 'Night', icon: 'star-outline' },
 ];
 
 type FeatureCopy = { icon: IconName; eyebrow: string; title: string; body: string; bullets: string[] };
@@ -104,6 +122,8 @@ export function OnboardingScreen() {
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
   const accentColor = useSettingsStore((s) => s.accentColor);
   const setAccentColor = useSettingsStore((s) => s.setAccentColor);
+  const preferredStudyWindow = useSettingsStore((s) => s.preferredStudyWindow);
+  const setPreferredStudyWindow = useSettingsStore((s) => s.setPreferredStudyWindow);
 
   const total = STEP_ORDER.length;
   const [stepIndex, setStepIndex] = useState(0);
@@ -178,6 +198,39 @@ export function OnboardingScreen() {
           <View style={{ marginTop: spacing.xl, gap: spacing.lg }}>
             <SegmentedControl options={THEME_OPTIONS} value={themeMode} onChange={setThemeMode} />
             <AccentColorPicker value={accentColor} onChange={setAccentColor} />
+          </View>
+          <View style={styles.actions}>
+            <Button label="Continue" fullWidth onPress={handleNext} />
+          </View>
+        </Animated.View>
+      ) : stepId === 'studyTime' ? (
+        <Animated.View key={stepId} entering={entering} style={styles.content}>
+          <Text style={[styles.eyebrow, { color: colors.accent }]}>Learning</Text>
+          <Text style={[styles.title, { color: colors.text }]}>When are you usually free?</Text>
+          <Text style={[styles.subtitle, { color: colors.text2 }]}>
+            The app learns your real habits over time, but this gives it a starting guess for when to nudge you to
+            learn — you can turn nudges off anytime in Settings.
+          </Text>
+          <View style={styles.studyWindowGrid}>
+            {STUDY_WINDOW_CHOICES.map((choice) => {
+              const active = preferredStudyWindow === choice.value;
+              return (
+                <Pressable
+                  key={choice.value}
+                  onPress={() => {
+                    triggerFeedback('selection');
+                    setPreferredStudyWindow(choice.value);
+                  }}
+                  style={[
+                    styles.studyWindowCard,
+                    { borderColor: active ? colors.accent : colors.border, backgroundColor: colors.surface },
+                    active && { borderWidth: 2 },
+                  ]}>
+                  <Ionicons name={choice.icon} size={22} color={active ? colors.accent : colors.text2} />
+                  <Text style={[styles.studyWindowLabel, { color: colors.text }]}>{choice.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
           <View style={styles.actions}>
             <Button label="Continue" fullWidth onPress={handleNext} />
@@ -276,6 +329,17 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
   title: { fontSize: 26, fontWeight: '700', marginTop: spacing.sm, letterSpacing: -0.4 },
   subtitle: { fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
+  studyWindowGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xl },
+  studyWindowCard: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: 6,
+  },
+  studyWindowLabel: { fontSize: 13.5, fontWeight: '700' },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   bulletText: { fontSize: 13.5, lineHeight: 18, flex: 1 },
   actions: { marginTop: spacing.xl, gap: spacing.sm },

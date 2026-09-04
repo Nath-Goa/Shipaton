@@ -20,6 +20,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError, aiErrorActions } from '@/services/ai/errorMessage';
 import { generateFlashcards } from '@/services/ai/learn';
+import { useCourseStore } from '@/store/useCourseStore';
 import { useFlashcardStore } from '@/store/useFlashcardStore';
 import type { Flashcard, FlashcardHistoryEntry, FlashcardSource } from '@/types/flashcard';
 import { timeAgo } from '@/utils/date';
@@ -39,9 +40,9 @@ function shuffled<T>(arr: T[]): T[] {
 }
 
 export default function FlashcardsScreen() {
-  const { topic } = useLocalSearchParams<{ topic?: string }>();
+  const { topic, fromCourse } = useLocalSearchParams<{ topic?: string; fromCourse?: string }>();
   if (!topic) return <TopicPicker />;
-  return <DeckViewer topic={topic} />;
+  return <DeckViewer topic={topic} fromCourse={fromCourse} />;
 }
 
 function TopicPicker() {
@@ -83,11 +84,12 @@ function TopicPicker() {
   );
 }
 
-function DeckViewer({ topic }: { topic: string }) {
+function DeckViewer({ topic, fromCourse }: { topic: string; fromCourse?: string }) {
   const { colors } = useTheme();
   const topicMeta = quizTopicOf(topic);
   const upgradeToTier = useUpgradeToTier();
   const { seenBankIndices, markBankSeen, history, addHistoryEntry, clearHistory } = useFlashcardStore();
+  const completeSubpart = useCourseStore((s) => s.completeSubpart);
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -174,6 +176,13 @@ function DeckViewer({ topic }: { topic: string }) {
   const deckDone = !loading && !error && !current;
   const topicHistory = history[topic] ?? [];
 
+  // A course's "flashcards" subpart is satisfied by actually finishing the
+  // deck, not just opening it — completeSubpart is idempotent, so this is
+  // safe to re-fire if the deck is revisited after already being done.
+  useEffect(() => {
+    if (deckDone && fromCourse) completeSubpart(fromCourse, 'flashcards');
+  }, [deckDone, fromCourse, completeSubpart]);
+
   if (!topicMeta) {
     return (
       <Screen edges={['left', 'right', 'bottom']}>
@@ -248,8 +257,8 @@ function DeckViewer({ topic }: { topic: string }) {
               message={`You reviewed ${reviewedCount} card${reviewedCount === 1 ? '' : 's'}.`}
               actionLabel="Generate more with AI"
               onAction={() => loadAiBatch(false)}
-              secondaryActionLabel="Back to topics"
-              onSecondaryAction={() => router.push('/learn/flashcards')}
+              secondaryActionLabel={fromCourse ? 'Back to course' : 'Back to topics'}
+              onSecondaryAction={() => (fromCourse ? router.back() : router.push('/learn/flashcards'))}
             />
           </Animated.View>
         ) : null}

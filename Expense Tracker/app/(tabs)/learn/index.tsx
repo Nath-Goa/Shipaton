@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { CoursePath } from '@/components/learn/CoursePath';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
@@ -23,6 +24,7 @@ import { useAiQuota } from '@/hooks/useAiQuota';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import { todayStr } from '@/utils/date';
 
@@ -60,6 +62,14 @@ export default function LearnScreen() {
   const upgradeToTier = useUpgradeToTier();
   const { topicProgress, getDueTopic, getNextNewTopic } = useQuizStore();
   const { streakDays, badges } = useStreakStore();
+  const levelSelected = useSettingsStore((s) => s.levelSelected);
+
+  // First-ever visit to the Learn tab: ask "what's your level?" before
+  // showing anything else. Every learner's course/quiz progress starts at
+  // Beginner regardless of the answer — see store/useSettingsStore.ts.
+  useEffect(() => {
+    if (!levelSelected) router.push('/learn/level-select');
+  }, [levelSelected]);
   // Quizzes and the daily challenge draw from the same unified AI quota as
   // every other AI feature (see hooks/useAiQuota) — a working personal key
   // is unlimited, otherwise both share one "X left today" count.
@@ -114,6 +124,14 @@ export default function LearnScreen() {
             })}
           </Animated.View>
         ) : null}
+
+        {/* Course Path */}
+        <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Your Path</Text>
+          <View style={{ marginTop: spacing.md }}>
+            <CoursePath />
+          </View>
+        </Animated.View>
 
         {/* Next Topic Card */}
         <Animated.View entering={FadeInDown.delay(100).springify().damping(16)}>

@@ -15,6 +15,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="index" options={{ title: 'Settings' }} />
       <Stack.Screen name="upgrade" options={{ presentation: 'modal', title: 'Choose your plan' }} />
       <Stack.Screen name="achievements" options={{ presentation: 'modal', title: 'Achievements' }} />
+      <Stack.Screen name="records" options={{ presentation: 'modal', title: 'Personal Records' }} />
     </Stack>
   );
 }

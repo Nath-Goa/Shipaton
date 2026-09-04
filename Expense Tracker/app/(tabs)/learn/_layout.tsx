@@ -15,6 +15,11 @@ export default function LearnLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="quiz" options={{ presentation: 'modal', title: 'Quiz' }} />
       <Stack.Screen name="narrative" options={{ presentation: 'modal', title: 'Daily Challenge' }} />
+      <Stack.Screen name="focus-session" options={{ presentation: 'modal', title: 'Focus Session' }} />
+      <Stack.Screen name="level-select" options={{ presentation: 'modal', title: '' }} />
+      <Stack.Screen name="course/[courseId]/index" options={{ title: 'Course' }} />
+      <Stack.Screen name="course/[courseId]/lesson" options={{ title: 'Lesson' }} />
+      <Stack.Screen name="course/[courseId]/practice" options={{ title: 'Practice' }} />
     </Stack>
   );
 }
