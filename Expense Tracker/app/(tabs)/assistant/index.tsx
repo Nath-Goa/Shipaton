@@ -20,7 +20,6 @@ import { radius, spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useAiQuota } from '@/hooks/useAiQuota';
-import { useFocusRemountKey } from '@/hooks/useFocusRemountKey';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -40,7 +39,6 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export default function AssistantScreen() {
   const { symbol: paramSymbol } = useLocalSearchParams<{ symbol?: string }>();
   const { colors } = useTheme();
-  const remountKey = useFocusRemountKey();
   const tier = useSettingsStore((s) => s.tier);
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const keyBroken = useSettingsStore((s) => !!s.brokenKeyProviders[aiProvider]);
@@ -105,7 +103,7 @@ export default function AssistantScreen() {
       />
 
       {threadKeys.length > 1 ? (
-        <Animated.View key={remountKey} entering={FadeInDown.duration(250).springify().damping(16)}>
+        <Animated.View entering={FadeInDown.duration(250).springify().damping(16)}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.threadRow}>
             {threadKeys.map((key) => (
               <Chip

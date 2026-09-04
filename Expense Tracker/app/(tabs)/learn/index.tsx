@@ -20,7 +20,6 @@ import { badgeInfo } from '@/constants/badges';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { spacing } from '@/constants/theme';
 import { useAiQuota } from '@/hooks/useAiQuota';
-import { useFocusRemountKey } from '@/hooks/useFocusRemountKey';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
@@ -58,7 +57,6 @@ function FlameIcon() {
 
 export default function LearnScreen() {
   const { colors } = useTheme();
-  const remountKey = useFocusRemountKey();
   const upgradeToTier = useUpgradeToTier();
   const { topicProgress, getDueTopic, getNextNewTopic } = useQuizStore();
   const { streakDays, badges } = useStreakStore();
@@ -89,7 +87,6 @@ export default function LearnScreen() {
     <Screen>
       <TopBar title="Learn" subtitle="Quizzes, patterns, and daily challenges" />
       <ScrollView contentContainerStyle={styles.content}>
-        <View key={remountKey} style={styles.sections}>
         {/* Animated Streak Card */}
         <Animated.View entering={FadeInDown.duration(350).springify().damping(16)}>
           <Card style={styles.streakCard}>
@@ -206,15 +203,13 @@ export default function LearnScreen() {
             </View>
           ))}
         </Animated.View>
-        </View>
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.xl, paddingTop: 0, paddingBottom: spacing.xxl },
-  sections: { gap: spacing.xl },
+  content: { padding: spacing.xl, paddingTop: 0, gap: spacing.xl, paddingBottom: spacing.xxl },
   streakCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   streakEmoji: { fontSize: 30 },
   streakValue: { fontSize: 17, fontWeight: '700' },

@@ -23,7 +23,6 @@ import { categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
-import { useFocusRemountKey } from '@/hooks/useFocusRemountKey';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -44,7 +43,6 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const remountKey = useFocusRemountKey();
   const portfolio = useActivePortfolio();
   const { cash, holdings } = portfolio;
   const watchlist = usePortfolioStore((s) => s.watchlist);
@@ -117,7 +115,6 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
-        <View key={remountKey} style={styles.sections}>
         {/* Animated Staggered Stats Row */}
         <Animated.View entering={FadeInDown.duration(400).springify().damping(16)} style={styles.statsRow}>
           <StatTile label="Net worth" value={money(summary.netWorth)} sub={`Cash: ${money(cash)}`} />
@@ -236,7 +233,6 @@ export default function HomeScreen() {
             {recapError ? <Text style={[styles.recapError, { color: colors.danger }]}>{recapError}</Text> : null}
           </Card>
         </Animated.View>
-        </View>
       </ScrollView>
     </Screen>
   );
@@ -284,8 +280,7 @@ function QuickAction({
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.xl, paddingTop: 0, paddingBottom: spacing.xxl },
-  sections: { gap: spacing.xl },
+  content: { padding: spacing.xl, paddingTop: 0, gap: spacing.xl, paddingBottom: spacing.xxl },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   upsell: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
   upsellTitle: { fontSize: 14.5, fontWeight: '700' },
