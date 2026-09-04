@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Pressable, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
+  Easing,
   FadeIn,
+  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Line, Path, Polygon } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Line, Path, Polygon, Rect } from 'react-native-svg';
 
 import { useTheme } from '@/hooks/useTheme';
 import type { ForecastBand, PriceBar } from '@/types/stock';
@@ -23,33 +26,45 @@ type Props = {
   onPointPress?: (bar: PriceBar, index: number) => void;
 };
 
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+const REVEAL_DURATION = 700;
+
 export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }: Props) {
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
+  const rawId = useId();
+  const clipId = `price-chart-reveal-${rawId.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   const beaconPulse = useSharedValue(1);
-  const beaconOpacity = useSharedValue(0.8);
+  const beaconOpacity = useSharedValue(0);
+  const revealWidth = useSharedValue(0);
 
   useEffect(() => {
-    // A couple of quick pulses (~1.8s total) rather than pulsing forever —
-    // decorative animations here are capped at ~2s and then hold static.
-    beaconPulse.value = withRepeat(
+    // Draws the line left-to-right on every change of `bars` — both the
+    // initial mount AND every 1W/1M/3M/1Y switch, since the caller's
+    // `useMemo(() => getHistory(symbol, range), [symbol, range])` gives a
+    // new array reference in both cases but NOT on the 15s live-quote poll,
+    // so this never replays just because a price ticked.
+    if (width === 0) return;
+    revealWidth.value = 0;
+    revealWidth.value = withTiming(width, { duration: REVEAL_DURATION, easing: Easing.out(Easing.cubic) });
+
+    // The pulsing beacon ring waits for the line to actually arrive at its
+    // spot, then does a couple of quick pulses (~1.8s) and holds static.
+    beaconPulse.value = 1;
+    beaconOpacity.value = 0;
+    beaconOpacity.value = withDelay(
+      REVEAL_DURATION,
       withSequence(
-        withTiming(2.2, { duration: 450 }),
-        withTiming(1, { duration: 450 })
-      ),
-      2,
-      false
+        withTiming(0.8, { duration: 200 }),
+        withRepeat(withSequence(withTiming(0, { duration: 450 }), withTiming(0.8, { duration: 450 })), 2, false)
+      )
     );
-    beaconOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0, { duration: 450 }),
-        withTiming(0.8, { duration: 450 })
-      ),
-      2,
-      false
+    beaconPulse.value = withDelay(
+      REVEAL_DURATION,
+      withRepeat(withSequence(withTiming(2.2, { duration: 450 }), withTiming(1, { duration: 450 })), 2, false)
     );
-  }, [beaconPulse, beaconOpacity]);
+  }, [bars, width, revealWidth, beaconPulse, beaconOpacity]);
 
   const beaconStyle = useAnimatedStyle(() => {
     return {
@@ -57,6 +72,10 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
       opacity: beaconOpacity.value,
     };
   });
+
+  const revealProps = useAnimatedProps(() => ({
+    width: revealWidth.value,
+  }));
 
   function onLayout(e: LayoutChangeEvent) {
     setWidth(e.nativeEvent.layout.width);
@@ -130,17 +149,24 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
           codebase already follows elsewhere (e.g. ResultsCardModal). */}
       <Pressable onPress={onPointPress ? handlePress : undefined} disabled={!onPointPress}>
         <Svg width={width} height={height}>
-          <Path d={areaPath} fill={lineColor} fillOpacity={0.08} />
-          <Path
-            d={linePath}
-            stroke={lineColor}
-            strokeWidth={2.5}
-            fill="none"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          <Circle cx={lastPoint[0]} cy={lastPoint[1]} r={4} fill={lineColor} />
-          {forecastNode}
+          <Defs>
+            <ClipPath id={clipId}>
+              <AnimatedRect x={0} y={-4} height={height + 8} animatedProps={revealProps} />
+            </ClipPath>
+          </Defs>
+          <G clipPath={`url(#${clipId})`}>
+            <Path d={areaPath} fill={lineColor} fillOpacity={0.08} />
+            <Path
+              d={linePath}
+              stroke={lineColor}
+              strokeWidth={2.5}
+              fill="none"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            <Circle cx={lastPoint[0]} cy={lastPoint[1]} r={4} fill={lineColor} />
+            {forecastNode}
+          </G>
         </Svg>
       </Pressable>
       {/* 60fps Live Pulsing Beacon Ring over latest price coordinate */}

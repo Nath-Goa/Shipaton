@@ -2,6 +2,10 @@ import type { CategoryId } from '@/constants/categories';
 
 export type RecurringFrequency = 'weekly' | 'monthly';
 
+// The date-range presets used both by the Expenses list filter chips and by
+// each saved pie chart's own configured range (store/useSavedChartsStore.ts).
+export type DateRangePreset = 'all' | 'month' | '30' | 'year';
+
 export type Expense = {
   id: string;
   desc: string;

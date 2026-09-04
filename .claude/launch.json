@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "expo-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "Expense Tracker", "run", "web"],
+      "port": 8081
+    }
+  ]
+}

@@ -2,22 +2,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { TICKERS } from '@/constants/tickers';
 import * as mock from '@/services/marketData/mockMarketData';
-import { fetchDailyBars, fetchQuotesBatch, isLiveMarketDataConfigured } from '@/services/marketData/twelveData';
+import { fetchDailyBars, fetchQuotesBatch, isLiveMarketDataConfigured as isTwelveDataConfigured } from '@/services/marketData/twelveData';
+import { fetchSymbolData, type SymbolData } from '@/services/marketData/yahooFinance';
 import type { PriceBar, Quote, Range } from '@/types/stock';
 
-export { isLiveMarketDataConfigured };
+// Live data is always attempted now — Twelve Data when a paid key is
+// configured (services/marketData/twelveData.ts: higher-quality, one batched
+// call covers every ticker's quote), otherwise Yahoo Finance's free
+// unofficial endpoint (services/marketData/yahooFinance.ts: no key, no
+// signup, works out of the box). Every export below keeps the exact same
+// synchronous signature as mockMarketData.ts regardless of which provider
+// (or neither) is actually answering — existing screens don't need to know
+// or care. A symbol always renders instantly from whatever's cached — mock
+// data on first paint, swapped for real bars/quote once a background fetch
+// lands — so the UI never blocks or blanks out on a slow or failed network
+// call.
+export function isLiveMarketDataConfigured(): boolean {
+  return true;
+}
 
-// Real prices layered on top of the mock engine: every export below has the
-// exact same synchronous signature as mockMarketData.ts (existing screens
-// don't need to know or care which one they're calling). A symbol always
-// renders instantly from whatever's cached — mock data on first paint,
-// swapped for a real quote/bars once a background fetch lands — so the UI
-// never blocks or blanks out on a slow or failed network call.
-//
-// Fetches are TTL-gated per symbol (not per render) to stay well inside
-// Twelve Data's free tier (8 req/min, 800 credits/day): daily bars barely
-// move intraday so a 6h TTL is plenty, and quotes refresh at most once a
-// minute even if a screen polls this every few seconds.
+// Fetches are TTL-gated per symbol (not per render): daily bars barely move
+// intraday so a 6h TTL is plenty, and quotes refresh at most once a minute
+// even if a screen polls this every few seconds. Twelve Data's free tier
+// (8 req/min, 800 credits/day) is the tighter budget these were originally
+// tuned for; Yahoo's endpoint has no published limit but the same TTLs keep
+// this app a well-behaved caller either way.
 const BARS_TTL_MS = 6 * 60 * 60 * 1000;
 const QUOTE_TTL_MS = 60 * 1000;
 const STORAGE_KEY = 'live-market-data-cache-v1';
@@ -25,8 +34,10 @@ const STORAGE_KEY = 'live-market-data-cache-v1';
 const barsCache = new Map<string, PriceBar[]>();
 const barsFetchedAt = new Map<string, number>();
 const quoteCache = new Map<string, Quote>();
-let lastBatchQuoteFetch = 0;
-let batchQuoteInFlight: Promise<void> | null = null;
+// Per-symbol now (not one shared "last batch" timestamp) — Yahoo has no
+// batch-quote endpoint, so each symbol's quote is fetched and gated
+// independently when Twelve Data isn't configured.
+const quoteFetchedAt = new Map<string, number>();
 
 let hydrated = false;
 const hydration = AsyncStorage.getItem(STORAGE_KEY)
@@ -67,6 +78,16 @@ function quoteFromBars(symbol: string): Quote | null {
   };
 }
 
+function applyYahooResult(symbol: string, data: SymbolData): void {
+  barsCache.set(symbol, data.bars);
+  barsFetchedAt.set(symbol, Date.now());
+  persistBars();
+  if (data.quote) {
+    quoteCache.set(symbol, { symbol, ...data.quote });
+    quoteFetchedAt.set(symbol, Date.now());
+  }
+}
+
 let barsFetchInFlight = new Set<string>();
 
 function maybeRefreshBars(symbol: string): void {
@@ -74,32 +95,52 @@ function maybeRefreshBars(symbol: string): void {
   if (Date.now() - fetchedAt < BARS_TTL_MS) return;
   if (barsFetchInFlight.has(symbol)) return;
   barsFetchInFlight.add(symbol);
-  fetchDailyBars(symbol)
-    .then((bars) => {
-      if (bars) {
-        barsCache.set(symbol, bars);
-        barsFetchedAt.set(symbol, Date.now());
-        persistBars();
-      }
-    })
-    .finally(() => barsFetchInFlight.delete(symbol));
+
+  const viaYahoo = () => fetchSymbolData(symbol).then((data) => data && applyYahooResult(symbol, data));
+
+  const attempt = isTwelveDataConfigured()
+    ? fetchDailyBars(symbol).then((bars) => {
+        if (bars) {
+          barsCache.set(symbol, bars);
+          barsFetchedAt.set(symbol, Date.now());
+          persistBars();
+          return;
+        }
+        // Twelve Data came up empty for this symbol specifically — Yahoo as
+        // a free secondary source rather than dropping straight to mock.
+        return viaYahoo();
+      })
+    : viaYahoo();
+
+  attempt.finally(() => barsFetchInFlight.delete(symbol));
 }
 
-function maybeRefreshAllQuotes(): void {
+let quoteFetchInFlight = new Set<string>();
+
+// Yahoo-only path: Twelve Data's quotes are refreshed via the batched
+// function below instead, one call for every ticker.
+function maybeRefreshQuoteYahoo(symbol: string): void {
+  const fetchedAt = quoteFetchedAt.get(symbol) ?? 0;
+  if (Date.now() - fetchedAt < QUOTE_TTL_MS) return;
+  if (quoteFetchInFlight.has(symbol)) return;
+  quoteFetchInFlight.add(symbol);
+  fetchSymbolData(symbol)
+    .then((data) => data && applyYahooResult(symbol, data))
+    .finally(() => quoteFetchInFlight.delete(symbol));
+}
+
+let lastBatchQuoteFetch = 0;
+let batchQuoteInFlight: Promise<void> | null = null;
+
+function maybeRefreshAllQuotesTwelveData(): void {
   if (Date.now() - lastBatchQuoteFetch < QUOTE_TTL_MS) return;
   if (batchQuoteInFlight) return;
   lastBatchQuoteFetch = Date.now();
   batchQuoteInFlight = fetchQuotesBatch(TICKERS.map((t) => t.symbol))
     .then((live) => {
       for (const [symbol, q] of live.entries()) {
-        quoteCache.set(symbol, {
-          symbol,
-          price: q.price,
-          changeAbs: q.changeAbs,
-          changePct: q.changePct,
-          dayHigh: q.dayHigh,
-          dayLow: q.dayLow,
-        });
+        quoteCache.set(symbol, { symbol, ...q });
+        quoteFetchedAt.set(symbol, Date.now());
       }
     })
     .finally(() => {
@@ -121,12 +162,12 @@ export function getHistory(symbol: string, range: Range = '3M'): PriceBar[] {
 }
 
 export function getQuote(symbol: string): Quote {
-  maybeRefreshAllQuotes();
+  if (isTwelveDataConfigured()) maybeRefreshAllQuotesTwelveData();
+  else maybeRefreshQuoteYahoo(symbol);
   return quoteCache.get(symbol) ?? quoteFromBars(symbol) ?? mock.getQuote(symbol);
 }
 
 export function getAllQuotes(): Quote[] {
-  maybeRefreshAllQuotes();
   return TICKERS.map((t) => getQuote(t.symbol));
 }
 
@@ -163,6 +204,7 @@ export function subscribeLiveQuote(symbol: string, onQuote: (q: Quote) => void):
 // every symbol to bypass its TTL and refetch fresh live data on next read.
 export function resetMarketCache(): void {
   barsFetchedAt.clear();
+  quoteFetchedAt.clear();
   lastBatchQuoteFetch = 0;
   quoteCache.clear();
 }

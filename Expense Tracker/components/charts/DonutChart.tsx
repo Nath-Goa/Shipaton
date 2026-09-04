@@ -1,5 +1,13 @@
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, Keyframe } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  useAnimatedProps,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 import { triggerFeedback } from '@/constants/animations';
@@ -16,6 +24,84 @@ type Props = {
   highlightId?: string | null;
   onSegmentPress?: (id: string) => void;
 };
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Draws each segment as a clockwise sweep from 0% to its final length rather
+// than just fading the whole chart in — staggered per segment so the chart
+// visibly "opens" like a real pie chart being drawn. Retriggers whenever
+// this component instance is freshly mounted (the caller is expected to
+// pass a `key` when swapping to a materially different chart — e.g. mock vs
+// a saved chart — so the "opening" moment replays exactly when it should,
+// per the same never-replay-on-every-render rule entrance animations
+// elsewhere in this app follow).
+const DRAW_DURATION = 650;
+const STAGGER_MS = 90;
+const DRAW_EASING = Easing.out(Easing.cubic);
+
+function DonutSegmentArc({
+  seg,
+  index,
+  c,
+  r,
+  strokeWidth,
+  circumference,
+  len,
+  dashOffset,
+  isHighlighted,
+  dimmed,
+  onPress,
+}: {
+  seg: DonutSegment;
+  index: number;
+  c: number;
+  r: number;
+  strokeWidth: number;
+  circumference: number;
+  len: number;
+  dashOffset: number;
+  isHighlighted: boolean;
+  dimmed: boolean;
+  onPress: () => void;
+}) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withDelay(index * STAGGER_MS, withTiming(1, { duration: DRAW_DURATION, easing: DRAW_EASING }));
+    // Runs once per mount only — see the component-level doc comment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animatedProps = useAnimatedProps(() => {
+    // The dasharray below is a single (dash, gap) pair the length of this
+    // segment's own arc — dashOffset positions where that dash sits along
+    // the circle. Starting the offset `len` further along than its final
+    // resting point means none of the dash is in view yet; animating it
+    // back down to `dashOffset` slides the visible arc in clockwise, as if
+    // being drawn from its start angle to its end angle.
+    return {
+      strokeDashoffset: dashOffset + len * (1 - progress.value),
+    };
+  });
+
+  return (
+    <AnimatedCircle
+      key={seg.id}
+      cx={c}
+      cy={c}
+      r={r}
+      stroke={seg.color}
+      strokeWidth={isHighlighted ? strokeWidth + 4 : strokeWidth}
+      strokeDasharray={`${len} ${circumference - len}`}
+      animatedProps={animatedProps}
+      strokeOpacity={dimmed ? 0.25 : 1}
+      fill="none"
+      strokeLinecap="butt"
+      transform={`rotate(-90 ${c} ${c})`}
+      onPress={onPress}
+    />
+  );
+}
 
 export function DonutChart({
   segments,
@@ -40,14 +126,14 @@ export function DonutChart({
   }
 
   return (
-    <Animated.View entering={FadeIn.duration(400)} style={{ width: size, height: size }}>
+    <Animated.View entering={FadeIn.duration(300)} style={{ width: size, height: size }}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {total <= 0 ? (
           <Circle cx={c} cy={c} r={r} stroke={colors.border} strokeWidth={strokeWidth} fill="none" />
         ) : (
           segments
             .filter((seg) => seg.value > 0)
-            .map((seg) => {
+            .map((seg, index) => {
               const frac = seg.value / total;
               const len = frac * circumference;
               const dashOffset = -offset;
@@ -55,19 +141,18 @@ export function DonutChart({
               const isHighlighted = highlightId === seg.id;
               const dimmed = !!highlightId && !isHighlighted;
               return (
-                <Circle
+                <DonutSegmentArc
                   key={seg.id}
-                  cx={c}
-                  cy={c}
+                  seg={seg}
+                  index={index}
+                  c={c}
                   r={r}
-                  stroke={seg.color}
-                  strokeWidth={isHighlighted ? strokeWidth + 4 : strokeWidth}
-                  strokeDasharray={`${len} ${circumference - len}`}
-                  strokeDashoffset={dashOffset}
-                  strokeOpacity={dimmed ? 0.25 : 1}
-                  fill="none"
-                  strokeLinecap="butt"
-                  transform={`rotate(-90 ${c} ${c})`}
+                  strokeWidth={strokeWidth}
+                  circumference={circumference}
+                  len={len}
+                  dashOffset={dashOffset}
+                  isHighlighted={isHighlighted}
+                  dimmed={dimmed}
                   onPress={() => handlePressSegment(seg.id)}
                 />
               );

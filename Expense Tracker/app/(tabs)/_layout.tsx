@@ -7,11 +7,10 @@ import Animated, {
   useSharedValue,
   withSequence,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 
+import { LiquidGlassTabBar } from '@/components/navigation/LiquidGlassTabBar';
 import { springs, triggerFeedback } from '@/constants/animations';
-import { radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
 // Deliberately kept on top of Expo Router's stock <Tabs> container (safe
@@ -61,21 +60,17 @@ function tabIcon(active: IconName, inactive: IconName) {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-// Replaces the default tab button with one that gets a press-scale +
-// haptic on tap and a soft fading pill behind whichever tab is active —
-// `props` is intentionally untyped: it's spread straight through to the
+// Replaces the default tab button with one that gets a press-scale + haptic
+// on tap — the active-tab highlight itself is now the single shared sliding
+// pill in LiquidGlassTabBar's background layer, not a per-button fade, so
+// this component only owns the press feedback. `props` is intentionally
+// untyped: it's spread straight through to the
 // underlying Pressable unchanged, augmented only with animation, so it
 // stays correct regardless of the exact prop shape Expo Router's bottom
 // tabs pass through on a given version.
 function AnimatedTabButton(props: any) {
-  const { colors } = useTheme();
   const focused = !!props.accessibilityState?.selected;
   const scale = useSharedValue(1);
-  const pillOpacity = useSharedValue(focused ? 1 : 0);
-
-  useEffect(() => {
-    pillOpacity.value = withTiming(focused ? 1 : 0, { duration: 180 });
-  }, [focused, pillOpacity]);
 
   // Each handler must depend on the specific `props.onX` it calls, not just
   // [scale]/[focused] — react-navigation hands this tab button a fresh
@@ -109,7 +104,6 @@ function AnimatedTabButton(props: any) {
   );
 
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const pillStyle = useAnimatedStyle(() => ({ opacity: pillOpacity.value }));
 
   return (
     <AnimatedPressable
@@ -118,7 +112,6 @@ function AnimatedTabButton(props: any) {
       onPressOut={handlePressOut}
       onPress={handlePress}
       style={[props.style, styles.tabButton, buttonStyle]}>
-      <Animated.View style={[styles.pill, { backgroundColor: colors.accentSoft }, pillStyle]} />
       {props.children}
     </AnimatedPressable>
   );
@@ -133,7 +126,10 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.text3,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        // Transparent + no default border: LiquidGlassTabBar renders the
+        // blur, tint, and top hairline itself as the tab bar's background.
+        tabBarStyle: { backgroundColor: 'transparent', borderTopWidth: 0 },
+        tabBarBackground: () => <LiquidGlassTabBar />,
         tabBarButton: (props) => <AnimatedTabButton {...props} />,
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }} />
@@ -160,5 +156,4 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabButton: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  pill: { position: 'absolute', top: 4, bottom: 4, left: 6, right: 6, borderRadius: radius.md },
 });

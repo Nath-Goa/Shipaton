@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { springs, triggerFeedback } from '@/constants/animations';
@@ -16,6 +19,17 @@ type Props<T extends string> = {
   onChange: (value: T) => void;
 };
 
+// A "liquid glass" slide: a short jump (adjacent option) gets a quick,
+// mild stretch that settles smoothly; a long jump (e.g. clear across a
+// 4-way control) stretches further while travelling and then snaps back on
+// arrival like it's hit a wall — a stiff, slightly overshooting spring
+// rather than a smooth timing curve, so the stop actually reads as an
+// impact. "Far" is relative to the control's own span so this scales
+// correctly whether it's a 2-way or 4-way segmented control.
+const FAR_JUMP_FRACTION = 0.5;
+const NEAR_STRETCH = 1.14;
+const FAR_STRETCH = 1.4;
+
 export function SegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
   const { colors } = useTheme();
   const [containerWidth, setContainerWidth] = useState(0);
@@ -26,24 +40,47 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
   const itemWidth = usableWidth / count;
 
   const translateX = useSharedValue(0);
+  const stretch = useSharedValue(1);
+  const prevIndexRef = useRef(activeIndex);
 
   useEffect(() => {
-    if (usableWidth > 0 && activeIndex >= 0) {
-      translateX.value = withSpring(activeIndex * itemWidth, springs.gentle);
+    if (usableWidth <= 0 || activeIndex < 0) return;
+    const fromIndex = prevIndexRef.current;
+    const distanceSteps = Math.abs(activeIndex - fromIndex);
+    const isFar = count > 2 && distanceSteps / (count - 1) >= FAR_JUMP_FRACTION;
+    const targetX = activeIndex * itemWidth;
+
+    if (isFar) {
+      translateX.value = withTiming(targetX, { duration: 300, easing: Easing.out(Easing.cubic) });
+      stretch.value = withSequence(
+        withTiming(FAR_STRETCH, { duration: 150, easing: Easing.out(Easing.quad) }),
+        withSpring(1, springs.snappy)
+      );
+    } else {
+      translateX.value = withTiming(targetX, { duration: 180, easing: Easing.out(Easing.cubic) });
+      stretch.value = withSequence(
+        withTiming(NEAR_STRETCH, { duration: 80, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: 120, easing: Easing.out(Easing.cubic) })
+      );
     }
-  }, [activeIndex, usableWidth, itemWidth, translateX]);
+    prevIndexRef.current = activeIndex;
+    // Only the index and layout should retrigger this — itemWidth/count
+    // derive from usableWidth already in the dep list via containerWidth.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, usableWidth]);
 
   const indicatorStyle = useAnimatedStyle(() => {
     return {
       width: itemWidth,
-      transform: [{ translateX: translateX.value }],
+      transform: [{ translateX: translateX.value }, { scaleX: stretch.value }],
     };
   });
 
   function onLayout(e: LayoutChangeEvent) {
     const w = e.nativeEvent.layout.width;
     setContainerWidth(w);
-    if (activeIndex >= 0) {
+    if (activeIndex >= 0 && usableWidth === 0) {
+      // First measurement — snap straight to position, no animation.
       const uW = Math.max(0, w - padding * 2);
       const iW = uW / count;
       translateX.value = activeIndex * iW;

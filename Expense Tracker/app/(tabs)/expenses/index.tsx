@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -10,24 +10,31 @@ import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
+import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
 import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { CATEGORIES, categoryOf } from '@/constants/categories';
-import { spacing } from '@/constants/theme';
+import { MOCK_CHART_SEGMENTS, MOCK_CHART_TOTAL } from '@/constants/mockExpenseChart';
+import { TIER_FEATURES } from '@/constants/subscription';
+import { radius, spacing } from '@/constants/theme';
 import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
+import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { generateSpendingInsight, type SpendingInsight } from '@/services/ai/insights';
 import { shareExpensesCsv } from '@/services/export/exportData';
 import { useExpenseStore } from '@/store/useExpenseStore';
+import { useSavedChartsStore } from '@/store/useSavedChartsStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
-import type { Expense } from '@/types/expense';
-import { formatDayHeading, parseDateLocal, toDateStr } from '@/utils/date';
+import type { DateRangePreset, Expense } from '@/types/expense';
+import { formatDayHeading, parseDateLocal } from '@/utils/date';
+import { filterExpensesByPreset } from '@/utils/expenseFilters';
 import { money } from '@/utils/money';
 
-type Preset = 'all' | 'month' | '30' | 'year';
+type Preset = DateRangePreset;
 
 const PRESETS: { value: Preset; label: string }[] = [
   { value: 'all', label: 'All time' },
@@ -59,18 +66,7 @@ export default function ExpensesScreen() {
     setInsightError(null);
   }, [preset]);
 
-  const filtered = useMemo(() => {
-    if (preset === 'all') return expenses;
-    const now = new Date();
-    let from: Date;
-    if (preset === 'month') from = new Date(now.getFullYear(), now.getMonth(), 1);
-    else if (preset === '30') {
-      from = new Date();
-      from.setDate(from.getDate() - 29);
-    } else from = new Date(now.getFullYear(), 0, 1);
-    const fromStr = toDateStr(from);
-    return expenses.filter((e) => e.date >= fromStr);
-  }, [expenses, preset]);
+  const filtered = useMemo(() => filterExpensesByPreset(expenses, preset), [expenses, preset]);
 
   const sorted = useMemo(
     () => [...filtered].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
@@ -100,6 +96,76 @@ export default function ExpensesScreen() {
   }, [filtered]);
 
   const topCategory = byCategory[0]?.value ? byCategory[0] : null;
+
+  // Saved pie charts: each one is its own independent view (name + date
+  // range) over the same expense history — deliberately decoupled from the
+  // list filter chips above, so switching a saved chart's range never moves
+  // the transaction list underneath it.
+  const tier = useSettingsStore((s) => s.tier);
+  const upgradeToTier = useUpgradeToTier();
+  const savedChartsState = useSavedChartsStore();
+  const activeChart = savedChartsState.getActiveChart();
+  const configuredCharts = useMemo(
+    () => savedChartsState.charts.filter((c) => c.name && c.preset),
+    [savedChartsState.charts]
+  );
+
+  const [configuringId, setConfiguringId] = useState<string | null>(null);
+  const [configureName, setConfigureName] = useState('');
+  const [configurePreset, setConfigurePreset] = useState<Preset>('all');
+
+  const chartExpenses = useMemo(
+    () => (activeChart?.preset ? filterExpensesByPreset(expenses, activeChart.preset) : []),
+    [expenses, activeChart?.preset]
+  );
+  const chartByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of chartExpenses) map.set(e.category, (map.get(e.category) ?? 0) + e.amount);
+    return CATEGORIES.map((c) => ({ id: c.id, label: c.label, color: c.color, value: map.get(c.id) ?? 0 })).sort(
+      (a, b) => b.value - a.value
+    );
+  }, [chartExpenses]);
+  const chartTotal = chartByCategory.reduce((s, c) => s + c.value, 0);
+
+  const displaySegments = activeChart ? chartByCategory : MOCK_CHART_SEGMENTS;
+  const displayTotal = activeChart ? chartTotal : MOCK_CHART_TOTAL;
+  // Changing this remounts DonutChart, which is exactly what replays its
+  // segment-drawing "opening" animation on a genuine chart switch.
+  const chartKey = activeChart?.id ?? 'mock';
+
+  function handleNewChart() {
+    const result = savedChartsState.createDraftChart(TIER_FEATURES[tier].savedChartLimit);
+    if (!result.ok) {
+      Alert.alert('Chart limit reached', result.message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Upgrade', onPress: () => upgradeToTier('pro') },
+      ]);
+      return;
+    }
+    setHighlight(null);
+    setConfigureName('');
+    setConfigurePreset('all');
+    setConfiguringId(result.id);
+  }
+
+  function handleCancelConfigure() {
+    if (configuringId) savedChartsState.deleteChart(configuringId);
+    setConfiguringId(null);
+  }
+
+  function handleSaveConfigure() {
+    if (!configuringId || !configureName.trim()) return;
+    savedChartsState.configureChart(configuringId, configureName.trim(), configurePreset);
+    setConfiguringId(null);
+  }
+
+  function handleDeleteActiveChart() {
+    if (!activeChart) return;
+    Alert.alert(`Delete "${activeChart.name}"?`, 'This only removes the saved chart, not your expenses.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => savedChartsState.deleteChart(activeChart.id) },
+    ]);
+  }
 
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
@@ -216,36 +282,108 @@ export default function ExpensesScreen() {
 
             <Animated.View style={breakdownEntrance}>
               <Card>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>Spending by category</Text>
-                {total > 0 ? (
-                  <View style={styles.breakdown}>
-                    <DonutChart
-                      segments={byCategory}
-                      centerLabel={highlight ? categoryOf(highlight).label : 'Total'}
-                      centerValue={
-                        highlight
-                          ? money(byCategory.find((c) => c.id === highlight)?.value ?? 0)
-                          : money(total)
-                      }
-                      highlightId={highlight}
-                      onSegmentPress={(id) => setHighlight((h) => (h === id ? null : id))}
+                <View style={styles.chartHeadRow}>
+                  <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>Spending by category</Text>
+                  <View style={styles.chartHeadActions}>
+                    {activeChart ? (
+                      <IconButton name="trash-outline" category="destructive" onPress={handleDeleteActiveChart} />
+                    ) : null}
+                    <IconButton name="add-circle-outline" category="primary" onPress={handleNewChart} />
+                  </View>
+                </View>
+
+                {configuredCharts.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chartChipsRow}>
+                    {configuredCharts.map((c) => (
+                      <Chip
+                        key={c.id}
+                        label={c.name!}
+                        active={activeChart?.id === c.id}
+                        onPress={() => savedChartsState.openChart(c.id)}
+                      />
+                    ))}
+                  </ScrollView>
+                ) : null}
+
+                {configuringId ? (
+                  <View style={styles.configureForm}>
+                    <TextInput
+                      value={configureName}
+                      onChangeText={setConfigureName}
+                      placeholder='Chart name (e.g. "Q1 spending")'
+                      placeholderTextColor={colors.text3}
+                      autoFocus
+                      style={[
+                        styles.nameInput,
+                        { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface2 },
+                      ]}
                     />
-                    <View style={styles.legend}>
-                      {byCategory
-                        .filter((c) => c.value > 0)
-                        .map((c) => (
-                          <Text
-                            key={c.id}
-                            onPress={() => setHighlight((h) => (h === c.id ? null : c.id))}
-                            style={[styles.legendItem, { color: highlight && highlight !== c.id ? colors.text3 : colors.text2 }]}>
-                            <Text style={{ color: c.color }}>●</Text> {c.label}{' '}
-                            <Text style={{ fontWeight: '700', color: colors.text }}>{money(c.value)}</Text>
-                          </Text>
-                        ))}
+                    <View style={styles.chipsRow}>
+                      {PRESETS.map((p) => (
+                        <Chip
+                          key={p.value}
+                          label={p.label}
+                          active={configurePreset === p.value}
+                          onPress={() => setConfigurePreset(p.value)}
+                        />
+                      ))}
+                    </View>
+                    <View style={styles.configureActions}>
+                      <View style={{ flex: 1 }}>
+                        <Button label="Cancel" variant="ghost" fullWidth onPress={handleCancelConfigure} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Button label="Save" fullWidth disabled={!configureName.trim()} onPress={handleSaveConfigure} />
+                      </View>
                     </View>
                   </View>
                 ) : (
-                  <EmptyState icon="🧾" title="No spending yet" message="Add an expense to see the breakdown." />
+                  <>
+                    {!activeChart ? (
+                      <View style={styles.mockRow}>
+                        <PillBadge label="Sample data" />
+                        <Text style={[styles.mockHint, { color: colors.text3 }]}>Tap + to save your own chart</Text>
+                      </View>
+                    ) : null}
+                    {displayTotal > 0 ? (
+                      <View style={styles.breakdown}>
+                        <DonutChart
+                          key={chartKey}
+                          segments={displaySegments}
+                          centerLabel={highlight ? categoryOf(highlight).label : 'Total'}
+                          centerValue={
+                            highlight
+                              ? money(displaySegments.find((c) => c.id === highlight)?.value ?? 0)
+                              : money(displayTotal)
+                          }
+                          highlightId={highlight}
+                          onSegmentPress={(id) => setHighlight((h) => (h === id ? null : id))}
+                        />
+                        <View style={styles.legend}>
+                          {displaySegments
+                            .filter((c) => c.value > 0)
+                            .map((c) => (
+                              <Text
+                                key={c.id}
+                                onPress={() => setHighlight((h) => (h === c.id ? null : c.id))}
+                                style={[styles.legendItem, { color: highlight && highlight !== c.id ? colors.text3 : colors.text2 }]}>
+                                <Text style={{ color: c.color }}>●</Text> {c.label}{' '}
+                                <Text style={{ fontWeight: '700', color: colors.text }}>{money(c.value)}</Text>
+                              </Text>
+                            ))}
+                        </View>
+                      </View>
+                    ) : (
+                      <EmptyState
+                        icon="🧾"
+                        title="No spending yet"
+                        message={activeChart ? 'No expenses fall in this chart\'s date range.' : 'Add an expense to see the breakdown.'}
+                      />
+                    )}
+                  </>
                 )}
               </Card>
             </Animated.View>
@@ -316,6 +454,20 @@ const styles = StyleSheet.create({
   chipsRow: { flexDirection: 'row', gap: spacing.sm },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: spacing.md },
+  chartHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  chartHeadActions: { flexDirection: 'row', gap: spacing.sm },
+  chartChipsRow: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
+  configureForm: { gap: spacing.md },
+  nameInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  configureActions: { flexDirection: 'row', gap: spacing.sm },
+  mockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  mockHint: { fontSize: 12 },
   breakdown: { alignItems: 'center', gap: spacing.lg },
   insightIntro: { fontSize: 13, lineHeight: 18, marginTop: 2 },
   insightText: { fontSize: 13.5, lineHeight: 19 },
