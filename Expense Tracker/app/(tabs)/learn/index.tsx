@@ -95,6 +95,7 @@ export default function LearnScreen() {
 
   const streakEntrance = useTabEntrance(0);
   const badgeEntrance = useTabEntrance(60);
+  const coursePathEntrance = useTabEntrance(80);
   const nextTopicEntrance = useTabEntrance(100);
   const flashcardsEntrance = useTabEntrance(130);
   const challengeEntrance = useTabEntrance(150);
@@ -133,7 +134,7 @@ export default function LearnScreen() {
         ) : null}
 
         {/* Course Path */}
-        <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
+        <Animated.View style={coursePathEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Your Path</Text>
           <View style={{ marginTop: spacing.md }}>
             <CoursePath />

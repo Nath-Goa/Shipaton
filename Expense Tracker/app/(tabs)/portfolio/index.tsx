@@ -166,6 +166,7 @@ export default function PortfolioScreen() {
 
   const statsEntrance = useTabEntrance(0);
   const benchmarkEntrance = useTabEntrance(60);
+  const bigMoveEntrance = useTabEntrance(75);
   const holdingsEntrance = useTabEntrance(80);
   const diversificationEntrance = useTabEntrance(120);
   const autoInvestEntrance = useTabEntrance(130);
@@ -235,7 +236,7 @@ export default function PortfolioScreen() {
         <TradeReflectionsCard />
 
         {bigMoveHolding ? (
-          <Animated.View entering={FadeInDown.delay(75).springify().damping(16)}>
+          <Animated.View style={bigMoveEntrance}>
             <Pressable onPress={() => router.push({ pathname: '/learn/quiz', params: { topic: 'volatility' } })}>
               <Card style={[styles.moveBanner, { borderColor: colors.accent }]}>
                 <Ionicons name="pulse-outline" size={18} color={colors.accent} />
