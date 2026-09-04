@@ -35,8 +35,15 @@ export type LiveQuote = {
 };
 
 function parseQuote(raw: RawQuote): LiveQuote | null {
+  // Guard on `raw` before touching any of its fields — a batch response can
+  // legitimately omit a key entirely (unsupported symbol, or the whole
+  // response degrading to a single flat error object once a quota is hit,
+  // which makes every symbol's lookup undefined). Reading raw.close first
+  // threw here and got swallowed by fetchQuotesBatch's catch, silently
+  // dropping every symbol from that point onward in the loop, every cycle.
+  if (!raw || raw.status === 'error') return null;
   const price = Number(raw.close);
-  if (!raw || raw.status === 'error' || !Number.isFinite(price)) return null;
+  if (!Number.isFinite(price)) return null;
   const prevClose = Number(raw.previous_close);
   const changeAbs = Number(raw.change);
   const changePct = Number(raw.percent_change);

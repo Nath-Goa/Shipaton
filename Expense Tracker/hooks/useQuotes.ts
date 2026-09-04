@@ -3,9 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { getQuote } from '@/services/marketData/marketData';
 import type { Quote } from '@/types/stock';
 
-// Polls the (fully local, in-memory) mock quote engine for a fixed list of
-// symbols. Cheap enough to poll on an interval — there's no network call
-// behind it, just reads of the cached random-walk history.
+// Polls marketData.getQuote for a fixed list of symbols. Safe to poll on a
+// tight interval even though the live engine sits behind this now — each
+// call only ever reads the in-memory quote cache synchronously; any actual
+// network refresh it kicks off is separately TTL-gated (see
+// liveMarketData.ts) so polling here doesn't multiply real requests.
 export function useQuotes(symbols: string[], pollMs = 3000): { quotes: Map<string, Quote>; refresh: () => void } {
   const key = symbols.join(',');
   const [quotes, setQuotes] = useState<Map<string, Quote>>(() => new Map());
