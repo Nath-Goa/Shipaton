@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -13,6 +13,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
+import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { CATEGORIES, categoryOf } from '@/constants/categories';

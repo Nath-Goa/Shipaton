@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { type ReactNode, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Text } from '@/components/ui/Text';
 import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';

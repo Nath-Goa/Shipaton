@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Text } from '@/components/ui/Text';
 import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
 import { radius, spacing } from '@/constants/theme';
 import { useHasApiKey } from '@/hooks/useHasApiKey';

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/Text';
 import { radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 

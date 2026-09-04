@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeInLeft,
@@ -15,6 +15,7 @@ import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';

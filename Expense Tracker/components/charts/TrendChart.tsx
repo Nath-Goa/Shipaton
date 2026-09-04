@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useState } from 'react';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import Svg, { Rect } from 'react-native-svg';
 
+import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/hooks/useTheme';
 
 export type TrendPoint = { label: string; value: number; highlighted?: boolean };

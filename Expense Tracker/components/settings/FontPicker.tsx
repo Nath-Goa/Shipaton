@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
 import { FONT_DESCRIPTIONS, FONT_FAMILY_BOLD, FONT_LABELS, FONT_OPTIONS, type FontOption } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';

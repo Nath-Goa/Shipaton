@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { RecordsCardModal } from '@/components/settings/RecordsCardModal';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
+import { Text } from '@/components/ui/Text';
 import { BADGE_INFO } from '@/constants/badges';
 import { COURSES } from '@/constants/courses';
 import { spacing } from '@/constants/theme';

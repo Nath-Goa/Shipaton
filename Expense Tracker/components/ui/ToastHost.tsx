@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeOutDown,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Text } from '@/components/ui/Text';
 import { triggerHaptic } from '@/constants/animations';
 import { radius, shadow, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';

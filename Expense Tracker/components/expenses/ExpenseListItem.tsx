@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 
+import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { categoryOf } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';

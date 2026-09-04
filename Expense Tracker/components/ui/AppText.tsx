@@ -1,14 +1,14 @@
 import type { ReactNode } from 'react';
-import { Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
+import type { StyleProp, TextProps, TextStyle } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
-import { useTypography } from '@/hooks/useTypography';
 
-// Typography-aware Text wrapper: applies the user's chosen font (Settings ›
-// Learning Environment) and text-scale multiplier. Scoped to new screens
-// only (course system, focus-session, records, etc.) — the ~150 pre-existing
-// screens keep their own hardcoded StyleSheet text styles; see the plan's
-// "fonts are not retrofitted app-wide" scoping note.
+import { Text } from './Text';
+
+// Convenience wrapper over the app-wide `Text` (see Text.tsx for the actual
+// font/text-scale application, which every screen gets automatically): just
+// adds named size/weight variants and a theme-aware default color, so
+// callers don't have to repeat fontSize/lineHeight/fontWeight per screen.
 type Variant = 'title' | 'subtitle' | 'body' | 'caption' | 'label';
 
 const VARIANT_BASE: Record<Variant, { fontSize: number; lineHeight: number; bold?: boolean }> = {
@@ -28,19 +28,16 @@ type Props = TextProps & {
 
 export function AppText({ variant = 'body', color, style, children, ...rest }: Props) {
   const { colors } = useTheme();
-  const { regular, bold, scale } = useTypography();
   const base = VARIANT_BASE[variant];
-  const fontFamily = base.bold ? bold : regular;
 
   return (
     <Text
       {...rest}
       style={[
         {
-          fontFamily,
-          fontSize: base.fontSize * scale,
-          lineHeight: base.lineHeight * scale,
-          fontWeight: fontFamily ? undefined : base.bold ? '700' : '400',
+          fontSize: base.fontSize,
+          lineHeight: base.lineHeight,
+          fontWeight: base.bold ? '700' : '400',
           color: color ?? colors.text,
         },
         variant === 'label' && { textTransform: 'uppercase', letterSpacing: 0.5 },

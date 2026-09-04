@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
+import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/hooks/useTheme';
 import type { BenchmarkPoint } from '@/utils/portfolioMath';
 import { signedPct } from '@/utils/money';
