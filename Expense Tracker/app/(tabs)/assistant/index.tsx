@@ -21,6 +21,7 @@ import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
+import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { hasSharedFallback, sendChatMessage } from '@/services/ai/client';
@@ -53,6 +54,7 @@ export default function AssistantScreen() {
   const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const threadRowEntrance = useTabEntrance(0);
 
   useEffect(() => {
     if (paramSymbol) setActiveThread(paramSymbol.toUpperCase());
@@ -103,7 +105,7 @@ export default function AssistantScreen() {
       />
 
       {threadKeys.length > 1 ? (
-        <Animated.View entering={FadeInDown.duration(250).springify().damping(16)}>
+        <Animated.View style={threadRowEntrance}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.threadRow}>
             {threadKeys.map((key) => (
               <Chip

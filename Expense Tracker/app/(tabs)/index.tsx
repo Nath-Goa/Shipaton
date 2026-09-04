@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -23,6 +22,7 @@ import { categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
+import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -53,6 +53,12 @@ export default function HomeScreen() {
   const { recap, setRecap } = useWeeklyRecapStore();
   const [recapLoading, setRecapLoading] = useState(false);
   const [recapError, setRecapError] = useState<string | null>(null);
+
+  const statsEntrance = useTabEntrance(0);
+  const upsellEntrance = useTabEntrance(80);
+  const watchlistEntrance = useTabEntrance(140);
+  const actionsEntrance = useTabEntrance(200);
+  const recapEntrance = useTabEntrance(260);
 
   const trackedSymbols = useMemo(
     () => Array.from(new Set([...Object.keys(holdings), ...watchlist])),
@@ -116,7 +122,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
         {/* Animated Staggered Stats Row */}
-        <Animated.View entering={FadeInDown.duration(400).springify().damping(16)} style={styles.statsRow}>
+        <Animated.View style={[styles.statsRow, statsEntrance]}>
           <StatTile label="Net worth" value={money(summary.netWorth)} sub={`Cash: ${money(cash)}`} />
           <StatTile
             label="Today's P&L"
@@ -134,7 +140,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         {tier === 'free' ? (
-          <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
+          <Animated.View style={upsellEntrance}>
             <Pressable onPress={() => upgradeToTier('pro')}>
               <Card style={[styles.upsell, { borderColor: colors.accent }]}>
                 <Ionicons name="sparkles" size={18} color={colors.accent} />
@@ -151,7 +157,7 @@ export default function HomeScreen() {
         ) : null}
 
         {/* Watchlist Section with Entrance Transition */}
-        <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
+        <Animated.View style={watchlistEntrance}>
           <View style={styles.sectionHead}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Watchlist</Text>
             <Pressable onPress={() => router.push('/markets')}>
@@ -190,7 +196,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Quick Actions with Spring Press Scale */}
-        <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
+        <Animated.View style={actionsEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>Quick actions</Text>
           <View style={styles.actionsRow}>
             <QuickAction icon="receipt-outline" label="Log expense" onPress={() => router.push('/expenses/add')} />
@@ -200,7 +206,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* AI Weekly Recap */}
-        <Animated.View entering={FadeInDown.delay(260).springify().damping(16)}>
+        <Animated.View style={recapEntrance}>
           <View style={styles.sectionHead}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Weekly recap</Text>
             {recap ? (

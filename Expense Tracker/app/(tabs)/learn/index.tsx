@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -20,6 +19,7 @@ import { badgeInfo } from '@/constants/badges';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { spacing } from '@/constants/theme';
 import { useAiQuota } from '@/hooks/useAiQuota';
+import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
@@ -83,12 +83,19 @@ export default function LearnScreen() {
     return groups;
   }, []);
 
+  const streakEntrance = useTabEntrance(0);
+  const badgeEntrance = useTabEntrance(60);
+  const nextTopicEntrance = useTabEntrance(100);
+  const flashcardsEntrance = useTabEntrance(130);
+  const challengeEntrance = useTabEntrance(150);
+  const allTopicsEntrance = useTabEntrance(200);
+
   return (
     <Screen>
       <TopBar title="Learn" subtitle="Quizzes, patterns, and daily challenges" />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Animated Streak Card */}
-        <Animated.View entering={FadeInDown.duration(350).springify().damping(16)}>
+        <Animated.View style={streakEntrance}>
           <Card style={styles.streakCard}>
             <FlameIcon />
             <View style={{ flex: 1 }}>
@@ -107,7 +114,7 @@ export default function LearnScreen() {
         />
 
         {badges.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(60).springify().damping(16)} style={styles.badgeRow}>
+          <Animated.View style={[styles.badgeRow, badgeEntrance]}>
             {badges.map((b) => {
               const info = badgeInfo(b);
               return <PillBadge key={b} label={`${info.icon} ${info.label}`} />;
@@ -116,7 +123,7 @@ export default function LearnScreen() {
         ) : null}
 
         {/* Next Topic Card */}
-        <Animated.View entering={FadeInDown.delay(100).springify().damping(16)}>
+        <Animated.View style={nextTopicEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{isReview ? 'Review due' : 'Next up'}</Text>
           <Card style={{ marginTop: spacing.md }}>
             {nextTopic ? (
@@ -146,7 +153,7 @@ export default function LearnScreen() {
         </Animated.View>
 
         {/* Flashcards Card */}
-        <Animated.View entering={FadeInDown.delay(130).springify().damping(16)}>
+        <Animated.View style={flashcardsEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Flashcards</Text>
           <Card style={{ marginTop: spacing.md }}>
             <Text style={[styles.topicLabel, { color: colors.text }]}>Quick term review</Text>
@@ -160,7 +167,7 @@ export default function LearnScreen() {
         </Animated.View>
 
         {/* Daily Challenge Card */}
-        <Animated.View entering={FadeInDown.delay(150).springify().damping(16)}>
+        <Animated.View style={challengeEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Daily challenge</Text>
           <Card style={{ marginTop: spacing.md }}>
             <Text style={[styles.topicLabel, { color: colors.text }]}>A realistic trading scenario</Text>
@@ -179,7 +186,7 @@ export default function LearnScreen() {
         </Animated.View>
 
         {/* All Topics Section */}
-        <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
+        <Animated.View style={allTopicsEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>All topics</Text>
           {Object.entries(topicsByCategory).map(([category, topics]) => (
             <View key={category} style={{ marginTop: spacing.md }}>
