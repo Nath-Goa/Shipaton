@@ -31,7 +31,9 @@ export const TICKERS: Ticker[] = [
   { symbol: 'NVDA', name: 'NVIDIA Corp.', sector: 'Technology', basePrice: 135.9, volatility: 0.032 },
   { symbol: 'TSLA', name: 'Tesla Inc.', sector: 'Consumer', basePrice: 245.6, volatility: 0.04 },
   { symbol: 'META', name: 'Meta Platforms Inc.', sector: 'Technology', basePrice: 590.3, volatility: 0.024 },
-  { symbol: 'NFLX', name: 'Netflix Inc.', sector: 'Communication', basePrice: 780.1, volatility: 0.026 },
+  // Post 10-for-1 split (Nov 2025) — was 780.1 pre-split, badly wrong as a
+  // mock-fallback seed once Netflix's real per-share price dropped ~90%.
+  { symbol: 'NFLX', name: 'Netflix Inc.', sector: 'Communication', basePrice: 81.5, volatility: 0.026 },
   { symbol: 'JPM', name: 'JPMorgan Chase & Co.', sector: 'Financials', basePrice: 245.7, volatility: 0.014, dividendYield: 0.021 },
   { symbol: 'V', name: 'Visa Inc.', sector: 'Financials', basePrice: 310.2, volatility: 0.013, dividendYield: 0.007 },
   { symbol: 'WMT', name: 'Walmart Inc.', sector: 'Consumer Staples', basePrice: 95.4, volatility: 0.011, dividendYield: 0.01 },

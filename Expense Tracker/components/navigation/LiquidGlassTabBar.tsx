@@ -17,7 +17,11 @@ import { useTheme } from '@/hooks/useTheme';
 // riskier change than this visual pass calls for.
 const TAB_ROUTE_ORDER = ['index', 'learn', 'markets', 'portfolio', 'expenses', 'assistant'];
 const TAB_COUNT = TAB_ROUTE_ORDER.length;
-const PILL_MARGIN = 6;
+// A compact "bob" centered in each tab slot — tall enough to cover nearly
+// the full bar height, short enough to hug the icon+label instead of
+// spanning the whole column.
+const PILL_WIDTH_FRACTION = 0.62;
+const PILL_VERTICAL_INSET = 3;
 
 function activeIndexFor(pathname: string): number {
   if (pathname === '/') return 0;
@@ -32,16 +36,17 @@ export function LiquidGlassTabBar() {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const tabWidth = width / TAB_COUNT;
+  const pillWidth = tabWidth * PILL_WIDTH_FRACTION;
+  const centerOffset = (tabWidth - pillWidth) / 2;
 
-  const translateX = useSharedValue(activeIndexFor(pathname) * tabWidth);
+  const translateX = useSharedValue(activeIndexFor(pathname) * tabWidth + centerOffset);
 
   useEffect(() => {
-    translateX.value = withSpring(activeIndexFor(pathname) * tabWidth, springs.gentle);
-  }, [pathname, tabWidth, translateX]);
+    translateX.value = withSpring(activeIndexFor(pathname) * tabWidth + centerOffset, springs.gentle);
+  }, [pathname, tabWidth, centerOffset, translateX]);
 
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
-    width: tabWidth,
   }));
 
   return (
@@ -51,14 +56,20 @@ export function LiquidGlassTabBar() {
         tint={scheme === 'dark' ? 'dark' : 'light'}
         style={[StyleSheet.absoluteFill, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}
       />
-      <Animated.View pointerEvents="none" style={[styles.pillWrap, pillStyle]}>
-        <Animated.View style={[styles.pill, { backgroundColor: colors.accentSoft }]} />
-      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.pill, { width: pillWidth, backgroundColor: colors.accentSoft }, pillStyle]}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  pillWrap: { position: 'absolute', top: 4, bottom: 4, left: 0, padding: PILL_MARGIN },
-  pill: { flex: 1, borderRadius: radius.md },
+  pill: {
+    position: 'absolute',
+    top: PILL_VERTICAL_INSET,
+    bottom: PILL_VERTICAL_INSET,
+    left: 0,
+    borderRadius: radius.pill,
+  },
 });

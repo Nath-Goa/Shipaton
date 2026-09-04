@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, type ColorValue } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -120,18 +120,31 @@ function AnimatedTabButton(props: any) {
 export default function TabLayout() {
   const { colors } = useTheme();
 
+  // Memoized so react-navigation's bottom-tabs sees the exact same function
+  // identity across re-renders (every tab switch re-renders TabLayout via
+  // the route/theme hooks above) — an inline `() => <LiquidGlassTabBar />`
+  // is a brand-new function every render, which was causing the blur
+  // background's underlying view to get torn down and recreated on every
+  // tab change, visible as a flicker while the backdrop-filter re-established.
+  const renderTabBarBackground = useCallback(() => <LiquidGlassTabBar />, []);
+  const renderTabBarButton = useCallback((props: any) => <AnimatedTabButton {...props} />, []);
+
+  const screenOptions = useMemo(
+    () => ({
+      headerShown: false,
+      tabBarActiveTintColor: colors.accent,
+      tabBarInactiveTintColor: colors.text3,
+      // Transparent + no default border: LiquidGlassTabBar renders the
+      // blur, tint, and top hairline itself as the tab bar's background.
+      tabBarStyle: { backgroundColor: 'transparent', borderTopWidth: 0 },
+      tabBarBackground: renderTabBarBackground,
+      tabBarButton: renderTabBarButton,
+    }),
+    [colors.accent, colors.text3, renderTabBarBackground, renderTabBarButton]
+  );
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.text3,
-        // Transparent + no default border: LiquidGlassTabBar renders the
-        // blur, tint, and top hairline itself as the tab bar's background.
-        tabBarStyle: { backgroundColor: 'transparent', borderTopWidth: 0 },
-        tabBarBackground: () => <LiquidGlassTabBar />,
-        tabBarButton: (props) => <AnimatedTabButton {...props} />,
-      }}>
+    <Tabs screenOptions={screenOptions}>
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }} />
       <Tabs.Screen name="learn" options={{ title: 'Learn', tabBarIcon: tabIcon('school', 'school-outline') }} />
       <Tabs.Screen

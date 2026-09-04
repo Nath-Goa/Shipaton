@@ -74,7 +74,11 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
   });
 
   const revealProps = useAnimatedProps(() => ({
-    width: revealWidth.value,
+    // Clamped defensively — an SVG <rect> throws on a negative width, and a
+    // stale target from a mid-flight animation racing a container resize
+    // (e.g. right after this screen first mounts, before layout settles)
+    // could otherwise briefly land below zero.
+    width: Math.max(0, revealWidth.value),
   }));
 
   function onLayout(e: LayoutChangeEvent) {

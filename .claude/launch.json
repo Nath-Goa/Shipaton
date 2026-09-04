@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "expo-web",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "Expense Tracker", "run", "web"],
+      "runtimeExecutable": "C:\\PROGRA~1\\nodejs\\npm.cmd",
+      "runtimeArgs": ["--prefix", "D:\\SHIPAT~1\\Shipaton\\EXPENS~1", "run", "web"],
       "port": 8081
     }
   ]

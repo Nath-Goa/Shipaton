@@ -22,14 +22,17 @@ type Props<T extends string> = {
 
 // A "liquid glass" slide: a short jump (adjacent option) gets a quick,
 // mild stretch that settles smoothly; a long jump (e.g. clear across a
-// 4-way control) stretches further while travelling and then snaps back on
-// arrival like it's hit a wall — a stiff, slightly overshooting spring
-// rather than a smooth timing curve, so the stop actually reads as an
-// impact. "Far" is relative to the control's own span so this scales
-// correctly whether it's a 2-way or 4-way segmented control.
+// 4-way control) actually overshoots past the target — stretched while
+// flying past it — then springs back to the real position, like it hit a
+// wall and rebounded. `wrap` clips overflow so an overshoot off the very
+// first/last option is cropped by the control's own rounded edge rather
+// than poking outside it, which sells the "hit a wall" feel. "Far" is
+// relative to the control's own span so this scales correctly whether it's
+// a 2-way or 4-way segmented control.
 const FAR_JUMP_FRACTION = 0.5;
 const NEAR_STRETCH = 1.14;
 const FAR_STRETCH = 1.4;
+const OVERSHOOT_FRACTION = 0.32;
 
 export function SegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
   const { colors } = useTheme();
@@ -52,10 +55,15 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
     const targetX = activeIndex * itemWidth;
 
     if (isFar) {
-      translateX.value = withTiming(targetX, { duration: 300, easing: Easing.out(Easing.cubic) });
+      const direction = activeIndex > fromIndex ? 1 : -1;
+      const overshootX = targetX + direction * itemWidth * OVERSHOOT_FRACTION;
+      translateX.value = withSequence(
+        withTiming(overshootX, { duration: 220, easing: Easing.out(Easing.cubic) }),
+        withSpring(targetX, springs.snappy)
+      );
       stretch.value = withSequence(
-        withTiming(FAR_STRETCH, { duration: 150, easing: Easing.out(Easing.quad) }),
-        withSpring(1, springs.snappy)
+        withTiming(FAR_STRETCH, { duration: 220, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) })
       );
     } else {
       translateX.value = withTiming(targetX, { duration: 180, easing: Easing.out(Easing.cubic) });
@@ -176,6 +184,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 3,
+    overflow: 'hidden',
   },
   indicator: {
     position: 'absolute',

@@ -48,10 +48,19 @@ function utcDateStr(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toISOString().slice(0, 10);
 }
 
+// Yahoo's unofficial endpoint 429s any request that doesn't look like a
+// real browser — confirmed directly (curl with no UA: 429; with this UA:
+// 200). Native fetch lets us set this freely (unlike a real browser, which
+// silently ignores a script-set User-Agent), so this is what actually makes
+// live data work on-device — without it every request fails and every
+// symbol silently renders from the mock engine instead, indefinitely.
+const BROWSER_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 async function fetchChart(symbol: string, range: string): Promise<ChartResult | null> {
   try {
     const url = `${API_BASE}/${encodeURIComponent(symbol)}?range=${range}&interval=1d`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': BROWSER_USER_AGENT } });
     if (!res.ok) return null;
     const json = await res.json();
     const result = json?.chart?.result?.[0] as ChartResult | undefined;
