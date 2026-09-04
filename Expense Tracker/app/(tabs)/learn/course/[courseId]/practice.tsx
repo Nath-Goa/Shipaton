@@ -36,7 +36,7 @@ export default function PracticeScreen() {
   const isAuto = course.practice.action !== 'manual';
   const detected =
     course.practice.action === 'stock-viewed'
-      ? stockView.viewedTodayCount() > 0
+      ? stockView.hasEverViewedAnyStock
       : course.practice.action === 'trade-placed'
         ? activePortfolio.trades.length > 0
         : course.practice.action === 'watchlist-added'

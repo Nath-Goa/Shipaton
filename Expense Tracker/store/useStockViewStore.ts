@@ -12,6 +12,11 @@ type StockViewState = {
   date: string;
   viewedSymbols: string[];
   lookupCount: number;
+  // Sticky, never reset by the daily rollover — unlike viewedSymbols/
+  // lookupCount, which exist only for the Free-tier daily gate. Used where
+  // "has this ever happened" is the right question (e.g. a course's
+  // practice-step detection), not "happened today specifically".
+  hasEverViewedAnyStock: boolean;
   recordView: (symbol: string) => { isNew: boolean; lookupCount: number; viewedTodayCount: number };
   viewedTodayCount: () => number;
   // Would opening `symbol` push a Free-tier user past `limit` distinct
@@ -25,6 +30,7 @@ export const useStockViewStore = create<StockViewState>()(
       date: todayStr(),
       viewedSymbols: [],
       lookupCount: 0,
+      hasEverViewedAnyStock: false,
 
       recordView: (symbol) => {
         const today = todayStr();
@@ -35,7 +41,7 @@ export const useStockViewStore = create<StockViewState>()(
         const isNew = !viewedSymbols.includes(symbol);
         const nextViewed = isNew ? [...viewedSymbols, symbol] : viewedSymbols;
 
-        set({ date: today, viewedSymbols: nextViewed, lookupCount });
+        set({ date: today, viewedSymbols: nextViewed, lookupCount, hasEverViewedAnyStock: true });
         return { isNew, lookupCount, viewedTodayCount: nextViewed.length };
       },
 

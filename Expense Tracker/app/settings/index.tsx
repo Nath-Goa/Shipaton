@@ -31,6 +31,7 @@ import {
 } from '@/services/security/appLock';
 import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
 import { useExpenseStore } from '@/store/useExpenseStore';
+import { useMistakeJournalStore } from '@/store/useMistakeJournalStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useChatStore } from '@/store/useChatStore';
 import { useQuizStore } from '@/store/useQuizStore';
@@ -223,6 +224,10 @@ export default function SettingsScreen() {
         // (store/useAiUsageStore.ts) deliberately isn't touched, or this
         // button would double as a way to bypass the free-tier daily limit.
         useChatStore.setState({ threads: {} });
+        // Every entry here points at a tradeId from the portfolio just
+        // wiped above — without this, Home's "Trade reflections" card kept
+        // showing a mistake logged against a trade that no longer exists.
+        useMistakeJournalStore.setState({ entries: [] });
       }
     );
   }
