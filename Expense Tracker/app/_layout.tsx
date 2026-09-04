@@ -42,6 +42,7 @@ function RootLayout() {
   const streakDays = useStreakStore((s) => s.streakDays);
   const lastActivityDate = useStreakStore((s) => s.lastActivityDate);
   const processDividends = usePortfolioStore((s) => s.processDividends);
+  const processAutoInvests = usePortfolioStore((s) => s.processAutoInvests);
   const [portfolioHydrated, setPortfolioHydrated] = useState(usePortfolioStore.persist.hasHydrated());
 
   useEffect(() => {
@@ -62,6 +63,13 @@ function RootLayout() {
     if (!portfolioHydrated) return;
     processDividends();
   }, [portfolioHydrated, processDividends]);
+
+  // Fills any auto-invest contributions due since last app open. Same
+  // hydration guard as processDividends above, and just as idempotent.
+  useEffect(() => {
+    if (!portfolioHydrated) return;
+    processAutoInvests();
+  }, [portfolioHydrated, processAutoInvests]);
 
   // Re-evaluates on every app open and whenever the streak changes (a quiz
   // or challenge completed elsewhere in the app), so the same-day nudge

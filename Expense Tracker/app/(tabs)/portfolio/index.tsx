@@ -31,6 +31,32 @@ import { computePortfolioVsBenchmark, summarizePortfolio } from '@/utils/portfol
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+function NetWorthTile({ value }: { value: number }) {
+  const { colors } = useTheme();
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.97, springs.snappy);
+    triggerFeedback('navigation');
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.snappy);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  return (
+    <AnimatedPressable
+      onPress={() => router.push('/portfolio/networth')}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.netWorthTileWrap, animatedStyle]}>
+      <StatTile label="Net worth" value={money(value)} sub="View history →" />
+    </AnimatedPressable>
+  );
+}
+
 function HoldingRow({
   holding,
   quotePrice,
@@ -92,7 +118,7 @@ function HoldingRow({
 export default function PortfolioScreen() {
   const { colors } = useTheme();
   const activePortfolio = useActivePortfolio();
-  const { name, cash, holdings, trades, dividends } = activePortfolio;
+  const { name, cash, holdings, trades, dividends, autoInvests } = activePortfolio;
   const portfolioCount = usePortfolioStore((s) => Object.keys(s.portfolios).length);
   const showToast = useToastStore((s) => s.show);
 
@@ -152,7 +178,7 @@ export default function PortfolioScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
         {/* Animated Staggered Stats */}
         <Animated.View entering={FadeInDown.duration(350).springify().damping(16)} style={styles.statsRow}>
-          <StatTile label="Net worth" value={money(summary.netWorth)} />
+          <NetWorthTile value={summary.netWorth} />
           <StatTile label="Cash" value={money(cash)} />
           <StatTile
             label="Today"
@@ -241,6 +267,28 @@ export default function PortfolioScreen() {
           </Animated.View>
         ) : null}
 
+        {/* Auto-invest Plans Section */}
+        {autoInvests.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(130).springify().damping(16)}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Auto-invest plans</Text>
+            <Card style={{ marginTop: spacing.md }}>
+              {autoInvests.map((p, i) => (
+                <View
+                  key={p.id}
+                  style={[styles.tradeRow, i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.symbol, { color: colors.text }]}>{p.symbol}</Text>
+                    <Text style={[styles.meta, { color: colors.text3 }]}>
+                      {p.frequency === 'weekly' ? 'Weekly' : 'Monthly'} · next {p.nextRunDate}
+                    </Text>
+                  </View>
+                  <Text style={[styles.value, { color: colors.text }]}>{money(p.amount)}</Text>
+                </View>
+              ))}
+            </Card>
+          </Animated.View>
+        ) : null}
+
         {/* Dividend Income Section */}
         {dividends.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
@@ -318,6 +366,7 @@ export default function PortfolioScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingTop: 0, gap: spacing.xl, paddingBottom: spacing.xxl },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  netWorthTileWrap: { flexGrow: 1, flexBasis: '47%' },
   sectionTitle: { fontSize: 15.5, fontWeight: '700' },
   holdingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 2, gap: spacing.md },
   holdingRight: { alignItems: 'flex-end' },

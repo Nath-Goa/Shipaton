@@ -119,3 +119,64 @@ export function computePortfolioVsBenchmark(portfolio: PortfolioData, days = 90)
 
   return points;
 }
+
+export type NetWorthPoint = { date: string; cash: number; holdingsValue: number; netWorth: number };
+
+// Reconstructs cash + holdings-value day by day the same way
+// computePortfolioVsBenchmark does, but only needs the symbols this
+// portfolio has actually traded — no benchmark to compute here, so no need
+// to pull bars for the full TICKERS universe.
+export function computeNetWorthHistory(portfolio: PortfolioData, days = 90): NetWorthPoint[] {
+  if (portfolio.trades.length === 0) return [];
+
+  const symbols = Array.from(new Set(portfolio.trades.map((t) => t.symbol)));
+  const barsBySymbol = new Map<string, Map<string, number>>(
+    symbols.map((s) => [s, new Map(getFullHistory(s).map((b) => [b.date, b.close]))])
+  );
+
+  // Anchor the date range on whichever traded symbol has the longest bar
+  // history, not just the first one encountered — under live market data
+  // (unlike the fully-deterministic mock engine, where every symbol always
+  // has identical-length history) different symbols can have different
+  // cached lengths, and picking an arbitrary one could needlessly truncate
+  // the whole chart to that symbol's shorter range.
+  let spine: string[] = [];
+  for (const symbol of symbols) {
+    const keys = Array.from(barsBySymbol.get(symbol)?.keys() ?? []);
+    if (keys.length > spine.length) spine = keys;
+  }
+  if (spine.length === 0) return [];
+
+  const firstTradeMs = Math.min(...portfolio.trades.map((t) => t.date));
+  const firstTradeDate = toDateStr(new Date(firstTradeMs));
+  const firstIdx = spine.indexOf(firstTradeDate);
+  const startIdx = Math.max(0, spine.length - days, firstIdx >= 0 ? firstIdx : 0);
+  const dates = spine.slice(startIdx);
+  if (dates.length === 0) return [];
+
+  const points: NetWorthPoint[] = [];
+  for (const date of dates) {
+    const cutoffMs = parseDateLocal(date).getTime() + 24 * 60 * 60 * 1000 - 1;
+    let cash = STARTING_CASH;
+    const holdings = new Map<string, number>();
+    for (const t of portfolio.trades) {
+      if (t.date > cutoffMs) continue;
+      cash += t.side === 'buy' ? -t.total : t.total;
+      holdings.set(t.symbol, (holdings.get(t.symbol) ?? 0) + (t.side === 'buy' ? t.qty : -t.qty));
+    }
+    for (const d of portfolio.dividends) {
+      if (d.date <= cutoffMs) cash += d.amount;
+    }
+
+    let holdingsValue = 0;
+    for (const [symbol, qty] of holdings) {
+      if (qty <= 0) continue;
+      const price = barsBySymbol.get(symbol)?.get(date);
+      if (price != null) holdingsValue += price * qty;
+    }
+
+    points.push({ date, cash, holdingsValue, netWorth: cash + holdingsValue });
+  }
+
+  return points;
+}

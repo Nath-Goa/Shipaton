@@ -32,7 +32,16 @@ export function addDaysStr(dateStr: string, days: number): string {
 
 export function addMonthsStr(dateStr: string, months: number): string {
   const d = parseDateLocal(dateStr);
+  const day = d.getDate();
+  // Move to the 1st before changing the month, then clamp back to the
+  // target month's last real day — plain setMonth() on e.g. Jan 31 + 1
+  // month overflows into March 3 (Feb only has 28/29 days) instead of
+  // landing on Feb 28/29, silently drifting every recurring/auto-invest
+  // date anchored near month-end.
+  d.setDate(1);
   d.setMonth(d.getMonth() + months);
+  const lastDayOfTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDayOfTargetMonth));
   return toDateStr(d);
 }
 

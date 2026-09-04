@@ -24,11 +24,17 @@ import { subscribeLiveQuote } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
+import type { RecurringFrequency } from '@/types/expense';
 import type { Quote } from '@/types/stock';
 import { money } from '@/utils/money';
 
 type Side = 'buy' | 'sell';
-type OrderType = 'market' | 'limit';
+type OrderType = 'market' | 'limit' | 'autoInvest';
+
+const FREQUENCY_OPTIONS: { value: RecurringFrequency; label: string }[] = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -67,8 +73,8 @@ export default function TradeScreen() {
   const symbol = (rawSymbol ?? '').toUpperCase();
   const { colors } = useTheme();
   const ticker = tickerOf(symbol);
-  const { cash, holdings, limitOrders } = useActivePortfolio();
-  const { buy, sell, placeLimitOrder, cancelLimitOrder } = usePortfolioStore();
+  const { cash, holdings, limitOrders, autoInvests } = useActivePortfolio();
+  const { buy, sell, placeLimitOrder, cancelLimitOrder, createAutoInvest, cancelAutoInvest } = usePortfolioStore();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
   const upgradeToTier = useUpgradeToTier();
@@ -78,6 +84,8 @@ export default function TradeScreen() {
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [qtyText, setQtyText] = useState('1');
   const [limitPriceText, setLimitPriceText] = useState('');
+  const [autoAmountText, setAutoAmountText] = useState('50');
+  const [frequency, setFrequency] = useState<RecurringFrequency>('monthly');
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Ref (not state) so a rapid double-tap is blocked synchronously, without
@@ -93,6 +101,13 @@ export default function TradeScreen() {
     setSide(rawSide === 'sell' ? 'sell' : 'buy');
   }, [rawSide]);
 
+  // Auto-invest is a buy-only concept (dollar-cost averaging INTO a
+  // position) — switching to Sell while it's selected falls back to Market
+  // rather than leaving an order type that no longer makes sense selected.
+  useEffect(() => {
+    if (side === 'sell' && orderType === 'autoInvest') setOrderType('market');
+  }, [side, orderType]);
+
   useFocusEffect(
     useCallback(() => {
       const unsubscribe = subscribeLiveQuote(symbol, setQuote);
@@ -103,9 +118,11 @@ export default function TradeScreen() {
   const price = quote?.price ?? ticker?.basePrice ?? 0;
   const qty = Math.max(0, Math.floor(Number(qtyText) || 0));
   const limitPrice = Math.max(0, Number(limitPriceText) || 0);
+  const autoAmount = Math.max(0, Number(autoAmountText) || 0);
   const total = qty * (orderType === 'limit' && limitPrice > 0 ? limitPrice : price);
   const owned = holdings[symbol]?.qty ?? 0;
   const symbolOrders = limitOrders.filter((o) => o.symbol === symbol);
+  const symbolAutoInvests = autoInvests.filter((p) => p.symbol === symbol);
 
   function adjustQty(delta: number) {
     setQtyText((prev) => {
@@ -118,6 +135,23 @@ export default function TradeScreen() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setError(null);
+
+    if (orderType === 'autoInvest') {
+      if (autoAmount <= 0) {
+        submittingRef.current = false;
+        setError('Enter an amount greater than 0.');
+        return;
+      }
+      const result = createAutoInvest(symbol, autoAmount, frequency);
+      if (!result.ok) {
+        submittingRef.current = false;
+        setError(result.message);
+        return;
+      }
+      showToast(`Auto-invest set up: ${money(autoAmount)} into ${symbol} ${frequency === 'weekly' ? 'every week' : 'every month'}`);
+      router.back();
+      return;
+    }
 
     if (orderType === 'limit') {
       if (limitPrice <= 0) {
@@ -160,6 +194,13 @@ export default function TradeScreen() {
     );
   }
 
+  // Limit orders are Max-gated (shown separately below as a locked hint
+  // when unavailable); auto-invest is free but buy-only, since it's a
+  // dollar-cost-averaging plan INTO a position.
+  const orderTypeOptions: { value: OrderType; label: string }[] = [{ value: 'market', label: 'Market' }];
+  if (features.limitOrders) orderTypeOptions.push({ value: 'limit', label: 'Limit' });
+  if (side === 'buy') orderTypeOptions.push({ value: 'autoInvest', label: 'Auto-invest' });
+
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <Stack.Screen options={{ title: `Trade ${symbol}` }} />
@@ -181,19 +222,16 @@ export default function TradeScreen() {
           }}
         />
 
-        {features.limitOrders ? (
-          <SegmentedControl
-            options={[
-              { value: 'market', label: 'Market order' },
-              { value: 'limit', label: 'Limit order' },
-            ]}
-            value={orderType}
-            onChange={(v) => {
-              setOrderType(v as OrderType);
-              setError(null);
-            }}
-          />
-        ) : (
+        <SegmentedControl
+          options={orderTypeOptions}
+          value={orderType}
+          onChange={(v) => {
+            setOrderType(v as OrderType);
+            setError(null);
+          }}
+        />
+
+        {!features.limitOrders ? (
           <Pressable onPress={() => upgradeToTier('max')}>
             <Card style={styles.lockedRow}>
               <Ionicons name="lock-closed" size={14} color={colors.text3} />
@@ -203,52 +241,100 @@ export default function TradeScreen() {
               <Ionicons name="chevron-forward" size={14} color={colors.text3} />
             </Card>
           </Pressable>
+        ) : null}
+
+        {orderType === 'autoInvest' ? (
+          <Card>
+            <Text style={[styles.label, { color: colors.text3 }]}>Amount per contribution</Text>
+            <TextInput
+              value={autoAmountText}
+              onChangeText={setAutoAmountText}
+              keyboardType="decimal-pad"
+              placeholder="50"
+              placeholderTextColor={colors.text3}
+              style={[styles.limitInput, { color: colors.text, borderColor: colors.border, marginTop: spacing.sm }]}
+            />
+
+            <View style={{ marginTop: spacing.lg }}>
+              <Text style={[styles.label, { color: colors.text3 }]}>Frequency</Text>
+              <View style={{ marginTop: spacing.sm }}>
+                <SegmentedControl options={FREQUENCY_OPTIONS} value={frequency} onChange={(v) => setFrequency(v as RecurringFrequency)} />
+              </View>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Buys fractional shares worth</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{money(autoAmount)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Cash available</Text>
+              <Text style={[styles.summaryValue, { color: colors.text2 }]}>{money(cash)}</Text>
+            </View>
+          </Card>
+        ) : (
+          <Card>
+            <Text style={[styles.label, { color: colors.text3 }]}>Quantity</Text>
+            <View style={styles.qtyRow}>
+              <QtyButton label="−" onPress={() => adjustQty(-1)} />
+              <TextInput
+                value={qtyText}
+                onChangeText={setQtyText}
+                keyboardType="number-pad"
+                style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]}
+              />
+              <QtyButton label="+" onPress={() => adjustQty(1)} />
+            </View>
+
+            {orderType === 'limit' ? (
+              <View style={{ marginTop: spacing.lg }}>
+                <Text style={[styles.label, { color: colors.text3 }]}>
+                  Target price ({side === 'buy' ? 'fills at or below' : 'fills at or above'})
+                </Text>
+                <TextInput
+                  value={limitPriceText}
+                  onChangeText={setLimitPriceText}
+                  keyboardType="decimal-pad"
+                  placeholder={price.toFixed(2)}
+                  placeholderTextColor={colors.text3}
+                  style={[styles.limitInput, { color: colors.text, borderColor: colors.border, marginTop: spacing.sm }]}
+                />
+              </View>
+            ) : null}
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Estimated total</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{money(total)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryLabel, { color: colors.text3 }]}>
+                {side === 'buy' ? 'Cash available' : 'Shares owned'}
+              </Text>
+              <Text style={[styles.summaryValue, { color: colors.text2 }]}>
+                {side === 'buy' ? money(cash) : `${owned} sh`}
+              </Text>
+            </View>
+          </Card>
         )}
 
-        <Card>
-          <Text style={[styles.label, { color: colors.text3 }]}>Quantity</Text>
-          <View style={styles.qtyRow}>
-            <QtyButton label="−" onPress={() => adjustQty(-1)} />
-            <TextInput
-              value={qtyText}
-              onChangeText={setQtyText}
-              keyboardType="number-pad"
-              style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]}
-            />
-            <QtyButton label="+" onPress={() => adjustQty(1)} />
-          </View>
-
-          {orderType === 'limit' ? (
-            <View style={{ marginTop: spacing.lg }}>
-              <Text style={[styles.label, { color: colors.text3 }]}>
-                Target price ({side === 'buy' ? 'fills at or below' : 'fills at or above'})
-              </Text>
-              <TextInput
-                value={limitPriceText}
-                onChangeText={setLimitPriceText}
-                keyboardType="decimal-pad"
-                placeholder={price.toFixed(2)}
-                placeholderTextColor={colors.text3}
-                style={[styles.limitInput, { color: colors.text, borderColor: colors.border, marginTop: spacing.sm }]}
-              />
-            </View>
-          ) : null}
-
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: colors.text3 }]}>Estimated total</Text>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>{money(total)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: colors.text3 }]}>
-              {side === 'buy' ? 'Cash available' : 'Shares owned'}
-            </Text>
-            <Text style={[styles.summaryValue, { color: colors.text2 }]}>
-              {side === 'buy' ? money(cash) : `${owned} sh`}
-            </Text>
-          </View>
-        </Card>
+        {symbolAutoInvests.length > 0 ? (
+          <Card style={{ gap: spacing.sm }}>
+            <Text style={[styles.label, { color: colors.text3 }]}>Auto-invest plans</Text>
+            {symbolAutoInvests.map((p) => (
+              <View key={p.id} style={styles.pendingRow}>
+                <Text style={[styles.pendingText, { color: colors.text }]}>
+                  {money(p.amount)} {p.frequency === 'weekly' ? 'weekly' : 'monthly'} · next {p.nextRunDate}
+                </Text>
+                <Pressable hitSlop={8} onPress={() => cancelAutoInvest(p.id)}>
+                  <Ionicons name="close-circle" size={20} color={colors.text3} />
+                </Pressable>
+              </View>
+            ))}
+          </Card>
+        ) : null}
 
         {symbolOrders.length > 0 ? (
           <Card style={{ gap: spacing.sm }}>
@@ -270,13 +356,19 @@ export default function TradeScreen() {
 
         <Button
           label={
-            orderType === 'limit'
-              ? `Place ${side === 'buy' ? 'buy' : 'sell'} limit order`
-              : `${side === 'buy' ? 'Buy' : 'Sell'} ${qty || ''} ${symbol}`.trim()
+            orderType === 'autoInvest'
+              ? `Set up ${symbol} auto-invest`
+              : orderType === 'limit'
+                ? `Place ${side === 'buy' ? 'buy' : 'sell'} limit order`
+                : `${side === 'buy' ? 'Buy' : 'Sell'} ${qty || ''} ${symbol}`.trim()
           }
           variant={side === 'buy' ? 'primary' : 'danger'}
           fullWidth
-          disabled={qty <= 0 || (orderType === 'limit' && limitPrice <= 0)}
+          disabled={
+            orderType === 'autoInvest'
+              ? autoAmount <= 0
+              : qty <= 0 || (orderType === 'limit' && limitPrice <= 0)
+          }
           onPress={submit}
         />
       </Animated.View>

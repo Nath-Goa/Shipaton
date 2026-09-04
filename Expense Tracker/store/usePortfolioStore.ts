@@ -7,9 +7,14 @@ import { tickerOf } from '@/constants/tickers';
 import { getQuote } from '@/services/marketData/marketData';
 import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
-import { addMonthsStr, todayStr } from '@/utils/date';
+import type { RecurringFrequency } from '@/types/expense';
+import { addDaysStr, addMonthsStr, todayStr } from '@/utils/date';
 import { money } from '@/utils/money';
 import { uid } from '@/utils/id';
+
+function nextOccurrence(dateStr: string, freq: RecurringFrequency): string {
+  return freq === 'weekly' ? addDaysStr(dateStr, 7) : addMonthsStr(dateStr, 1);
+}
 
 export const STARTING_CASH = 100_000;
 // A sane ceiling regardless of tier — mainly to keep the switcher UI usable.
@@ -36,6 +41,14 @@ export type LimitOrder = {
   targetPrice: number;
   createdAt: number;
 };
+export type AutoInvest = {
+  id: string;
+  symbol: string;
+  amount: number; // dollars per occurrence, not a share count
+  frequency: RecurringFrequency;
+  nextRunDate: string; // "YYYY-MM-DD" — the next date processAutoInvests will fill
+  createdAt: number;
+};
 
 export type PortfolioData = {
   id: string;
@@ -50,16 +63,20 @@ export type PortfolioData = {
   dividendCursor: Record<string, string>;
   // Pending limit orders — see processLimitOrders below.
   limitOrders: LimitOrder[];
+  // Recurring dollar-cost-averaging plans — see processAutoInvests below.
+  autoInvests: AutoInvest[];
 };
 
 const DIVERSIFIED_SECTOR_THRESHOLD = 4;
 // A sane ceiling per portfolio — mainly to keep the pending-orders list
 // usable, same spirit as MAX_PORTFOLIOS.
 export const MAX_LIMIT_ORDERS = 10;
+export const MAX_AUTO_INVESTS = 10;
 
 type TradeResult = { ok: true; badgeEarned?: string } | { ok: false; message: string };
 type PortfolioActionResult = { ok: true; id?: string } | { ok: false; message: string };
 type LimitOrderResult = { ok: true; id: string } | { ok: false; message: string };
+type AutoInvestResult = { ok: true; id: string } | { ok: false; message: string };
 
 type PortfolioState = {
   portfolios: Record<string, PortfolioData>;
@@ -92,6 +109,15 @@ type PortfolioState = {
   // price lookup and fills whatever qualifies. Safe to call repeatedly —
   // components/markets/LimitOrderWatcher.tsx drives this from a quote poll.
   processLimitOrders: (priceFor: (symbol: string) => number | undefined) => void;
+  // Creates a recurring dollar-cost-average plan on the ACTIVE portfolio —
+  // a fixed dollar amount into `symbol` every week/month, filled by
+  // processAutoInvests below.
+  createAutoInvest: (symbol: string, amount: number, frequency: RecurringFrequency) => AutoInvestResult;
+  cancelAutoInvest: (planId: string) => void;
+  // Fills every due auto-invest plan across ALL portfolios at the given
+  // symbol's current price. Idempotent — safe to call on every app open
+  // (each plan's own nextRunDate tracks what's already been filled).
+  processAutoInvests: () => void;
 };
 
 function freshPortfolio(id: string, name: string): PortfolioData {
@@ -104,6 +130,7 @@ function freshPortfolio(id: string, name: string): PortfolioData {
     dividends: [],
     dividendCursor: {},
     limitOrders: [],
+    autoInvests: [],
   };
 }
 
@@ -432,16 +459,133 @@ export const usePortfolioStore = create<PortfolioState>()(
           useToastStore.getState().show(`⚠️ A limit order for ${symbol} couldn't fill and was cancelled.`);
         }
       },
+
+      createAutoInvest: (symbol, amount, frequency) => {
+        if (!(amount > 0)) return { ok: false, message: 'Enter an amount greater than 0.' };
+        const { portfolios, activePortfolioId } = get();
+        const active = portfolios[activePortfolioId];
+        if (active.autoInvests.length >= MAX_AUTO_INVESTS) {
+          return { ok: false, message: `You can have up to ${MAX_AUTO_INVESTS} auto-invest plans at once.` };
+        }
+        const plan: AutoInvest = {
+          id: uid(),
+          symbol,
+          amount,
+          frequency,
+          // First contribution happens on the next cycle, not immediately —
+          // matches a real recurring-investment plan you just set up today.
+          nextRunDate: nextOccurrence(todayStr(), frequency),
+          createdAt: Date.now(),
+        };
+        set({
+          portfolios: {
+            ...portfolios,
+            [activePortfolioId]: { ...active, autoInvests: [plan, ...active.autoInvests] },
+          },
+        });
+        return { ok: true, id: plan.id };
+      },
+
+      cancelAutoInvest: (planId) => {
+        const { portfolios, activePortfolioId } = get();
+        const active = portfolios[activePortfolioId];
+        set({
+          portfolios: {
+            ...portfolios,
+            [activePortfolioId]: { ...active, autoInvests: active.autoInvests.filter((p) => p.id !== planId) },
+          },
+        });
+      },
+
+      processAutoInvests: () => {
+        const today = todayStr();
+        const { portfolios } = get();
+        const nextPortfolios: Record<string, PortfolioData> = { ...portfolios };
+        const fills: { symbol: string; amount: number; qty: number; badgeEarned?: string }[] = [];
+        const skippedSymbols = new Set<string>();
+
+        for (const portfolio of Object.values(portfolios)) {
+          if (portfolio.autoInvests.length === 0) continue;
+          let cash = portfolio.cash;
+          const holdings = { ...portfolio.holdings };
+          const trades = [...portfolio.trades];
+          const plans: AutoInvest[] = [];
+          let changed = false;
+          // Mirrors buy()'s badge logic — an auto-invest fill should earn
+          // First Trade / Diversified exactly like a manual or limit-order
+          // buy would.
+          let hasTraded = portfolio.trades.length > 0;
+
+          for (const plan of portfolio.autoInvests) {
+            let nextRun = plan.nextRunDate;
+            let guard = 0;
+            // Caps catch-up at 12 cycles so a very stale install doesn't
+            // dump a year of contributions in one go.
+            while (guard < 12 && nextRun <= today) {
+              const price = getQuote(plan.symbol).price;
+              if (price > 0 && plan.amount <= cash) {
+                // Dollar-cost averaging buys fractional shares by design —
+                // a fixed dollar amount, not a fixed share count.
+                const qty = Math.round((plan.amount / price) * 1000) / 1000;
+                if (qty > 0) {
+                  const existing = holdings[plan.symbol];
+                  const newQty = (existing?.qty ?? 0) + qty;
+                  const newAvgCost = existing ? (existing.avgCost * existing.qty + plan.amount) / newQty : price;
+                  cash -= plan.amount;
+                  holdings[plan.symbol] = { symbol: plan.symbol, qty: newQty, avgCost: newAvgCost };
+                  trades.unshift({ id: uid(), symbol: plan.symbol, side: 'buy', qty, price, total: plan.amount, date: Date.now() });
+
+                  let badgeEarned: string | undefined;
+                  if (!hasTraded) badgeEarned = useStreakStore.getState().awardBadge('first_trade')[0];
+                  hasTraded = true;
+                  if (!badgeEarned) {
+                    const sectors = new Set(Object.keys(holdings).map((s) => tickerOf(s)?.sector).filter(Boolean));
+                    if (sectors.size >= DIVERSIFIED_SECTOR_THRESHOLD) {
+                      badgeEarned = useStreakStore.getState().awardBadge('diversified')[0];
+                    }
+                  }
+                  fills.push({ symbol: plan.symbol, amount: plan.amount, qty, badgeEarned });
+                  changed = true;
+                }
+              } else {
+                // Not enough cash this cycle — skip just this occurrence,
+                // the plan itself stays active for the next one.
+                skippedSymbols.add(plan.symbol);
+                changed = true;
+              }
+              nextRun = nextOccurrence(nextRun, plan.frequency);
+              guard++;
+            }
+            plans.push(nextRun === plan.nextRunDate ? plan : { ...plan, nextRunDate: nextRun });
+          }
+
+          if (changed) {
+            nextPortfolios[portfolio.id] = { ...portfolio, cash, holdings, trades, autoInvests: plans };
+          }
+        }
+
+        if (Object.keys(nextPortfolios).some((id) => nextPortfolios[id] !== portfolios[id])) {
+          set({ portfolios: nextPortfolios });
+        }
+        for (const fill of fills) {
+          const base = `💵 Auto-invested ${money(fill.amount)} into ${fill.symbol} (${fill.qty} sh)`;
+          useToastStore.getState().show(fill.badgeEarned ? `${base} · 🏅 ${badgeInfo(fill.badgeEarned).label} badge earned!` : base);
+        }
+        for (const symbol of skippedSymbols) {
+          useToastStore.getState().show(`⚠️ Not enough cash for the ${symbol} auto-invest this cycle — plan stays active.`);
+        }
+      },
     }),
     {
       name: 'portfolio-store',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 3,
+      version: 4,
       // v0 was a single flat portfolio: { cash, holdings, trades, watchlist }.
       // Wrap it into v1's { portfolios, activePortfolioId, watchlist } shape
       // as that user's one existing portfolio, rather than losing it. v2
-      // added per-portfolio dividends/dividendCursor, v3 added limitOrders —
-      // both backfilled below for anyone persisted before that.
+      // added per-portfolio dividends/dividendCursor, v3 added limitOrders,
+      // v4 added autoInvests — all backfilled below for anyone persisted
+      // before that.
       migrate: (persisted: any) => {
         let state = persisted;
         if (state && typeof state === 'object' && !state.portfolios) {
@@ -468,6 +612,7 @@ export const usePortfolioStore = create<PortfolioState>()(
               dividends: p.dividends ?? [],
               dividendCursor: p.dividendCursor ?? {},
               limitOrders: p.limitOrders ?? [],
+              autoInvests: p.autoInvests ?? [],
             };
           }
           state = { ...state, portfolios: backfilled };
