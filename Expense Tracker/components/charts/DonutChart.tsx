@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -65,25 +65,48 @@ function DonutSegmentArc({
   dimmed: boolean;
   onPress: () => void;
 }) {
+  const isWeb = Platform.OS === 'web';
   const progress = useSharedValue(0);
+  const [webMounted, setWebMounted] = useState(false);
 
   useEffect(() => {
-    progress.value = withDelay(index * STAGGER_MS, withTiming(1, { duration: DRAW_DURATION, easing: DRAW_EASING }));
-    // Runs once per mount only — see the component-level doc comment.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isWeb) {
+      const timer = setTimeout(() => setWebMounted(true), index * STAGGER_MS);
+      return () => clearTimeout(timer);
+    } else {
+      progress.value = withDelay(index * STAGGER_MS, withTiming(1, { duration: DRAW_DURATION, easing: DRAW_EASING }));
+    }
+  }, [isWeb, index, progress]);
 
   const animatedProps = useAnimatedProps(() => {
-    // The dasharray below is a single (dash, gap) pair the length of this
-    // segment's own arc — dashOffset positions where that dash sits along
-    // the circle. Starting the offset `len` further along than its final
-    // resting point means none of the dash is in view yet; animating it
-    // back down to `dashOffset` slides the visible arc in clockwise, as if
-    // being drawn from its start angle to its end angle.
     return {
       strokeDashoffset: dashOffset + len * (1 - progress.value),
     };
   });
+
+  if (isWeb) {
+    return (
+      <Circle
+        key={seg.id}
+        cx={c}
+        cy={c}
+        r={r}
+        stroke={seg.color}
+        strokeWidth={isHighlighted ? strokeWidth + 4 : strokeWidth}
+        strokeDasharray={`${len} ${circumference - len}`}
+        strokeDashoffset={webMounted ? dashOffset : dashOffset + len}
+        strokeOpacity={dimmed ? 0.25 : 1}
+        fill="none"
+        strokeLinecap="butt"
+        transform={`rotate(-90 ${c} ${c})`}
+        {...({ onClick: onPress } as any)}
+        style={{
+          cursor: 'pointer',
+          transition: `stroke-dashoffset ${DRAW_DURATION}ms cubic-bezier(0.33, 1, 0.68, 1), stroke-width 200ms ease, stroke-opacity 200ms ease`,
+        } as any}
+      />
+    );
+  }
 
   return (
     <AnimatedCircle

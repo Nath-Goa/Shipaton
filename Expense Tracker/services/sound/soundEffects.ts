@@ -33,6 +33,7 @@ if (Platform.OS !== 'web') {
 // quick succession both produce a sound instead of the second cutting off
 // the first — each is disposed shortly after its clip finishes.
 export function playSound(category: SoundCategory): void {
+  if (Platform.OS === 'web') return;
   try {
     const player = createAudioPlayer(SOURCES[category]);
     player.play();

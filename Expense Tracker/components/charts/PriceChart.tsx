@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { Pressable, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { Platform, Pressable, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -155,7 +155,11 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
         <Svg width={width} height={height}>
           <Defs>
             <ClipPath id={clipId}>
-              <AnimatedRect x={0} y={-4} height={height + 8} animatedProps={revealProps} />
+              {Platform.OS === 'web' ? (
+                <Rect x={0} y={-4} width={width} height={height + 8} />
+              ) : (
+                <AnimatedRect x={0} y={-4} height={height + 8} animatedProps={revealProps} />
+              )}
             </ClipPath>
           </Defs>
           <G clipPath={`url(#${clipId})`}>

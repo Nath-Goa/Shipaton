@@ -24,9 +24,9 @@ const PILL_WIDTH_FRACTION = 0.62;
 const PILL_VERTICAL_INSET = 3;
 
 function activeIndexFor(pathname: string): number {
-  if (pathname === '/') return 0;
+  if (pathname === '/' || pathname === '' || pathname === '/index') return 0;
   for (let i = 1; i < TAB_ROUTE_ORDER.length; i++) {
-    if (pathname.startsWith(`/${TAB_ROUTE_ORDER[i]}`)) return i;
+    if (pathname === `/${TAB_ROUTE_ORDER[i]}` || pathname.startsWith(`/${TAB_ROUTE_ORDER[i]}/`) || pathname.startsWith(`/${TAB_ROUTE_ORDER[i]}?`)) return i;
   }
   return 0;
 }
