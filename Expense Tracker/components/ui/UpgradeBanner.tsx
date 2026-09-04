@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { spacing } from '@/constants/theme';
 import { useAiQuota } from '@/hooks/useAiQuota';
+import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -25,11 +26,12 @@ export function UpgradeBanner({ title, body, delay = 0 }: Props) {
   const tier = useSettingsStore((s) => s.tier);
   const upgradeToTier = useUpgradeToTier();
   const { remaining } = useAiQuota();
+  const entranceStyle = useTabEntrance(delay);
 
   if (tier !== 'free') return null;
 
   return (
-    <Animated.View entering={FadeInDown.delay(delay).springify().damping(16)}>
+    <Animated.View style={entranceStyle}>
       <Pressable onPress={() => upgradeToTier('pro')}>
         <Card style={[styles.upsell, { borderColor: colors.accent }]}>
           <Ionicons name="sparkles" size={18} color={colors.accent} />

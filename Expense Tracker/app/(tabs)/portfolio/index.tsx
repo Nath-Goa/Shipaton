@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -24,6 +23,7 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { SECTOR_COLORS, tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
+import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { sharePortfolioSummary } from '@/services/export/exportData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
@@ -164,6 +164,14 @@ export default function PortfolioScreen() {
 
   const [resultsCardOpen, setResultsCardOpen] = useState(false);
 
+  const statsEntrance = useTabEntrance(0);
+  const benchmarkEntrance = useTabEntrance(60);
+  const holdingsEntrance = useTabEntrance(80);
+  const diversificationEntrance = useTabEntrance(120);
+  const autoInvestEntrance = useTabEntrance(130);
+  const dividendsEntrance = useTabEntrance(140);
+  const tradesEntrance = useTabEntrance(160);
+
   async function handleShare() {
     const result = await sharePortfolioSummary({
       name,
@@ -194,7 +202,7 @@ export default function PortfolioScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
         {/* Animated Staggered Stats */}
-        <Animated.View entering={FadeInDown.duration(350).springify().damping(16)} style={styles.statsRow}>
+        <Animated.View style={[styles.statsRow, statsEntrance]}>
           <NetWorthTile value={summary.netWorth} />
           <StatTile label="Cash" value={money(cash)} />
           <StatTile
@@ -210,7 +218,7 @@ export default function PortfolioScreen() {
         </Animated.View>
 
         {benchmarkPoints.length > 1 ? (
-          <Animated.View entering={FadeInDown.delay(60).springify().damping(16)}>
+          <Animated.View style={benchmarkEntrance}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>You vs. the market</Text>
             <Card style={{ marginTop: spacing.md }}>
               <BenchmarkChart points={benchmarkPoints} />
@@ -241,7 +249,7 @@ export default function PortfolioScreen() {
         ) : null}
 
         {/* Holdings Section */}
-        <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
+        <Animated.View style={holdingsEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Holdings</Text>
           <Card style={{ marginTop: spacing.md }}>
             {holdingList.length === 0 ? (
@@ -267,7 +275,7 @@ export default function PortfolioScreen() {
 
         {/* Diversification Section */}
         {sectorBreakdown.segments.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(120).springify().damping(16)}>
+          <Animated.View style={diversificationEntrance}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Diversification</Text>
             <Card style={[styles.diversificationCard, { marginTop: spacing.md }]}>
               <DonutChart
@@ -302,7 +310,7 @@ export default function PortfolioScreen() {
 
         {/* Auto-invest Plans Section */}
         {autoInvests.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(130).springify().damping(16)}>
+          <Animated.View style={autoInvestEntrance}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Auto-invest plans</Text>
             <Card style={{ marginTop: spacing.md }}>
               {autoInvests.map((p, i) => (
@@ -324,7 +332,7 @@ export default function PortfolioScreen() {
 
         {/* Dividend Income Section */}
         {dividends.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
+          <Animated.View style={dividendsEntrance}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Dividend income</Text>
             <Card style={{ marginTop: spacing.md }}>
               <View style={styles.dividendTotalRow}>
@@ -347,7 +355,7 @@ export default function PortfolioScreen() {
         ) : null}
 
         {/* Recent Trades Section */}
-        <Animated.View entering={FadeInDown.delay(160).springify().damping(16)}>
+        <Animated.View style={tradesEntrance}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent trades</Text>
           <Card style={{ marginTop: spacing.md }}>
             {trades.length === 0 ? (

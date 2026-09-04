@@ -19,6 +19,7 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
+import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
 import { regenerateMarket } from '@/services/marketData/regenerateMarket';
@@ -116,6 +117,9 @@ export default function MarketsScreen() {
 
   const liveData = isLiveMarketDataConfigured();
 
+  const searchEntrance = useTabEntrance(0);
+  const actionsEntrance = useTabEntrance(60);
+
   function confirmRegenerate() {
     confirmAction(
       liveData
@@ -144,7 +148,7 @@ export default function MarketsScreen() {
   return (
     <Screen>
       <TopBar title="Markets" subtitle={liveData ? 'Mock trading — real live prices' : 'Mock stocks — simulated prices, real symbols'} />
-      <Animated.View entering={FadeInDown.duration(300).springify().damping(16)} style={styles.searchWrap}>
+      <Animated.View style={[styles.searchWrap, searchEntrance]}>
         <View style={[styles.searchBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
           <Ionicons name="search" size={16} color={colors.text3} />
           <TextInput
@@ -165,7 +169,7 @@ export default function MarketsScreen() {
           delay={40}
         />
       </View>
-      <Animated.View entering={FadeInDown.delay(60).springify().damping(16)} style={styles.actionsRow}>
+      <Animated.View style={[styles.actionsRow, actionsEntrance]}>
         <MarketActionBtn
           icon="flask-outline"
           label="Practice trade"

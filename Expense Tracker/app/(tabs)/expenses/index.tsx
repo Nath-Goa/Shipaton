@@ -16,6 +16,7 @@ import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { CATEGORIES, categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
+import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { generateSpendingInsight, type SpendingInsight } from '@/services/ai/insights';
@@ -146,6 +147,11 @@ export default function ExpensesScreen() {
     setInsight(result.data);
   }
 
+  const chipsEntrance = useTabEntrance(0);
+  const statsEntrance = useTabEntrance(70);
+  const breakdownEntrance = useTabEntrance(140);
+  const insightEntrance = useTabEntrance(180);
+
   function onLongPressExpense(expense: Expense) {
     Alert.alert(expense.desc || categoryOf(expense.category).label, undefined, [
       { text: 'Edit', onPress: () => router.push(`/expenses/${expense.id}`) },
@@ -182,7 +188,7 @@ export default function ExpensesScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.headerBlock}>
-            <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
+            <Animated.View style={chipsEntrance}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {PRESETS.map((p) => (
                   <Chip key={p.value} label={p.label} active={preset === p.value} onPress={() => setPreset(p.value)} />
@@ -196,7 +202,7 @@ export default function ExpensesScreen() {
               delay={40}
             />
 
-            <Animated.View entering={FadeInDown.delay(70).springify().damping(16)} style={styles.statsRow}>
+            <Animated.View style={[styles.statsRow, statsEntrance]}>
               <StatTile label="Total spending" value={money(total)} sub={`${count} expense${count === 1 ? '' : 's'}`} />
               <StatTile label="This month" value={money(monthTotal)} />
               <StatTile label="Average" value={money(avg)} />
@@ -208,7 +214,7 @@ export default function ExpensesScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
+            <Animated.View style={breakdownEntrance}>
               <Card>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>Spending by category</Text>
                 {total > 0 ? (
@@ -245,7 +251,7 @@ export default function ExpensesScreen() {
             </Animated.View>
 
             {total > 0 ? (
-              <Animated.View entering={FadeInDown.delay(180).springify().damping(16)}>
+              <Animated.View style={insightEntrance}>
                 <Card>
                   <Text style={[styles.cardTitle, { color: colors.text }]}>AI spending insight</Text>
                   {!insight ? (
