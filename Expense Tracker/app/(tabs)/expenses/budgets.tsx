@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
 import { badgeInfo } from '@/constants/badges';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';
@@ -21,15 +22,6 @@ import { money } from '@/utils/money';
 // under budget is a real signal, not just luck from few expenses logged so
 // far.
 const BUDGET_MET_MIN_DAY_OF_MONTH = 25;
-
-function ProgressBar({ pct, color, track }: { pct: number; color: string; track: string }) {
-  const clamped = Math.max(0, Math.min(100, pct));
-  return (
-    <View style={[styles.track, { backgroundColor: track }]}>
-      <View style={[styles.fill, { width: `${clamped}%`, backgroundColor: color }]} />
-    </View>
-  );
-}
 
 function BudgetRow({
   label,
@@ -200,7 +192,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'right',
   },
-  track: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 3 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.lg },
 });

@@ -168,6 +168,7 @@ export default function ExpensesScreen() {
         subtitle="Track spending — snap a receipt or add manually"
         right={
           <>
+            <IconButton name="flag-outline" onPress={() => router.push('/expenses/goals')} />
             <IconButton name="pie-chart-outline" onPress={() => router.push('/expenses/budgets')} />
             <IconButton name="share-outline" onPress={handleExport} />
             <IconButton name="add" onPress={() => router.push('/expenses/add')} category="primary" />

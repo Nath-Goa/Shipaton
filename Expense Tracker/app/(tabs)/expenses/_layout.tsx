@@ -16,6 +16,7 @@ export default function ExpensesLayout() {
       <Stack.Screen name="add" options={{ presentation: 'modal', title: 'Add expense' }} />
       <Stack.Screen name="[id]" options={{ presentation: 'modal', title: 'Edit expense' }} />
       <Stack.Screen name="budgets" options={{ presentation: 'modal', title: 'Budgets' }} />
+      <Stack.Screen name="goals" options={{ presentation: 'modal', title: 'Savings Goals' }} />
     </Stack>
   );
 }

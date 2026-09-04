@@ -9,6 +9,7 @@ export const BADGE_INFO: Record<string, BadgeInfo> = {
   first_trade: { label: 'First Trade', icon: '📈' },
   diversified: { label: 'Diversified', icon: '🧺' },
   budget_met: { label: 'Budget Met', icon: '🎯' },
+  goal_reached: { label: 'Goal Reached', icon: '🏁' },
 };
 
 export function badgeInfo(id: string): BadgeInfo {
