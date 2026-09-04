@@ -270,33 +270,38 @@ function PlanDetailsModal({
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
-        <AnimatedPressable
-          entering={FadeInDown.springify().damping(18)}
-          style={[styles.modalSheet, { backgroundColor: colors.surface }]}
-          onPress={(e: any) => e.stopPropagation()}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>{TIER_LABELS[tier]} plan</Text>
-          {tier !== 'free' ? (
-            <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>
-              {since
-                ? `Member since ${since.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`
-                : isPurchasesConfigured()
-                  ? 'Fetching subscription details…'
-                  : 'Demo mode — no real subscription on file.'}
-            </Text>
-          ) : (
-            <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>You're on the free plan.</Text>
-          )}
-
-          <View style={styles.modalFeatures}>
-            {TIER_FEATURE_COPY[tier].map((f) => (
-              <Text key={f} style={[styles.modalFeature, { color: colors.text2 }]}>
-                ✓ {f}
+        {/* Entrance animation on this plain Animated.View, not the Pressable
+            below — a Reanimated `entering=` view can drop the first tap or
+            two while it's still settling, so it must never share a native
+            view with the Pressable that also has to catch presses here. */}
+        <Animated.View entering={FadeInDown.springify().damping(18)}>
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: colors.surface }]}
+            onPress={(e: any) => e.stopPropagation()}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{TIER_LABELS[tier]} plan</Text>
+            {tier !== 'free' ? (
+              <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>
+                {since
+                  ? `Member since ${since.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`
+                  : isPurchasesConfigured()
+                    ? 'Fetching subscription details…'
+                    : 'Demo mode — no real subscription on file.'}
               </Text>
-            ))}
-          </View>
+            ) : (
+              <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>You're on the free plan.</Text>
+            )}
 
-          <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
-        </AnimatedPressable>
+            <View style={styles.modalFeatures}>
+              {TIER_FEATURE_COPY[tier].map((f) => (
+                <Text key={f} style={[styles.modalFeature, { color: colors.text2 }]}>
+                  ✓ {f}
+                </Text>
+              ))}
+            </View>
+
+            <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
+          </Pressable>
+        </Animated.View>
       </AnimatedPressable>
     </Modal>
   );

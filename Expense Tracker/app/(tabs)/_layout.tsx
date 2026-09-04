@@ -77,13 +77,19 @@ function AnimatedTabButton(props: any) {
     pillOpacity.value = withTiming(focused ? 1 : 0, { duration: 180 });
   }, [focused, pillOpacity]);
 
+  // Each handler must depend on the specific `props.onX` it calls, not just
+  // [scale]/[focused] — react-navigation hands this tab button a fresh
+  // onPress/onPressIn/onPressOut closure on every render, and a tab whose
+  // `focused` value hasn't changed in a while (any tab other than the one
+  // just left or entered) would otherwise keep calling a stale, possibly
+  // outdated onPress from several renders ago — which is exactly what made
+  // tapping back to an already-passed-over tab unreliable or a no-op.
   const handlePressIn = useCallback(
     (e: any) => {
       scale.value = withSpring(0.88, springs.snappy);
       props.onPressIn?.(e);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scale]
+    [scale, props.onPressIn]
   );
 
   const handlePressOut = useCallback(
@@ -91,8 +97,7 @@ function AnimatedTabButton(props: any) {
       scale.value = withSpring(1, springs.snappy);
       props.onPressOut?.(e);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scale]
+    [scale, props.onPressOut]
   );
 
   const handlePress = useCallback(
@@ -100,8 +105,7 @@ function AnimatedTabButton(props: any) {
       if (!focused) triggerFeedback('navigation');
       props.onPress?.(e);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [focused]
+    [focused, props.onPress]
   );
 
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));

@@ -61,49 +61,57 @@ export function ReviewPromptModal({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={handleNotNow}>
       <AnimatedPressable entering={FadeIn.duration(180)} style={styles.backdrop} onPress={handleNotNow}>
-        <AnimatedPressable
-          entering={FadeInDown.springify().damping(18)}
-          style={[styles.sheet, { backgroundColor: colors.surface }]}
-          onPress={(e: any) => e.stopPropagation()}>
-          <Text style={[styles.title, { color: colors.text }]}>Enjoying the app?</Text>
-          <Text style={[styles.subtitle, { color: colors.text3 }]}>
-            Let us know how it&apos;s going — it only takes a second.
-          </Text>
+        {/* The entrance animation lives on this plain, non-touchable
+            Animated.View — never on the Pressable below. A Reanimated
+            `entering=` view can have unreliable touch hit-testing for its
+            first tap or two while it's still settling, so putting it on the
+            SAME native view that also needs to catch presses (here, to stop
+            the backdrop's dismiss-on-tap from firing) made every button
+            inside intermittently unresponsive right after the sheet opened. */}
+        <Animated.View entering={FadeInDown.springify().damping(18)}>
+          <Pressable
+            style={[styles.sheet, { backgroundColor: colors.surface }]}
+            onPress={(e: any) => e.stopPropagation()}>
+            <Text style={[styles.title, { color: colors.text }]}>Enjoying the app?</Text>
+            <Text style={[styles.subtitle, { color: colors.text3 }]}>
+              Let us know how it&apos;s going — it only takes a second.
+            </Text>
 
-          <View style={styles.starRow}>
-            {STARS.map((value) => (
-              <Pressable key={value} hitSlop={8} onPress={() => handleStarPress(value)}>
-                <Ionicons
-                  name={value <= rating ? 'star' : 'star-outline'}
-                  size={34}
-                  color={value <= rating ? colors.warning : colors.text3}
+            <View style={styles.starRow}>
+              {STARS.map((value) => (
+                <Pressable key={value} hitSlop={8} onPress={() => handleStarPress(value)}>
+                  <Ionicons
+                    name={value <= rating ? 'star' : 'star-outline'}
+                    size={34}
+                    color={value <= rating ? colors.warning : colors.text3}
+                  />
+                </Pressable>
+              ))}
+            </View>
+
+            {rating > 0 ? (
+              <Animated.View entering={FadeInDown.duration(220)}>
+                <TextInput
+                  value={feedback}
+                  onChangeText={setFeedback}
+                  placeholder="What did you like? (optional)"
+                  placeholderTextColor={colors.text3}
+                  multiline
+                  numberOfLines={3}
+                  style={[
+                    styles.input,
+                    { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 },
+                  ]}
                 />
-              </Pressable>
-            ))}
-          </View>
+              </Animated.View>
+            ) : null}
 
-          {rating > 0 ? (
-            <Animated.View entering={FadeInDown.duration(220)}>
-              <TextInput
-                value={feedback}
-                onChangeText={setFeedback}
-                placeholder="What did you like? (optional)"
-                placeholderTextColor={colors.text3}
-                multiline
-                numberOfLines={3}
-                style={[
-                  styles.input,
-                  { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 },
-                ]}
-              />
-            </Animated.View>
-          ) : null}
-
-          <View style={styles.actions}>
-            <Button label="Submit" fullWidth onPress={handleSubmit} disabled={rating === 0} />
-            <Button label="Not now" variant="ghost" fullWidth onPress={handleNotNow} />
-          </View>
-        </AnimatedPressable>
+            <View style={styles.actions}>
+              <Button label="Submit" fullWidth onPress={handleSubmit} disabled={rating === 0} />
+              <Button label="Not now" variant="ghost" fullWidth onPress={handleNotNow} />
+            </View>
+          </Pressable>
+        </Animated.View>
       </AnimatedPressable>
     </Modal>
   );

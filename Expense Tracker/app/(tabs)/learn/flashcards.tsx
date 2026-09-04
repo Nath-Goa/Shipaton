@@ -219,18 +219,24 @@ function DeckViewer({ topic }: { topic: string }) {
           />
         ) : current ? (
           <>
-            <AnimatedPressable
-              key={index}
-              entering={FadeIn.duration(220)}
-              onPress={() => {
-                triggerFeedback('selection');
-                setFlipped((f) => !f);
-              }}
-              style={[styles.flashcard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.flashcardLabel, { color: colors.text3 }]}>{flipped ? 'Answer' : 'Term'}</Text>
-              <Text style={[styles.flashcardText, { color: colors.text }]}>{flipped ? current.card.back : current.card.front}</Text>
-              <Text style={[styles.flipHint, { color: colors.text3 }]}>Tap to {flipped ? 'flip back' : 'reveal answer'}</Text>
-            </AnimatedPressable>
+            {/* Entrance animation on this plain, non-touchable Animated.View
+                — never on the Pressable below. A Reanimated `entering=` view
+                can drop the first tap or two while it's still settling, and
+                this card remounts (via `key={index}`) on every new card, so
+                keeping the flip-tap on the same animated node made the very
+                first tap on each new card unreliable. */}
+            <Animated.View key={index} entering={FadeIn.duration(220)}>
+              <Pressable
+                onPress={() => {
+                  triggerFeedback('selection');
+                  setFlipped((f) => !f);
+                }}
+                style={[styles.flashcard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={[styles.flashcardLabel, { color: colors.text3 }]}>{flipped ? 'Answer' : 'Term'}</Text>
+                <Text style={[styles.flashcardText, { color: colors.text }]}>{flipped ? current.card.back : current.card.front}</Text>
+                <Text style={[styles.flipHint, { color: colors.text3 }]}>Tap to {flipped ? 'flip back' : 'reveal answer'}</Text>
+              </Pressable>
+            </Animated.View>
 
             <Button label="Next card" fullWidth onPress={handleNext} />
           </>
@@ -276,43 +282,49 @@ function FlashcardHistoryModal({
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
-        <AnimatedPressable
-          entering={FadeInDown.springify().damping(18)}
-          style={[styles.modalSheet, { backgroundColor: colors.surface }]}
-          onPress={(e: any) => e.stopPropagation()}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Flashcard history</Text>
-          <ScrollView style={{ maxHeight: 420 }}>
-            {rows.length === 0 ? (
-              <Text style={[styles.historyEmpty, { color: colors.text3 }]}>No cards reviewed yet for this topic.</Text>
-            ) : (
-              rows.map((entry) => (
-                <View key={entry.id} style={[styles.historyRow, { borderColor: colors.border }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.historyLabel, { color: colors.text }]} numberOfLines={1}>
-                      {entry.front}
-                    </Text>
-                    <Text style={[styles.historyPreview, { color: colors.text3 }]} numberOfLines={1}>
-                      {entry.back}
-                    </Text>
-                    <Text style={[styles.historyMeta, { color: colors.text3 }]}>
-                      {entry.source === 'bank' ? 'Built-in' : 'AI-generated'} · {timeAgo(entry.createdAt)}
-                    </Text>
+        {/* Entrance animation on this plain, non-touchable Animated.View —
+            never on the Pressable below. A Reanimated `entering=` view can
+            drop the first tap or two while it's still settling, so it must
+            never share a native view with the Pressable that also has to
+            catch presses here (to stop the backdrop's dismiss from firing). */}
+        <Animated.View entering={FadeInDown.springify().damping(18)}>
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: colors.surface }]}
+            onPress={(e: any) => e.stopPropagation()}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Flashcard history</Text>
+            <ScrollView style={{ maxHeight: 420 }}>
+              {rows.length === 0 ? (
+                <Text style={[styles.historyEmpty, { color: colors.text3 }]}>No cards reviewed yet for this topic.</Text>
+              ) : (
+                rows.map((entry) => (
+                  <View key={entry.id} style={[styles.historyRow, { borderColor: colors.border }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.historyLabel, { color: colors.text }]} numberOfLines={1}>
+                        {entry.front}
+                      </Text>
+                      <Text style={[styles.historyPreview, { color: colors.text3 }]} numberOfLines={1}>
+                        {entry.back}
+                      </Text>
+                      <Text style={[styles.historyMeta, { color: colors.text3 }]}>
+                        {entry.source === 'bank' ? 'Built-in' : 'AI-generated'} · {timeAgo(entry.createdAt)}
+                      </Text>
+                    </View>
                   </View>
+                ))
+              )}
+            </ScrollView>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              {rows.length > 0 ? (
+                <View style={{ flex: 1 }}>
+                  <Button label="Clear" variant="ghost" fullWidth onPress={onClear} />
                 </View>
-              ))
-            )}
-          </ScrollView>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            {rows.length > 0 ? (
+              ) : null}
               <View style={{ flex: 1 }}>
-                <Button label="Clear" variant="ghost" fullWidth onPress={onClear} />
+                <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
               </View>
-            ) : null}
-            <View style={{ flex: 1 }}>
-              <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
             </View>
-          </View>
-        </AnimatedPressable>
+          </Pressable>
+        </Animated.View>
       </AnimatedPressable>
     </Modal>
   );

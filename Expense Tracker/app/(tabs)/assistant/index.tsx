@@ -227,35 +227,41 @@ function HistoryModal({
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <AnimatedPressable entering={FadeIn.duration(180)} style={styles.modalBackdrop} onPress={onClose}>
-        <AnimatedPressable
-          entering={FadeInDown.springify().damping(18)}
-          style={[styles.modalSheet, { backgroundColor: colors.surface }]}
-          onPress={(e: any) => e.stopPropagation()}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Chat history</Text>
-          <ScrollView style={{ maxHeight: 420 }}>
-            {rows.map((row) => (
-              <Pressable
-                key={row.key}
-                onPress={() => onSelect(row.key)}
-                onLongPress={() => row.count > 0 && onClear(row.key)}
-                style={[
-                  styles.historyRow,
-                  { borderColor: row.key === activeThread ? colors.accent : colors.border },
-                ]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.historyLabel, { color: colors.text }]}>
-                    {row.key === 'general' ? 'General' : row.key}
-                  </Text>
-                  <Text style={[styles.historyPreview, { color: colors.text3 }]} numberOfLines={1}>
-                    {row.last ? row.last.text : 'No messages yet'}
-                  </Text>
-                </View>
-                {row.lastAt ? <Text style={[styles.historyTime, { color: colors.text3 }]}>{timeAgo(row.lastAt)}</Text> : null}
-              </Pressable>
-            ))}
-          </ScrollView>
-          <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
-        </AnimatedPressable>
+        {/* Entrance animation on this plain, non-touchable Animated.View —
+            never on the Pressable below. A Reanimated `entering=` view can
+            drop the first tap or two while it's still settling, so it must
+            never share a native view with the Pressable that also has to
+            catch presses here (to stop the backdrop's dismiss from firing). */}
+        <Animated.View entering={FadeInDown.springify().damping(18)}>
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: colors.surface }]}
+            onPress={(e: any) => e.stopPropagation()}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Chat history</Text>
+            <ScrollView style={{ maxHeight: 420 }}>
+              {rows.map((row) => (
+                <Pressable
+                  key={row.key}
+                  onPress={() => onSelect(row.key)}
+                  onLongPress={() => row.count > 0 && onClear(row.key)}
+                  style={[
+                    styles.historyRow,
+                    { borderColor: row.key === activeThread ? colors.accent : colors.border },
+                  ]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.historyLabel, { color: colors.text }]}>
+                      {row.key === 'general' ? 'General' : row.key}
+                    </Text>
+                    <Text style={[styles.historyPreview, { color: colors.text3 }]} numberOfLines={1}>
+                      {row.last ? row.last.text : 'No messages yet'}
+                    </Text>
+                  </View>
+                  {row.lastAt ? <Text style={[styles.historyTime, { color: colors.text3 }]}>{timeAgo(row.lastAt)}</Text> : null}
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
+          </Pressable>
+        </Animated.View>
       </AnimatedPressable>
     </Modal>
   );

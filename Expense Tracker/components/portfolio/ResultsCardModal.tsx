@@ -61,39 +61,43 @@ export function ResultsCardModal({
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <AnimatedPressable entering={FadeIn.duration(180)} style={styles.backdrop} onPress={onClose}>
-        <AnimatedPressable
-          entering={FadeInDown.springify().damping(18)}
-          style={styles.wrap}
-          onPress={(e: any) => e.stopPropagation()}>
-          <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={[styles.card, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.brand, { color: colors.text3 }]}>📈 Stock Market Predictor & Tutor</Text>
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-              {name}
-            </Text>
-            <Text style={[styles.netWorth, { color: colors.text }]}>{money(netWorth)}</Text>
-            <Text style={[styles.pnl, { color: pnlColor }]}>
-              {signedMoney(allTimePnl)} ({signedPct(allTimePnlPct)}) all-time
-            </Text>
-            <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
-              <View style={styles.stat}>
-                <Text style={[styles.statLabel, { color: colors.text3 }]}>Positions</Text>
-                <Text style={[styles.statValue, { color: colors.text }]}>{holdingsCount}</Text>
-              </View>
-              {dividendTotal > 0 ? (
+        {/* Entrance animation on this plain, non-touchable Animated.View —
+            never on the Pressable below. A Reanimated `entering=` view can
+            drop the first tap or two while it's still settling, so it must
+            never share a native view with the Pressable that also has to
+            catch presses here (to stop the backdrop's dismiss from firing). */}
+        <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.wrap}>
+          <Pressable onPress={(e: any) => e.stopPropagation()}>
+            <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.brand, { color: colors.text3 }]}>📈 Stock Market Predictor & Tutor</Text>
+              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                {name}
+              </Text>
+              <Text style={[styles.netWorth, { color: colors.text }]}>{money(netWorth)}</Text>
+              <Text style={[styles.pnl, { color: pnlColor }]}>
+                {signedMoney(allTimePnl)} ({signedPct(allTimePnlPct)}) all-time
+              </Text>
+              <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
                 <View style={styles.stat}>
-                  <Text style={[styles.statLabel, { color: colors.text3 }]}>Dividends</Text>
-                  <Text style={[styles.statValue, { color: colors.text }]}>{money(dividendTotal)}</Text>
+                  <Text style={[styles.statLabel, { color: colors.text3 }]}>Positions</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{holdingsCount}</Text>
                 </View>
-              ) : null}
-            </View>
-            <Text style={[styles.disclaimer, { color: colors.text3 }]}>Simulated paper trading — no real money involved.</Text>
-          </ViewShot>
+                {dividendTotal > 0 ? (
+                  <View style={styles.stat}>
+                    <Text style={[styles.statLabel, { color: colors.text3 }]}>Dividends</Text>
+                    <Text style={[styles.statValue, { color: colors.text }]}>{money(dividendTotal)}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={[styles.disclaimer, { color: colors.text3 }]}>Simulated paper trading — no real money involved.</Text>
+            </ViewShot>
 
-          <View style={styles.actions}>
-            <Button label="Share" fullWidth onPress={handleShare} loading={sharing} />
-            <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
-          </View>
-        </AnimatedPressable>
+            <View style={styles.actions}>
+              <Button label="Share" fullWidth onPress={handleShare} loading={sharing} />
+              <Button label="Close" variant="ghost" fullWidth onPress={onClose} />
+            </View>
+          </Pressable>
+        </Animated.View>
       </AnimatedPressable>
     </Modal>
   );
