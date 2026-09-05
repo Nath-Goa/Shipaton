@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 
@@ -67,10 +66,6 @@ export default function ScannerScreen() {
     );
   }
 
-  function handleViewStock(symbol: string) {
-    router.push(`/markets/${symbol}`);
-  }
-
   function reset() {
     setPhoto(null);
     setCandidates(null);
@@ -126,7 +121,7 @@ export default function ScannerScreen() {
       )}
 
       {candidates ? (
-        <CompanyResultSheet photoUri={photo!.uri} candidates={candidates} onViewStock={handleViewStock} onDismiss={reset} />
+        <CompanyResultSheet photoUri={photo!.uri} candidates={candidates} onDismiss={reset} />
       ) : null}
     </Screen>
   );
