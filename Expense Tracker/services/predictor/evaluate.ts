@@ -1,4 +1,5 @@
 import type { Sample } from '@/services/predictor/dataset';
+import { CONFIDENCE_THRESHOLD } from '@/services/predictor/config';
 import { predictProba, type Model } from '@/services/predictor/model';
 
 // Honest scoring for the direction model. Accuracy alone is close to
@@ -48,7 +49,12 @@ function auc(scores: number[], labels: number[]): number {
   return (rankSum - (positives * (positives + 1)) / 2) / (positives * negatives);
 }
 
-export function evaluate(model: Model, samples: Sample[], confidenceThreshold = 0.56): Metrics {
+// Defaults to the app's actual live threshold (config.ts) — previously a
+// hardcoded 0.56 that silently drifted out of sync the moment
+// CONFIDENCE_THRESHOLD changed, which would have made PRETRAINED_METRICS
+// (the in-app footnote) report accuracy/coverage at a threshold the app
+// wasn't actually gating calls at.
+export function evaluate(model: Model, samples: Sample[], confidenceThreshold = CONFIDENCE_THRESHOLD): Metrics {
   const empty: Metrics = {
     samples: 0,
     accuracy: 0,

@@ -69,6 +69,10 @@ const FEATURE_LABELS: Record<string, string> = {
   mktVsSma200: 'market vs its 200-day average',
   mktVol20: 'market volatility',
   mktDrawdown: 'market’s distance below its high',
+  rsiXmktVol: 'overbought/oversold, adjusted for market volatility',
+  trendXmktDrawdown: 'trend cleanliness during the market’s current drawdown',
+  gapXvolScaledMom: 'overnight gaps, adjusted for risk-adjusted momentum',
+  mktVol20Sq: 'market volatility (nonlinear regime read)',
 };
 
 // News moves the probability, but only within a hard cap. The price model is

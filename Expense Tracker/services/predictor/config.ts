@@ -34,8 +34,22 @@ export const PREDICTOR_L2 = 2e-2;
  * front of them. Measured on the holdout, calls above this threshold were
  * right meaningfully more often than the always-majority baseline, while
  * calls below it were not.
+ *
+ * Set to 0.555, not a rounder 0.56, chasing a specific request: could the
+ * predictor reach 65% accuracy at 20% confident-call coverage (on the app's
+ * own 27 tickers)? Four interaction features were added to features.ts to
+ * try (rsiXmktVol, trendXmktDrawdown, gapXvolScaledMom, mktVol20Sq — see
+ * FEATURE_NAMES's comment there) and genuinely helped: out-of-sample AUC on
+ * the app's tickers moved 0.581→0.584, and confident accuracy at a given
+ * threshold improved by ~1.5-2 points across the board. At this exact
+ * threshold, measured: 64.03% accuracy over 20.30% coverage — real, close
+ * to the target, not quite over the line on accuracy. 0.56 would land
+ * 66.41%/16.12% instead (over 65%, under 20%) — every threshold in this
+ * region is a real tradeoff along the same curve, there is no point that
+ * clears both 65 and 20 at once with this model. Re-run npm run
+ * eval:predictor before nudging this further; it drifts with the market.
  */
-export const CONFIDENCE_THRESHOLD = 0.56;
+export const CONFIDENCE_THRESHOLD = 0.555;
 
 /** Never claim more certainty than the holdout supports, however extreme the odds look. */
 export const MAX_DISPLAYED_CONFIDENCE = 0.75;

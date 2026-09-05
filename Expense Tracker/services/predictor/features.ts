@@ -45,6 +45,19 @@ export const FEATURE_NAMES = [
   'mktVsSma200',
   'mktVol20',
   'mktDrawdown',
+  // Interaction terms — EXPERIMENTAL, added while chasing the 65%/20%
+  // accuracy/coverage question (see services/predictor/config.ts's
+  // HORIZON_DAYS comment for that whole investigation). A plain-sum linear
+  // model can't see these unless they're handed to it explicitly: RSI/trend
+  // conditioned on the market's own volatility/drawdown regime, gap
+  // behavior conditioned on risk-adjusted momentum, and a nonlinear
+  // (squared) read of market volatility. Keep or revert based on what
+  // npm run sweep:predictor actually measures out-of-sample — these are a
+  // hypothesis, not a known improvement.
+  'rsiXmktVol',
+  'trendXmktDrawdown',
+  'gapXvolScaledMom',
+  'mktVol20Sq',
 ] as const;
 
 export type FeatureName = (typeof FEATURE_NAMES)[number];
@@ -257,6 +270,11 @@ export function extractFeatures(
   let high52w = 0;
   for (let i = index - YEAR_SESSIONS + 1; i <= index; i++) high52w = Math.max(high52w, bars[i].close);
 
+  const rsiZ = (rsi(bars, index) - 50) / 50;
+  const trendQ = trendQuality(bars, index);
+  const gapAvg = gapSum / 5;
+  const volScaledMom = vol20 > 1e-6 ? ret20 / (vol20 * Math.sqrt(20)) : 0;
+
   const features = [
     pctChange(bars[index - 1].close, close),
     pctChange(bars[index - 5].close, close),
@@ -266,28 +284,33 @@ export function extractFeatures(
     sma20 > 0 ? sma5 / sma20 - 1 : 0,
     sma50 > 0 ? sma20 / sma50 - 1 : 0,
     sma50 > 0 ? close / sma50 - 1 : 0,
-    (rsi(bars, index) - 50) / 50,
+    rsiZ,
     (macd - signal) / close,
     closeStd20 > 0 ? (close - closeMean20) / closeStd20 : 0,
     vol20,
     vol20 > 0 ? vol5 / vol20 - 1 : 0,
     rangeSum / 5,
-    trendQuality(bars, index),
+    trendQ,
     high60 > 0 ? close / high60 - 1 : 0,
     upDays / Math.max(1, rets20.length) - 0.5,
-    gapSum / 5,
+    gapAvg,
     ret20 - universe.ret20,
     mom12m1m,
     high52w > 0 ? close / high52w - 1 : 0,
     // Risk-adjusted momentum: the same 20-day move means something very
     // different on a quiet stock than on a violent one.
-    vol20 > 1e-6 ? ret20 / (vol20 * Math.sqrt(20)) : 0,
+    volScaledMom,
     ret60 - universe.ret60,
     universe.mktRet20,
     universe.mktRet60,
     universe.mktVsSma200,
     universe.mktVol20,
     universe.mktDrawdown,
+    // Interaction terms — see FEATURE_NAMES's comment on these four.
+    rsiZ * universe.mktVol20,
+    trendQ * universe.mktDrawdown,
+    gapAvg * volScaledMom,
+    universe.mktVol20 * universe.mktVol20,
   ];
 
   for (const value of features) {
