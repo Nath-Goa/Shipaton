@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -125,6 +126,8 @@ export default function PracticeTradeScreen() {
           <Text style={[styles.summaryHeadLabel, { color: colors.text3 }]}>Practice performance</Text>
           <Button label="Reset" variant="ghost" onPress={resetSandbox} />
         </View>
+
+        <Button label="Compete vs AI →" variant="ghost" onPress={() => router.push('/markets/arena')} />
 
         <View style={styles.statsRow}>
           {/* The number that actually moves the instant you buy — shown

@@ -58,6 +58,7 @@ type SettingsState = {
   // model still runs, but stays exactly as shipped — nothing is recorded and
   // nothing adapts. Opt-in is collected during onboarding.
   predictorDataCollection: boolean;
+  arenaTutorialSeen: boolean;
   // Learn tab's first-visit "what's your level?" gate. selectedLevel is
   // stored for future personalization but currently has no effect — every
   // learner's course/quiz progress starts at Beginner regardless.
@@ -85,6 +86,7 @@ type SettingsState = {
   setTutorPersona: (persona: TutorPersona) => void;
   setSmartNudgesEnabled: (enabled: boolean) => void;
   setPredictorDataCollection: (enabled: boolean) => void;
+  setArenaTutorialSeen: () => void;
   setPreferredStudyWindow: (window: StudyWindow | null) => void;
   selectLevel: (level: LearnerLevel) => void;
 };
@@ -112,6 +114,7 @@ export const useSettingsStore = create<SettingsState>()(
       smartNudgesEnabled: true,
       preferredStudyWindow: null,
       predictorDataCollection: true,
+      arenaTutorialSeen: false,
       levelSelected: false,
       selectedLevel: null,
       setThemeMode: (themeMode) => set({ themeMode }),
@@ -148,6 +151,7 @@ export const useSettingsStore = create<SettingsState>()(
       setTutorPersona: (tutorPersona) => set({ tutorPersona }),
       setSmartNudgesEnabled: (smartNudgesEnabled) => set({ smartNudgesEnabled }),
       setPredictorDataCollection: (predictorDataCollection) => set({ predictorDataCollection }),
+      setArenaTutorialSeen: () => set({ arenaTutorialSeen: true }),
       setPreferredStudyWindow: (preferredStudyWindow) => set({ preferredStudyWindow }),
       // Every learner currently starts at Beginner regardless of the answer —
       // see the `selectedLevel` field doc comment above.
