@@ -49,8 +49,8 @@ export default function TabLayout() {
         options={{ title: 'Markets', tabBarIcon: tabIcon('stats-chart', 'stats-chart-outline') }}
       />
       <SlidingTabs.Screen
-        name="portfolio"
-        options={{ title: 'Portfolio', tabBarIcon: tabIcon('briefcase', 'briefcase-outline') }}
+        name="news"
+        options={{ title: 'News', tabBarIcon: tabIcon('newspaper', 'newspaper-outline') }}
       />
       <SlidingTabs.Screen
         name="expenses"

@@ -46,28 +46,43 @@ Expense Tracker/                (app root — cd here for everything)
     (tabs)/_layout.tsx           Sliding tab navigator config (6 tabs) — §5.1
     (tabs)/index.tsx             Home
     (tabs)/learn/                 Learn — index, quiz, flashcards, narrative
-    (tabs)/markets/                Markets — index, [symbol], practice, backtest
-    (tabs)/portfolio/               Portfolio — index, manage, leaderboard, networth, trade/[symbol]
-    (tabs)/expenses/                 Expenses — index, add, [id], budgets, goals
-    (tabs)/assistant/                 Assistant — AI chat
-    settings/                         index, upgrade (paywall), achievements
-  store/            15 Zustand stores — see §5.2
+    (tabs)/markets/                Markets — index, [symbol], practice, backtest,
+                                    portfolio/ (nested Stack: index, manage,
+                                    leaderboard, networth, trade/[symbol]) — §5.1
+    (tabs)/news/                     News — index (sectioned market/trending/
+                                      per-stock headlines, hourly) — §5.1
+    (tabs)/expenses/                   Expenses — index, add, [id], budgets, goals
+    (tabs)/assistant/                   Assistant — AI chat
+    settings/                           index, upgrade (paywall), achievements
+  store/            Zustand stores — see §5.2 (usePredictorStore, documented
+                     in §5.4 alongside the rest of the predictor, is one of
+                     several added since §5.2's table was last refreshed —
+                     that table is known stale, not a to-do for this session)
   services/         ai/, marketData/, purchases/, notifications/, export/,
-                     receipts/, leaderboard/, market/, sound/, monitoring/
-  components/       ui/, charts/, expenses/, portfolio/, markets/, chat/,
-                     reviews/, security/, settings/, onboarding/, games/
+                     receipts/, leaderboard/, market/, sound/, monitoring/,
+                     predictor/ (trained price-direction model — §5.4), news/
+                     (services/news/newsFeed.ts + sentiment.ts — real Yahoo
+                     headlines + on-device scoring, feeds both the predictor
+                     and the News tab)
+  scripts/          Node-only tooling (npm run eval:predictor / sweep:predictor /
+                     test:news) — excluded from tsconfig, never shipped
+  components/       ui/, charts/, expenses/, portfolio/, markets/, stocks/,
+                     chat/, reviews/, security/, settings/, onboarding/, games/,
+                     navigation/ (SlidingTabs, MarketsPortfolioSwitch)
   constants/        theme, animations, subscription, categories, tickers,
-                     badges, quizTopics, quizBank, flashcardBank
+                     badges, quizTopics, quizBank, flashcardBank, courses
   hooks/            useTheme, useQuotes, useAiQuota, useHasApiKey, useUpgradeToTier
-  utils/            date, money, id, confirm, portfolioMath
-  types/            ai, chat, expense, narrative, quiz, stock
+  utils/            date, money, id, confirm, portfolioMath, stats, prng
+  types/            ai, chat, expense, narrative, quiz, stock, prediction, pattern
 ```
 
 ## 5. Architecture
 
 ### 5.1 Navigation
 
-`expo-router` with a `(tabs)` group of six tabs — **Home, Learn, Markets, Portfolio, Expenses, Assistant**. Each tab is its own `Stack`, so pushed sub-screens (`expenses/add`, `portfolio/manage`, `markets/[symbol]`) unmount/remount normally on push/pop. Settings is a sibling stack off Home's gear icon.
+`expo-router` with a `(tabs)` group of six tabs — **Home, Learn, Markets, News, Expenses, Assistant**. Each tab is its own `Stack`, so pushed sub-screens (`expenses/add`, `markets/[symbol]`, `markets/portfolio/manage`) unmount/remount normally on push/pop. Settings is a sibling stack off Home's gear icon.
+
+**Portfolio is not a bottom tab — it's nested under Markets** (`app/(tabs)/markets/portfolio/`, its own Stack: `index`, `manage`, `leaderboard`, `networth`, `trade/[symbol]`), reached via `router.push('/markets/portfolio')`/`router.replace`, not a peer route in the tab bar. This was a deliberate fold, not a demotion: six bottom tabs plus a requested seventh (News) was one too many, and Markets/Portfolio are two views of the same trading domain (you check one to inform the other) rather than genuinely separate ones — Learn, Expenses, and Assistant stayed as full tabs because they're not naturally paired with anything else. `components/navigation/MarketsPortfolioSwitch.tsx` is a small `SegmentedControl` rendered at the top of both `markets/index.tsx` and `markets/portfolio/index.tsx` that `router.replace`s between them (replace both ways, so ping-ponging between the two never grows the stack) — it's what makes the fold read as flipping between peer sections rather than drilling into a sub-screen. **If you ever add a `router.push`/`ctaRoute`/deep-link to `/portfolio/...`, it's stale** — the route is `/markets/portfolio/...` now; `constants/courses.ts`'s `ctaRoute` field is a plain `string` (cast `as any` at its one call site), so typed routes will NOT catch a stale reference there the way they would everywhere else.
 
 **Tabs slide horizontally**, via a custom navigator in `components/navigation/SlidingTabs.tsx` — expo-router's stock `<Tabs>` is no longer used. All six tabs live in one row `tabCount` screens wide, and switching animates that row's `translateX`, so jumping several tabs at once physically travels past the ones in between and you see them go by. A stock bottom-tabs navigator cannot do this: it only ever renders the focused screen.
 
@@ -109,6 +124,8 @@ All persisted stores use AsyncStorage via `persist`. Cross-store calls go throug
 
 `computePortfolioVsBenchmark`'s date "spine" is anchored on `TICKERS[0]` (fine — it needs the full ticker universe anyway); `computeNetWorthHistory`'s spine is anchored on whichever *traded* symbol has the longest cached history. These are deliberately different — don't unify them.
 
+**News tab** (`app/(tabs)/news/`, data in `services/news/marketNews.ts`) reuses `services/news/newsFeed.ts`'s `fetchHeadlines` — the same Yahoo search endpoint the predictor's headline scan uses — sectioned into Market (general), Today's biggest movers (reuses the mover concept from `MarketSpotlightCard`), and one section per symbol held or watchlisted (capped at 12). It inherits the rate-limit lesson above rather than repeating the mistake: every section has its own 1h TTL cache, and real fetches within one `loadMarketNews()` call run sequentially with a 250ms gap between them (mirroring `services/predictor/startupScan.ts`'s existing spacing), never in a burst. A pull-to-refresh (`loadMarketNews(true)`) bypasses every section's TTL; the screen also re-runs a normal (TTL-respecting) load every hour while it sits focused, since the TTL alone only refetches on the *next* call, which wouldn't happen if someone just leaves the tab open.
+
 ### 5.5 Subscriptions
 
 Free / Pro / Max. `constants/subscription.ts`'s `TIER_FEATURES` is the single source of truth for what unlocks per tier. Demo pricing: Pro $5/mo · $49.99/yr · $129.99 lifetime — Max $15/mo · $139.99/yr · $349.99 lifetime (real store prices once RevenueCat is configured). Without a RevenueCat key, the paywall shows a **dev-only tier switcher** instead of real purchases — intentional.
@@ -125,10 +142,12 @@ Local-only, no backend. Three kinds, each idempotent: 8pm daily check-in, same-d
 
 - **Home** — net worth/P&L stats, free-tier upsell, watchlist, quick actions, AI weekly recap
 - **Learn** — streak/badges, spaced-repetition next-topic, flashcards, narrative daily challenge, full topic list; bank-first content with AI fallback
-- **Markets** — searchable ticker list, watchlist stars, direction calls, practice trade, regenerate market, backtest (Max), per-symbol detail with forecast/sentiment (Pro+)
-- **Portfolio** — multi-portfolio (Max), net worth history, vs-benchmark chart, holdings, diversification donut, auto-invest plans, dividend income, recent trades, share-as-image, leaderboard
+- **Markets** — searchable ticker list, watchlist stars, trend summary, practice trade, regenerate market, backtest (Max), per-symbol detail with a trained price-direction model, forecast band/sentiment (Pro+); **Portfolio** lives here too (§5.1), reached via the Markets/Portfolio switch or `router.push('/markets/portfolio')` — multi-portfolio (Max), net worth history, vs-benchmark chart, holdings, diversification donut, auto-invest plans, dividend income, recent trades, share-as-image, leaderboard
+- **News** — sectioned market headlines (general, today's biggest movers, one section per held/watchlisted stock), refreshes hourly, star a stock right from its section (§5.4)
 - **Expenses** — filterable list, category donut, AI spending insight, budgets, savings goals (manual + recurring + round-up), CSV export
 - **Assistant** — general + per-symbol chat threads, history, quota/broken-key messaging
+
+Starring a stock (the watchlist) is one mechanism used everywhere: `usePortfolioStore`'s `watchlist`/`toggleWatchlist`, surfaced via the shared `components/stocks/StarButton.tsx` on Markets' list, Home's watchlist section, and News' per-stock section headers. It's always been unrestricted (no tier gate) and always meant "save and monitor without buying" — if a future request asks to "add starring," check here first before building a second mechanism.
 
 ## 7. Coding standards — non-negotiable, each backed by a real bug this project already shipped and fixed
 
@@ -162,7 +181,7 @@ Everything is optional and additive — the app is fully functional in demo mode
 
 ## 9. Current state (last updated: this session)
 
-No open bugs, no half-finished features. Everything in §6 is built, typechecks clean, and is pushed to `main`. Tabs now slide horizontally between screens via a custom navigator (§5.1), replacing the per-screen entrance animation entirely (§7 rule #3), and the font/text-scale setting applies app-wide (§7 rule #8). All 8 modal backdrops (the original six plus two added since) use the split entrance/touch pattern from rule #2 — no known gap left there. EAS builds run under the `nathgoas-team` account. Correction to an earlier version of this note: `app.json`'s `owner: "nathgoas-team"` and `extra.eas.projectId` are NOT optional or auto-recreated — a real build on the dashboard failed with "EAS project not configured" while they were absent, confirming `eas init --account nathgoas-team` doesn't run automatically anywhere in the build workflow. Both fields must stay committed in `app.json`; if either is ever missing or reverted, builds fail immediately until someone re-runs `eas init --account nathgoas-team` (interactively, from a real terminal — it can't self-configure non-interactively) and the resulting `app.json` diff is committed. The account must stay the team one, never a personal account.
+No open bugs, no half-finished features. Everything in §6 is built, typechecks clean, and is pushed to `main`. Tabs now slide horizontally between screens via a custom navigator (§5.1), replacing the per-screen entrance animation entirely (§7 rule #3), and the font/text-scale setting applies app-wide (§7 rule #8). The bottom tab bar is Home, Learn, Markets, News, Expenses, Assistant — Portfolio was folded under Markets as a nested route (not a bottom tab) when News was added, to keep the bar at six rather than growing to seven (§5.1). All 8 modal backdrops (the original six plus two added since) use the split entrance/touch pattern from rule #2 — no known gap left there. EAS builds run under the `nathgoas-team` account. Correction to an earlier version of this note: `app.json`'s `owner: "nathgoas-team"` and `extra.eas.projectId` are NOT optional or auto-recreated — a real build on the dashboard failed with "EAS project not configured" while they were absent, confirming `eas init --account nathgoas-team` doesn't run automatically anywhere in the build workflow. Both fields must stay committed in `app.json`; if either is ever missing or reverted, builds fail immediately until someone re-runs `eas init --account nathgoas-team` (interactively, from a real terminal — it can't self-configure non-interactively) and the resulting `app.json` diff is committed. The account must stay the team one, never a personal account.
 
 A second contributor (Arya) also pushes features directly to `main` via their own Claude Code sessions — their commits show up authored as either "Claude" or their own name depending on how they ran it. Treat any push you didn't make yourself the same as a user-facing bug report: diff it against your last known-good state, run `tsc --noEmit` yourself rather than trusting a commit message's claim, and check `app.json` hasn't reverted the EAS `owner`.
 

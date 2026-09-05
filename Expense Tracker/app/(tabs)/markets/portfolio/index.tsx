@@ -10,6 +10,7 @@ import Animated, {
 
 import { BenchmarkChart } from '@/components/charts/BenchmarkChart';
 import { DonutChart, type DonutSegment } from '@/components/charts/DonutChart';
+import { MarketsPortfolioSwitch } from '@/components/navigation/MarketsPortfolioSwitch';
 import { ResultsCardModal } from '@/components/portfolio/ResultsCardModal';
 import { TradeReflectionsCard } from '@/components/portfolio/TradeReflectionsCard';
 import { Card } from '@/components/ui/Card';
@@ -50,7 +51,7 @@ function NetWorthTile({ value }: { value: number }) {
 
   return (
     <AnimatedPressable
-      onPress={() => router.push('/portfolio/networth')}
+      onPress={() => router.push('/markets/portfolio/networth')}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={[styles.netWorthTileWrap, animatedStyle]}>
@@ -185,11 +186,12 @@ export default function PortfolioScreen() {
           <>
             <IconButton name="image-outline" onPress={() => setResultsCardOpen(true)} />
             <IconButton name="share-outline" onPress={handleShare} />
-            <IconButton name="trophy-outline" onPress={() => router.push('/portfolio/leaderboard')} />
-            <IconButton name="swap-horizontal-outline" onPress={() => router.push('/portfolio/manage')} />
+            <IconButton name="trophy-outline" onPress={() => router.push('/markets/portfolio/leaderboard')} />
+            <IconButton name="swap-horizontal-outline" onPress={() => router.push('/markets/portfolio/manage')} />
           </>
         }
       />
+      <MarketsPortfolioSwitch active="portfolio" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>

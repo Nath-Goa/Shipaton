@@ -451,10 +451,10 @@ export default function StockDetailScreen() {
         {/* Action Buttons with Spring Touch */}
         <Animated.View entering={FadeInDown.delay(300).springify().damping(16)} style={styles.ctaRow}>
           <View style={{ flex: 1 }}>
-            <Button label="Sell" variant="danger" fullWidth onPress={() => router.push(`/portfolio/trade/${symbol}?side=sell`)} />
+            <Button label="Sell" variant="danger" fullWidth onPress={() => router.push(`/markets/portfolio/trade/${symbol}?side=sell`)} />
           </View>
           <View style={{ flex: 1 }}>
-            <Button label="Buy" fullWidth onPress={() => router.push(`/portfolio/trade/${symbol}?side=buy`)} />
+            <Button label="Buy" fullWidth onPress={() => router.push(`/markets/portfolio/trade/${symbol}?side=buy`)} />
           </View>
         </Animated.View>
         <Button

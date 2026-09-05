@@ -142,10 +142,10 @@ export const COURSES: Course[] = [
       ],
     },
     practice: {
-      instruction: 'Open your Portfolio tab and check how many different sectors your current holdings span.',
+      instruction: 'Open Portfolio (under Markets) and check how many different sectors your current holdings span.',
       action: 'manual',
       ctaLabel: 'Check your portfolio',
-      ctaRoute: '/portfolio',
+      ctaRoute: '/markets/portfolio',
     },
   },
   {
@@ -226,7 +226,7 @@ export const COURSES: Course[] = [
       instruction: 'Place a mock trade in your Portfolio — a market buy or sell, using your paper cash.',
       action: 'trade-placed',
       ctaLabel: 'Place a trade',
-      ctaRoute: '/portfolio',
+      ctaRoute: '/markets/portfolio',
     },
   },
   {
@@ -250,10 +250,10 @@ export const COURSES: Course[] = [
       ],
     },
     practice: {
-      instruction: 'Check your Portfolio tab for any dividend income you\'ve received on your current holdings.',
+      instruction: 'Check Portfolio (under Markets) for any dividend income you\'ve received on your current holdings.',
       action: 'manual',
       ctaLabel: 'Check dividend income',
-      ctaRoute: '/portfolio',
+      ctaRoute: '/markets/portfolio',
     },
   },
   {

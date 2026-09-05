@@ -6,10 +6,11 @@ import Animated, {
   FadeInDown,
   useAnimatedStyle,
   useSharedValue,
-  withSequence,
   withSpring,
 } from 'react-native-reanimated';
 
+import { MarketsPortfolioSwitch } from '@/components/navigation/MarketsPortfolioSwitch';
+import { StarButton } from '@/components/stocks/StarButton';
 import { StockListItem } from '@/components/stocks/StockListItem';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
@@ -72,34 +73,6 @@ function MarketActionBtn({
   );
 }
 
-function StarButton({ symbol, watched, onToggle }: { symbol: string; watched: boolean; onToggle: () => void }) {
-  const { colors } = useTheme();
-  const scale = useSharedValue(1);
-
-  function handlePress() {
-    triggerFeedback('selection');
-    scale.value = withSequence(
-      withSpring(1.35, springs.bouncy),
-      withSpring(1, springs.snappy)
-    );
-    onToggle();
-  }
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
-
-  return (
-    <Pressable hitSlop={8} onPress={handlePress} style={styles.star}>
-      <Animated.View style={animatedStyle}>
-        <Ionicons name={watched ? 'star' : 'star-outline'} size={19} color={watched ? colors.warning : colors.text3} />
-      </Animated.View>
-    </Pressable>
-  );
-}
-
 export default function MarketsScreen() {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
@@ -156,6 +129,7 @@ export default function MarketsScreen() {
   return (
     <Screen>
       <TopBar title="Markets" subtitle={liveData ? 'Mock trading — real live prices' : 'Mock stocks — simulated prices, real symbols'} />
+      <MarketsPortfolioSwitch active="markets" />
       <View style={styles.searchWrap}>
         <View style={[styles.searchBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
           <Ionicons name="search" size={16} color={colors.text3} />
@@ -251,5 +225,4 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 12.5, fontWeight: '600' },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
   row: { flexDirection: 'row', alignItems: 'center' },
-  star: { paddingLeft: spacing.sm, paddingVertical: spacing.sm },
 });
