@@ -174,3 +174,42 @@ export async function fetchQuote(symbol: string): Promise<LiveQuote | null> {
   if (!result) return null;
   return quoteFromChart(result);
 }
+
+const SEARCH_URL = 'https://query1.finance.yahoo.com/v1/finance/search';
+
+export type SymbolSearchResult = { symbol: string; name: string; exchange: string };
+
+type SearchQuote = { symbol?: string; shortname?: string; longname?: string; exchDisp?: string; quoteType?: string };
+
+// Resolves a company name or a symbol nobody's heard of to real tickers —
+// the same unofficial search endpoint services/news/newsFeed.ts uses for
+// headlines, just reading its `quotes` array instead of `news`. Deliberately
+// doesn't share this module's request-count/error tracking (that's about
+// price-fetch health for Settings › Market data; a search miss isn't a
+// data-quality problem worth conflating with it) — failure here just means
+// an empty result list, same "degrade, never throw" rule as everything else
+// in this file.
+export async function searchSymbols(query: string, limit = 5): Promise<SymbolSearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const url = `${SEARCH_URL}?q=${encodeURIComponent(trimmed)}&quotesCount=${limit * 3}&newsCount=0`;
+    const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': BROWSER_USER_AGENT }, signal: controller.signal });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { quotes?: SearchQuote[] };
+    const quotes = json.quotes ?? [];
+    // EQUITY only (skip ETFs/indices/crypto) and no "." suffix (skip
+    // non-US listings of the same company, e.g. PLTR.TO/PLTR.SW) — the
+    // mock/live engine and the rest of this app assume plain US symbols.
+    return quotes
+      .filter((q): q is Required<Pick<SearchQuote, 'symbol'>> & SearchQuote => q.quoteType === 'EQUITY' && !!q.symbol && !q.symbol.includes('.'))
+      .slice(0, limit)
+      .map((q) => ({ symbol: q.symbol, name: q.shortname ?? q.longname ?? q.symbol, exchange: q.exchDisp ?? '' }));
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}

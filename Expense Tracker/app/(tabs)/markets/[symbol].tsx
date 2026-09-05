@@ -187,12 +187,50 @@ export default function StockDetailScreen() {
     recordPatternDetectionViewed();
   }
 
+  // Not part of the curated 27 this app trades — reached via Markets'
+  // "also on the market" live-search fallback (a real symbol Yahoo knows
+  // about, just outside the app's mock-trading/predictor universe). Still
+  // worth a real screen rather than "Unknown symbol": getQuote/getHistory
+  // work for any symbol already (they fall back through live-fetch, then
+  // cached bars, then the mock engine's generic defaults), so price + chart
+  // + watchlist all work here. What's deliberately NOT shown: buy/sell (not
+  // part of the tradeable universe), the trained predictor, forecast band,
+  // and sentiment — all of those were measured/fitted against the curated
+  // universe specifically, and showing them for a symbol outside that scope
+  // would be a confidence claim this app can't actually back up.
   if (!ticker) {
     return (
-      <Screen>
-        <View style={styles.notFound}>
-          <Text style={{ color: colors.text }}>Unknown symbol.</Text>
-        </View>
+      <Screen edges={['left', 'right']}>
+        <Stack.Screen options={{ title: symbol }} />
+        <ScrollView contentContainerStyle={styles.content}>
+          <Animated.View entering={FadeInDown.duration(350).springify().damping(16)}>
+            <View style={styles.priceRow}>
+              <Text style={[styles.price, { color: colors.text }]}>{money(price)}</Text>
+              <Text style={[styles.change, { color: up ? colors.success : colors.danger }]}>
+                {signedMoney(quote?.changeAbs ?? 0)} ({signedPct(changePct)})
+              </Text>
+            </View>
+          </Animated.View>
+
+          <Card style={styles.notTrackedBanner}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.text3} />
+            <Text style={[styles.notTrackedText, { color: colors.text2 }]}>
+              {symbol} isn't in this app's mock-trading list — showing its real live price for reference. No buy/sell,
+              price prediction, or sentiment here; those are only measured for tracked stocks.
+            </Text>
+          </Card>
+
+          <Card>
+            <PriceChart bars={bars} height={190} />
+          </Card>
+
+          <Button
+            label={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+            variant="ghost"
+            fullWidth
+            onPress={handleToggleWatchlist}
+          />
+        </ScrollView>
       </Screen>
     );
   }
@@ -496,7 +534,8 @@ function LockedCard({ title, message }: { title: string; message: string }) {
 const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  notFound: { padding: spacing.xl },
+  notTrackedBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  notTrackedText: { flex: 1, fontSize: 12.5, lineHeight: 17 },
   name: { fontSize: 13, fontWeight: '600' },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.md, marginTop: 2 },
   price: { fontSize: 30, fontWeight: '700', letterSpacing: -0.5 },

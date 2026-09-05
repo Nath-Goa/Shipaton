@@ -1,5 +1,6 @@
 import * as live from '@/services/marketData/liveMarketData';
 import { getMarketDataStatus, isLiveMarketDataConfigured, type MarketDataStatus } from '@/services/marketData/liveMarketData';
+import { searchSymbols, type SymbolSearchResult } from '@/services/marketData/yahooFinance';
 import type { PriceBar, Quote, Range } from '@/types/stock';
 
 // Public entry point for stock price data — every screen imports from here,
@@ -9,6 +10,11 @@ import type { PriceBar, Quote, Range } from '@/types/stock';
 // falls back to the local mock engine per symbol on any failure — see
 // liveMarketData.ts for the full precedence chain.
 export { getMarketDataStatus, isLiveMarketDataConfigured, type MarketDataStatus };
+// Real-symbol lookup beyond the curated TICKERS universe — see
+// yahooFinance.ts's searchSymbols for what it does and doesn't cover.
+// Re-exported (not imported directly from yahooFinance.ts by screens) to
+// keep this file the one place everything market-data-shaped comes from.
+export { searchSymbols, type SymbolSearchResult };
 
 const engine = live;
 
