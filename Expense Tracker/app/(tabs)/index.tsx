@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -11,7 +11,6 @@ import Animated, {
 import { MarketSpotlightCard } from '@/components/home/MarketSpotlightCard';
 import { DirectionBadge } from '@/components/stocks/DirectionBadge';
 import { StockListItem } from '@/components/stocks/StockListItem';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
@@ -20,25 +19,18 @@ import { StatTile } from '@/components/ui/StatTile';
 import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { springs, triggerFeedback } from '@/constants/animations';
-import { categoryOf } from '@/constants/categories';
-import { spacing } from '@/constants/theme';
+import { radius, spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
-import { generateWeeklyRecap } from '@/services/ai/insights';
-import { describeAiError } from '@/services/ai/errorMessage';
 import { computeDirectionCall } from '@/services/market/signals';
 import { getFullHistory } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
-import { useExpenseStore } from '@/store/useExpenseStore';
-import { useSavingsGoalStore } from '@/store/useSavingsGoalStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
-import { useWeeklyRecapStore } from '@/store/useWeeklyRecapStore';
-import { daysAgo } from '@/utils/date';
 import { money, signedMoney, signedPct } from '@/utils/money';
-import { computeNetWorthHistory, summarizePortfolio } from '@/utils/portfolioMath';
+import { summarizePortfolio } from '@/utils/portfolioMath';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -49,11 +41,6 @@ export default function HomeScreen() {
   const watchlist = usePortfolioStore((s) => s.watchlist);
   const tier = useSettingsStore((s) => s.tier);
   const upgradeToTier = useUpgradeToTier();
-  const expenses = useExpenseStore((s) => s.expenses);
-  const goals = useSavingsGoalStore((s) => s.goals);
-  const { recap, setRecap } = useWeeklyRecapStore();
-  const [recapLoading, setRecapLoading] = useState(false);
-  const [recapError, setRecapError] = useState<string | null>(null);
 
   const trackedSymbols = useMemo(
     () => Array.from(new Set([...Object.keys(holdings), ...watchlist])),
@@ -62,49 +49,6 @@ export default function HomeScreen() {
   const { quotes, refresh } = useQuotes(trackedSymbols);
 
   const summary = useMemo(() => summarizePortfolio(cash, holdings, quotes), [cash, holdings, quotes]);
-
-  const weekPayload = useMemo(() => {
-    const since = daysAgo(6);
-    const weekExpenses = expenses.filter((e) => e.date >= since);
-    const total = weekExpenses.reduce((s, e) => s + e.amount, 0);
-    const byCategory = new Map<string, number>();
-    for (const e of weekExpenses) byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
-    const topEntry = [...byCategory.entries()].sort((a, b) => b[1] - a[1])[0];
-
-    const history = computeNetWorthHistory(portfolio, 8);
-    const weekChange = history.length >= 2 ? history[history.length - 1].netWorth - history[0].netWorth : null;
-    const weekChangePct = weekChange != null && history[0].netWorth ? (weekChange / history[0].netWorth) * 100 : null;
-    const goalsSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
-
-    return {
-      period: 'last 7 days',
-      expenses:
-        weekExpenses.length > 0
-          ? { total: Number(total.toFixed(2)), count: weekExpenses.length, topCategory: topEntry ? categoryOf(topEntry[0]).label : null }
-          : null,
-      portfolio: {
-        netWorth: Number(summary.netWorth.toFixed(2)),
-        weekChange: weekChange != null ? Number(weekChange.toFixed(2)) : null,
-        weekChangePct: weekChangePct != null ? Number(weekChangePct.toFixed(2)) : null,
-      },
-      goals:
-        goals.length > 0
-          ? { totalSaved: Number(goalsSaved.toFixed(2)), goalsCount: goals.length, goalsReached: goals.filter((g) => g.completedAt).length }
-          : null,
-    };
-  }, [expenses, goals, portfolio, summary.netWorth]);
-
-  async function handleGetRecap() {
-    setRecapLoading(true);
-    setRecapError(null);
-    const result = await generateWeeklyRecap(JSON.stringify(weekPayload));
-    setRecapLoading(false);
-    if (!result.ok) {
-      setRecapError(describeAiError(result.error));
-      return;
-    }
-    setRecap(result.data);
-  }
 
   return (
     <Screen>
@@ -200,39 +144,25 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* AI Weekly Recap */}
+        {/* Weekly recap — an instant, local "wrapped"-style deck (app/recap.tsx),
+            never gated on an AI call so it's there the very first time
+            someone opens the app, not just after a week of activity. */}
         <View>
-          <View style={styles.sectionHead}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Weekly recap</Text>
-            {recap ? (
-              <Pressable onPress={handleGetRecap} disabled={recapLoading}>
-                <Text style={[styles.link, { color: colors.accent }]}>{recapLoading ? 'Refreshing…' : 'Refresh'}</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          <Card>
-            {recap ? (
-              <View style={{ gap: spacing.sm }}>
-                <Text style={[styles.recapHeadline, { color: colors.text }]}>{recap.headline}</Text>
-                {recap.highlights.map((h, i) => (
-                  <Text key={i} style={[styles.recapHighlight, { color: colors.text2 }]}>
-                    • {h}
-                  </Text>
-                ))}
-                <Text style={[styles.recapTip, { color: colors.accent }]}>💡 {recap.tip}</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>Weekly recap</Text>
+          <Pressable onPress={() => router.push('/recap')}>
+            <Card style={[styles.recapLauncher, { borderColor: colors.accent }]}>
+              <View style={[styles.recapIconWrap, { backgroundColor: colors.accentSoft }]}>
+                <Ionicons name="sparkles" size={20} color={colors.accent} />
               </View>
-            ) : (
-              <>
-                <Text style={[styles.recapIntro, { color: colors.text3 }]}>
-                  Get an AI recap of your spending, portfolio, and goals from the last 7 days.
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.recapTitle, { color: colors.text }]}>Your week, wrapped</Text>
+                <Text style={[styles.recapBody, { color: colors.text3 }]}>
+                  Your stocks, your money, your streak — swipe through this week's highlights.
                 </Text>
-                <View style={{ marginTop: spacing.md }}>
-                  <Button label="Get this week's recap" variant="ghost" loading={recapLoading} onPress={handleGetRecap} />
-                </View>
-              </>
-            )}
-            {recapError ? <Text style={[styles.recapError, { color: colors.danger }]}>{recapError}</Text> : null}
-          </Card>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.text3} />
+            </Card>
+          </Pressable>
         </View>
       </ScrollView>
     </Screen>
@@ -302,9 +232,8 @@ const styles = StyleSheet.create({
   actionItem: { flexGrow: 1, flexBasis: '45%' },
   actionCard: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
   actionLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  recapIntro: { fontSize: 13, lineHeight: 18 },
-  recapHeadline: { fontSize: 14.5, fontWeight: '700', lineHeight: 20 },
-  recapHighlight: { fontSize: 13, lineHeight: 18 },
-  recapTip: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  recapError: { fontSize: 12.5, fontWeight: '600', marginTop: spacing.sm },
+  recapLauncher: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
+  recapIconWrap: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  recapTitle: { fontSize: 14.5, fontWeight: '700' },
+  recapBody: { fontSize: 12.5, marginTop: 2, lineHeight: 17 },
 });

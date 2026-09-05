@@ -216,9 +216,14 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, paddingVertical: 10, fontSize: 14 },
   bannerWrap: { paddingHorizontal: spacing.xl, marginBottom: spacing.sm },
-  actionsRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, marginBottom: spacing.md },
+  // 4 actions no longer fit one row without squeezing labels like "Practice
+  // trade" onto two lines with the icon flush against the rounded corner
+  // (no horizontal padding to inset it) — wraps to 2x2 instead, same fix as
+  // Home's quick-actions row.
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.xl, marginBottom: spacing.md },
   actionBtn: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '45%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -226,6 +231,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.sm,
     paddingVertical: 10,
+    paddingHorizontal: spacing.sm,
   },
   actionLabel: { fontSize: 12.5, fontWeight: '600' },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },

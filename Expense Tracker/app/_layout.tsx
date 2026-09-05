@@ -240,6 +240,10 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
             <Stack.Screen name="scanner" options={{ presentation: 'modal', title: 'Scan a product' }} />
+            {/* fullScreenModal + headerShown:false — this deck draws its own
+                progress bar and close button (app/recap.tsx), so it needs
+                zero native chrome to render underneath. */}
+            <Stack.Screen name="recap" options={{ presentation: 'fullScreenModal', headerShown: false }} />
           </Stack>
         </AppLockGate>
       ) : (

@@ -35,7 +35,15 @@ const TRENDING_COUNT = 3;
 const MAX_STOCK_SECTIONS = 12;
 const HEADLINES_PER_SECTION = 6;
 
-const GENERAL_QUERY = 'stock market news';
+// A real index symbol gets Yahoo's actual per-security news feed — the
+// same mechanism every per-stock section below already relies on — rather
+// than a loose text match. "stock market news" as a free-text query could
+// (and did) pull back general/off-topic Yahoo News results that merely
+// mention "stock" or "market" in passing, not real finance coverage. Three
+// broad US indices give wide general-market coverage while staying
+// strictly finance-tagged.
+const GENERAL_INDEX_SYMBOLS = ['^GSPC', '^DJI', '^IXIC'];
+const GENERAL_SECTION_LIMIT = 8;
 
 const cache = new Map<string, { items: NewsItem[]; fetchedAt: number; failed: boolean }>();
 
@@ -105,13 +113,24 @@ export async function loadMarketNews(force = false): Promise<NewsSection[]> {
   const trending = trendingSymbols().filter((symbol) => !followedSet.has(symbol));
 
   const jobs = [
-    { key: 'general', query: GENERAL_QUERY },
+    ...GENERAL_INDEX_SYMBOLS.map((symbol) => ({ key: `general:${symbol}`, query: symbol, symbol })),
     ...trending.map((symbol) => ({ key: `trending:${symbol}`, query: symbol, symbol })),
     ...followed.map((symbol) => ({ key: `stock:${symbol}`, query: symbol, symbol })),
   ];
   const loaded = await loadWithSpacing(jobs, force);
 
-  const sections: NewsSection[] = [{ key: 'general', title: 'Market', items: loaded.get('general') ?? [] }];
+  // Merge the three index feeds into one general section: same story often
+  // shows up under more than one index, and interleaving three separate
+  // fetches by arrival order would read oddly next to a single "Market"
+  // section, so this re-sorts by recency and dedupes by id.
+  const generalItems = GENERAL_INDEX_SYMBOLS.flatMap((symbol) => loaded.get(`general:${symbol}`) ?? []);
+  const seenGeneralIds = new Set<string>();
+  const general = generalItems
+    .filter((item) => (seenGeneralIds.has(item.id) ? false : (seenGeneralIds.add(item.id), true)))
+    .sort((a, b) => b.publishedAt - a.publishedAt)
+    .slice(0, GENERAL_SECTION_LIMIT);
+
+  const sections: NewsSection[] = [{ key: 'general', title: 'Market', items: general }];
 
   const trendingItems = trending.flatMap((symbol) => loaded.get(`trending:${symbol}`) ?? []);
   if (trendingItems.length > 0) {

@@ -137,20 +137,6 @@ export function buildSpendingInsightPrompt(): string {
   ].join('\n');
 }
 
-// --- Home: AI weekly recap ---
-
-export function buildWeeklyRecapPrompt(): string {
-  return [
-    "You are a friendly personal-finance coach inside an app that combines expense tracking, mock stock trading, and savings goals. You'll be given a JSON payload summarizing the user's last 7 days across all three areas — any section may be null if there's nothing to report there.",
-    'Write a short, warm weekly recap: one headline sentence capturing the overall picture, 2-3 short highlight bullets covering whichever of spending/portfolio/goals actually has data (skip a section entirely rather than inventing one for it), and one encouraging, concrete tip for the week ahead.',
-    'Keep every field short and plain-language, no jargon. Never invent numbers not present in the payload.',
-    "This app's portfolio is fully simulated mock trading, not real money — never imply otherwise.",
-    'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
-    '{"headline": string, "highlights": [string], "tip": string}',
-    '"highlights" has 2-3 short entries (under 15 words each).',
-  ].join('\n');
-}
-
 export function buildNarrativePrompt(scenarioType: ScenarioType, difficulty: Difficulty, portfolioContext?: string): string {
   const scenarioLabel: Record<ScenarioType, string> = {
     market_crash: 'a sudden market crash or flash-crash event',
