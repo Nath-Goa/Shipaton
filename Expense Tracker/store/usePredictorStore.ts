@@ -10,10 +10,10 @@ import type { PendingPrediction, PredictorAccuracy, ResolvedPrediction } from '@
 
 // Owns the live model and its track record.
 //
-// Ships with weights fitted offline over 181k samples and 90 symbols
+// Ships with weights fitted offline over ~150k samples and 90 symbols
 // (services/predictor/pretrained.ts), then adapts on device: every
 // prediction is logged with the features that produced it, and when the
-// 10-session horizon elapses the realised outcome is folded back in with a
+// 20-session horizon elapses the realised outcome is folded back in with a
 // single small SGD step. That is the "gets better the more you use it" loop,
 // and it is also what makes the accuracy figure shown in the app a real
 // measurement of this install rather than a marketing number.

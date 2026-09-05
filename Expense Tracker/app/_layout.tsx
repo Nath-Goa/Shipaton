@@ -206,7 +206,7 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
   }, [reviewStoreHydrated]);
 
   // Predictor upkeep, once per app open: resolve any prediction whose
-  // 10-session horizon has elapsed (each resolved outcome trains the model
+  // 20-session horizon has elapsed (each resolved outcome trains the model
   // one step), then scan headlines and log fresh predictions for the symbols
   // this user follows. Fire-and-forget and non-blocking — every failure
   // inside degrades to "no news", never to a broken start. Held until
