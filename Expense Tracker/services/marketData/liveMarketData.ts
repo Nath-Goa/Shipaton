@@ -92,8 +92,16 @@ function persistBars(): void {
 // (with no backoff, see below) immediately retried the same burst: the app
 // could never climb out of it and every price stayed on the mock engine
 // indefinitely. Everything network-bound now goes through this queue.
-const MAX_CONCURRENT_REQUESTS = 3;
-const MIN_REQUEST_SPACING_MS = 150;
+//
+// These two numbers are a deliberately modest bump from the original 3 /
+// 150ms (still governed, still nowhere near the ~27-at-once burst above —
+// roughly +30% throughput, not a removal of the throttle) so a fresh
+// install's first paint of live data (an initial burst of bars requests
+// across every tracked symbol) clears faster. Loosen further only with a
+// real measurement in hand, not a guess — this exact spot is where "faster"
+// turned into "broken" before.
+const MAX_CONCURRENT_REQUESTS = 4;
+const MIN_REQUEST_SPACING_MS = 120;
 
 const requestQueue: Array<() => void> = [];
 let activeRequests = 0;
@@ -135,7 +143,10 @@ function schedule<T>(work: () => Promise<T>): Promise<T> {
 // this a failing symbol was permanently past its TTL and retried on every
 // single poll. Backoff makes a failing provider quiet down instead of
 // spiralling, and gives a rate-limited endpoint room to let us back in.
-const FAILURE_BACKOFF_MS = [20_000, 60_000, 180_000, 300_000];
+// First tier trimmed from 20s — still a real cooldown, just a faster retry
+// for the common case (one transient blip, not a sustained rate limit);
+// the later tiers escalate exactly as before for a real sustained failure.
+const FAILURE_BACKOFF_MS = [15_000, 60_000, 180_000, 300_000];
 const failureStreak = new Map<string, number>();
 const retryAfter = new Map<string, number>();
 

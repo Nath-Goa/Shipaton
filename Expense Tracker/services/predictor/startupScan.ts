@@ -19,7 +19,8 @@ import type { NewsSentiment } from '@/types/prediction';
 
 const MAX_SYMBOLS_PER_SCAN = 6;
 const NEWS_SCAN_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const REQUEST_SPACING_MS = 250;
+// Strictly sequential, never concurrent — mirrored by services/news/marketNews.ts.
+const REQUEST_SPACING_MS = 180;
 
 const sentimentCache = new Map<string, { at: number; sentiment: NewsSentiment }>();
 const SENTIMENT_TTL_MS = 6 * 60 * 60 * 1000;

@@ -30,7 +30,10 @@ const FAILED_TTL_MS = 5 * 60 * 1000;
 // Same spacing services/predictor/startupScan.ts uses between real network
 // calls — hammering this endpoint in a burst is exactly what got live
 // prices rate-limited into permanent mock data before (see CLAUDE.md §5.4).
-const REQUEST_SPACING_MS = 250;
+// Still strictly sequential (one request at a time, never concurrent), so
+// trimming the gap is a much smaller risk than loosening liveMarketData.ts's
+// concurrent queue — the worst case is just "back to back," not a burst.
+const REQUEST_SPACING_MS = 180;
 const TRENDING_COUNT = 3;
 const MAX_STOCK_SECTIONS = 12;
 const HEADLINES_PER_SECTION = 6;
