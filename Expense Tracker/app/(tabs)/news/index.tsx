@@ -11,7 +11,7 @@ import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { hasAnyFollowedSymbols, loadMarketNews, type NewsSection } from '@/services/news/marketNews';
+import { loadMarketNews, type NewsSection } from '@/services/news/marketNews';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import type { NewsItem } from '@/types/prediction';
 import { timeAgo } from '@/utils/date';
@@ -78,6 +78,11 @@ export default function NewsScreen() {
   }
 
   const hasAnyItems = (sections ?? []).some((s) => s.items.length > 0);
+  // Only per-stock sections carry a symbol, so this is exactly "the user
+  // holds or watches nothing yet" — read off the sections that were actually
+  // built rather than re-reading the portfolio store outside a subscription,
+  // which would leave the hint stale for someone who holds stocks.
+  const followsAnyStock = (sections ?? []).some((s) => s.symbol);
 
   return (
     <Screen>
@@ -90,7 +95,7 @@ export default function NewsScreen() {
         <EmptyState
           icon="📰"
           title="No headlines right now"
-          message="Couldn't reach the news feed. Pull down to try again."
+          message="Couldn't reach the news feed just now."
           actionLabel="Retry"
           onAction={() => load(true)}
         />
@@ -99,11 +104,15 @@ export default function NewsScreen() {
           sections={sections
             .filter((s) => s.items.length > 0)
             .map((s) => ({ ...s, data: s.items }))}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
+          // The same headline can legitimately appear under Market and under
+          // a stock section, so the item id alone isn't unique across the
+          // whole list — item.symbol is the query it was fetched under, which
+          // is what tells the two copies apart.
+          keyExtractor={(item, index) => `${item.symbol}-${item.id}-${index}`}
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
           ListHeaderComponent={
-            !hasAnyFollowedSymbols() ? (
+            !followsAnyStock ? (
               <Animated.View entering={FadeInDown.duration(250)}>
                 <Card style={styles.hintCard}>
                   <Text style={[styles.hintText, { color: colors.text2 }]}>

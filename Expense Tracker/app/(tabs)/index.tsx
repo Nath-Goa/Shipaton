@@ -193,6 +193,7 @@ export default function HomeScreen() {
         <View>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>Quick actions</Text>
           <View style={styles.actionsRow}>
+            <QuickAction icon="pie-chart-outline" label="Portfolio" onPress={() => router.push('/markets/portfolio')} />
             <QuickAction icon="receipt-outline" label="Log expense" onPress={() => router.push('/expenses/add')} />
             <QuickAction icon="stats-chart-outline" label="Explore markets" onPress={() => router.push('/markets')} />
             <QuickAction icon="sparkles-outline" label="Ask the analyst" onPress={() => router.push('/assistant')} />
@@ -294,8 +295,11 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15.5, fontWeight: '700' },
   link: { fontSize: 13, fontWeight: '600' },
   watchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  actionsRow: { flexDirection: 'row', gap: spacing.md },
-  actionItem: { flex: 1 },
+  // Four across is too narrow for the labels on a phone, so these wrap to a
+  // 2x2 grid: basis under half the row forces two per line, and flexGrow
+  // then spreads them to fill it exactly.
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  actionItem: { flexGrow: 1, flexBasis: '45%' },
   actionCard: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
   actionLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
   recapIntro: { fontSize: 13, lineHeight: 18 },

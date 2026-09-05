@@ -21,6 +21,12 @@ export type NewsSection = {
 // a global timer, so opening the tab after 20 minutes reuses the cache and
 // after 90 minutes refetches just the stale sections.
 const SECTION_TTL_MS = 60 * 60 * 1000;
+// A fetch that came back with nothing must NOT hold the full hour: stamping
+// a failure with the success TTL meant one failed section went dark for an
+// hour and wouldn't even retry when the tab was reopened, since the cache
+// looked fresh. Short enough to recover on the next visit, long enough not
+// to retry the same dead endpoint on every focus.
+const FAILED_TTL_MS = 5 * 60 * 1000;
 // Same spacing services/predictor/startupScan.ts uses between real network
 // calls — hammering this endpoint in a burst is exactly what got live
 // prices rate-limited into permanent mock data before (see CLAUDE.md §5.4).
@@ -31,22 +37,29 @@ const HEADLINES_PER_SECTION = 6;
 
 const GENERAL_QUERY = 'stock market news';
 
-const cache = new Map<string, { items: NewsItem[]; fetchedAt: number }>();
+const cache = new Map<string, { items: NewsItem[]; fetchedAt: number; failed: boolean }>();
+
+function ttlFor(entry: { failed: boolean }): number {
+  return entry.failed ? FAILED_TTL_MS : SECTION_TTL_MS;
+}
 
 function isFresh(key: string, force: boolean): boolean {
   if (force) return false;
   const entry = cache.get(key);
-  return !!entry && Date.now() - entry.fetchedAt < SECTION_TTL_MS;
+  return !!entry && Date.now() - entry.fetchedAt < ttlFor(entry);
 }
 
 async function loadSection(key: string, query: string, symbol: string | undefined, force: boolean): Promise<NewsItem[]> {
   const cached = cache.get(key);
-  if (!force && cached && Date.now() - cached.fetchedAt < SECTION_TTL_MS) return cached.items;
+  if (!force && cached && Date.now() - cached.fetchedAt < ttlFor(cached)) return cached.items;
   const items = await fetchHeadlines(symbol ?? query, HEADLINES_PER_SECTION);
+  const failed = items.length === 0;
   // A failed fetch degrades to whatever was cached before (still-stale
-  // headlines beat none), never to an empty section wiping out old news.
-  const resolved = items.length > 0 ? items : (cached?.items ?? []);
-  cache.set(key, { items: resolved, fetchedAt: Date.now() });
+  // headlines beat none), never to an empty section wiping out old news —
+  // but it's stamped as a failure so it retries on the short TTL instead of
+  // sitting dark for the full hour.
+  const resolved = failed ? (cached?.items ?? []) : items;
+  cache.set(key, { items: resolved, fetchedAt: Date.now(), failed });
   return resolved;
 }
 
@@ -111,10 +124,4 @@ export async function loadMarketNews(force = false): Promise<NewsSection[]> {
   }
 
   return sections;
-}
-
-// Whether the user has anything starred or held yet — the News tab uses
-// this to decide whether to show a "star a stock to follow it here" nudge.
-export function hasAnyFollowedSymbols(): boolean {
-  return followedSymbols().length > 0;
 }
