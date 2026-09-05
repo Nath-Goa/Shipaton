@@ -6,7 +6,6 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { PinSetupModal } from '@/components/security/PinSetupModal';
 import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
-import { DevLoginModal } from '@/components/settings/DevLoginModal';
 import { FontPicker } from '@/components/settings/FontPicker';
 import { MarketDataStatusCard } from '@/components/settings/MarketDataStatusCard';
 import { Button } from '@/components/ui/Button';
@@ -117,7 +116,6 @@ export default function SettingsScreen() {
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [biometricCaps, setBiometricCaps] = useState<BiometricCapabilities | null>(null);
   const [testingNotif, setTestingNotif] = useState(false);
-  const [devLoginVisible, setDevLoginVisible] = useState(false);
 
   // Hidden developer-options gesture: tap the header title 9 times within
   // 1.5s of each other to reach the login gate. Refs (not state) so rapid
@@ -134,19 +132,10 @@ export default function SettingsScreen() {
     titleTapCountRef.current += 1;
     if (titleTapCountRef.current >= TITLE_TAP_THRESHOLD) {
       titleTapCountRef.current = 0;
-      setDevLoginVisible(true);
+      const next = DEV_TIER_CYCLE[tier];
+      setTier(next);
+      showToast(`Developer override — you're now on ${TIER_LABELS[next]}.`);
     }
-  }
-
-  function handleDevLoginSuccess(ownerName?: string) {
-    if (ownerName) {
-      setTier('max');
-      showToast(`Welcome owner, ${ownerName}! Max unlocked on this device.`);
-      return;
-    }
-    const next = DEV_TIER_CYCLE[tier];
-    setTier(next);
-    showToast(`Developer override — you're now on ${TIER_LABELS[next]}.`);
   }
 
   useEffect(() => {
@@ -450,11 +439,6 @@ export default function SettingsScreen() {
         visible={pinModalOpen}
         isChangingPin={isChangingPin}
         onClose={() => setPinModalOpen(false)}
-      />
-      <DevLoginModal
-        visible={devLoginVisible}
-        onClose={() => setDevLoginVisible(false)}
-        onSuccess={handleDevLoginSuccess}
       />
     </Screen>
   );
