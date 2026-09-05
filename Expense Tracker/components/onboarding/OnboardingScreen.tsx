@@ -34,6 +34,7 @@ type StepId =
   | 'assistant'
   | 'appearance'
   | 'studyTime'
+  | 'predictorData'
   | 'aiKey'
   | 'final';
 
@@ -48,6 +49,7 @@ const STEP_ORDER: StepId[] = [
   'assistant',
   'appearance',
   'studyTime',
+  'predictorData',
   'aiKey',
   'final',
 ];
@@ -125,6 +127,8 @@ export function OnboardingScreen() {
   const setAccentColor = useSettingsStore((s) => s.setAccentColor);
   const preferredStudyWindow = useSettingsStore((s) => s.preferredStudyWindow);
   const setPreferredStudyWindow = useSettingsStore((s) => s.setPreferredStudyWindow);
+  const predictorDataCollection = useSettingsStore((s) => s.predictorDataCollection);
+  const setPredictorDataCollection = useSettingsStore((s) => s.setPredictorDataCollection);
 
   const total = STEP_ORDER.length;
   const [stepIndex, setStepIndex] = useState(0);
@@ -237,6 +241,63 @@ export function OnboardingScreen() {
             <Button label="Continue" fullWidth onPress={handleNext} />
           </View>
         </Animated.View>
+      ) : stepId === 'predictorData' ? (
+        <Animated.View key={stepId} entering={entering} style={styles.content}>
+          <Text style={[styles.eyebrow, { color: colors.accent }]}>Price predictor</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Should it learn from your usage?</Text>
+          <Text style={[styles.subtitle, { color: colors.text2 }]}>
+            The app ships with a model trained on 150,000+ samples of real market history. With this on, it
+            also records the calls it makes on your device and trains on how they actually turn out. Nothing
+            leaves your phone.
+          </Text>
+
+          <View style={[styles.predictorWarning, { backgroundColor: colors.surface2 }]}>
+            <Ionicons name="warning-outline" size={18} color={colors.warning} />
+            <Text style={[styles.predictorWarningText, { color: colors.text2 }]}>
+              Be aware this can make predictions <Text style={{ fontWeight: '700' }}>worse</Text>, not just
+              better. Learning from a short run of outcomes can pull the model off course. Every launch it
+              re-scores 400 samples of market history it never trained on, and if accuracy has dropped
+              materially the app switches predictions off entirely until you reset it — so a bad run can leave
+              you unable to use the feature at all.
+            </Text>
+          </View>
+
+          <View style={styles.predictorChoices}>
+            {[
+              { value: true, label: 'Yes, learn from my usage', hint: 'Recommended — adapts to your market' },
+              { value: false, label: 'No, keep it as shipped', hint: 'Never changes; never degrades' },
+            ].map((choice) => {
+              const active = predictorDataCollection === choice.value;
+              return (
+                <Pressable
+                  key={String(choice.value)}
+                  onPress={() => {
+                    triggerFeedback('selection');
+                    setPredictorDataCollection(choice.value);
+                  }}
+                  style={[
+                    styles.predictorChoice,
+                    { borderColor: active ? colors.accent : colors.border, backgroundColor: colors.surface },
+                    active && { borderWidth: 2 },
+                  ]}>
+                  <Ionicons
+                    name={active ? 'radio-button-on' : 'radio-button-off'}
+                    size={19}
+                    color={active ? colors.accent : colors.text3}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.predictorChoiceLabel, { color: colors.text }]}>{choice.label}</Text>
+                    <Text style={[styles.predictorChoiceHint, { color: colors.text3 }]}>{choice.hint}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.actions}>
+            <Button label="Continue" fullWidth onPress={handleNext} />
+          </View>
+        </Animated.View>
       ) : stepId === 'aiKey' ? (
         <Animated.View key={stepId} entering={entering} style={styles.content}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>AI analyst</Text>
@@ -341,6 +402,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   studyWindowLabel: { fontSize: 13.5, fontWeight: '700' },
+  predictorWarning: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    marginTop: spacing.lg,
+  },
+  predictorWarningText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
+  predictorChoices: { gap: spacing.sm, marginTop: spacing.lg },
+  predictorChoice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+  },
+  predictorChoiceLabel: { fontSize: 14, fontWeight: '700' },
+  predictorChoiceHint: { fontSize: 12, marginTop: 2 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   bulletText: { fontSize: 13.5, lineHeight: 18, flex: 1 },
   actions: { marginTop: spacing.xl, gap: spacing.sm },

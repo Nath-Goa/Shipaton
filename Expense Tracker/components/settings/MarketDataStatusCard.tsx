@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,7 @@ import {
   resetMarketCache,
   type MarketDataStatus,
 } from '@/services/marketData/marketData';
+import { usePredictorStore } from '@/store/usePredictorStore';
 
 const POLL_MS = 1500;
 
@@ -30,6 +31,12 @@ function timeAgo(at: number | null): string {
 // the market-data layer is actually doing, straight from the device.
 export function MarketDataStatusCard() {
   const { colors } = useTheme();
+  const health = usePredictorStore((s) => s.health);
+  const resolved = usePredictorStore((s) => s.resolved);
+  const resetPredictor = usePredictorStore((s) => s.resetModel);
+  // Recomputed only when a call actually resolves; accuracy() reads the
+  // store directly, so subscribing to `resolved` is what keeps this live.
+  const record = useMemo(() => usePredictorStore.getState().accuracy(), [resolved]);
   const [status, setStatus] = useState<MarketDataStatus>(() => getMarketDataStatus());
 
   useEffect(() => {
@@ -95,6 +102,36 @@ export function MarketDataStatusCard() {
       ) : null}
 
       <Button label="Retry live prices now" variant="ghost" onPress={retryNow} />
+
+      <View style={[styles.predictorBlock, { borderTopColor: colors.border }]}>
+        <View style={styles.row}>
+          <Text style={[styles.label, { color: colors.text3 }]}>Predictor</Text>
+          <Text
+            style={[
+              styles.value,
+              { color: health?.status === 'degraded' ? colors.danger : colors.success },
+            ]}>
+            {health?.status === 'degraded' ? 'Offline (failed self-test)' : 'OK'}
+          </Text>
+        </View>
+        {health ? (
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: colors.text3 }]}>Self-test</Text>
+            <Text style={[styles.value, { color: colors.text }]}>
+              {(health.accuracy * 100).toFixed(1)}% vs {(health.baselineAccuracy * 100).toFixed(1)}% shipped
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.row}>
+          <Text style={[styles.label, { color: colors.text3 }]}>Its own record</Text>
+          <Text style={[styles.value, { color: colors.text }]}>
+            {record.resolved === 0
+              ? 'no calls resolved yet'
+              : `${record.correct}/${record.resolved} correct (${(record.accuracy * 100).toFixed(0)}%)`}
+          </Text>
+        </View>
+        <Button label="Reset predictor to shipped model" variant="ghost" onPress={resetPredictor} />
+      </View>
     </Card>
   );
 }
@@ -104,4 +141,5 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '600' },
   value: { fontSize: 13, fontWeight: '700', flexShrink: 1, textAlign: 'right' },
   errorText: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  predictorBlock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md, marginTop: spacing.sm, gap: spacing.sm },
 });

@@ -19,6 +19,7 @@ import { CUSTOM_FONTS_TO_LOAD } from '@/constants/fonts';
 import { useTheme } from '@/hooks/useTheme';
 import { disableAllReminders, refreshBillReminders, refreshStreakRiskReminder } from '@/services/notifications/notifications';
 import { refreshStudyNudge, STUDY_NUDGE_ID } from '@/services/notifications/studyNudge';
+import { runStartupScan } from '@/services/predictor/startupScan';
 import { initSentry } from '@/services/monitoring/sentry';
 import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
@@ -203,6 +204,17 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
     if (reviewStoreHydrated) return;
     return useReviewStore.persist.onFinishHydration(() => setReviewStoreHydrated(true));
   }, [reviewStoreHydrated]);
+
+  // Predictor upkeep, once per app open: resolve any prediction whose
+  // 10-session horizon has elapsed (each resolved outcome trains the model
+  // one step), then scan headlines and log fresh predictions for the symbols
+  // this user follows. Fire-and-forget and non-blocking — every failure
+  // inside degrades to "no news", never to a broken start. Held until
+  // onboarding is done so a first-run user isn't fetching news mid-setup.
+  useEffect(() => {
+    if (!ready || !onboardingComplete) return;
+    runStartupScan().catch(() => undefined);
+  }, [ready, onboardingComplete]);
 
   // Ask once, only after the person has actually done something — a badge
   // earned (Learn/Markets) or a few trades (Portfolio) — rather than
