@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 
+import { AuthGate } from '@/components/auth/AuthGate';
 import { LimitOrderWatcher } from '@/components/markets/LimitOrderWatcher';
 import { PriceAlertWatcher } from '@/components/markets/PriceAlertWatcher';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
@@ -20,6 +21,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { disableAllReminders, refreshBillReminders, refreshStreakRiskReminder } from '@/services/notifications/notifications';
 import { refreshStudyNudge, STUDY_NUDGE_ID } from '@/services/notifications/studyNudge';
 import { runStartupScan } from '@/services/predictor/startupScan';
+import { isSupabaseConfigured } from '@/services/social/supabaseClient';
+import { useAuthStore } from '@/store/useAuthStore';
 import { initSentry } from '@/services/monitoring/sentry';
 import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
@@ -232,15 +235,27 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
     );
   }
 
+  const authRequired = isSupabaseConfigured();
+  const authSession = useAuthStore((s) => s.session);
+  const authInitializing = useAuthStore((s) => s.initializing);
+  useEffect(() => {
+    useAuthStore.getState().init();
+  }, []);
+
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       {onboardingComplete ? (
-        <AppLockGate>
-          <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="settings" options={{ headerShown: false }} />
-          </Stack>
-        </AppLockGate>
+        authRequired && (authInitializing || !authSession) ? (
+          <AuthGate />
+        ) : (
+          <AppLockGate>
+            <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="settings" options={{ headerShown: false }} />
+              <Stack.Screen name="scanner" options={{ presentation: 'modal', title: 'Scan a product' }} />
+            </Stack>
+          </AppLockGate>
+        )
       ) : (
         <OnboardingScreen />
       )}
