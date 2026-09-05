@@ -14,20 +14,17 @@ import { useAuthStore } from '@/store/useAuthStore';
 // a separate expo-router Stack: this gate has to sit *outside* the router's
 // normal tree (nothing behind it should be reachable), so it doesn't need
 // real routes of its own.
-type Step = 'sign-in' | 'sign-up' | 'verify' | 'reset' | 'reset-sent';
+type Step = 'sign-in' | 'sign-up' | 'reset' | 'reset-sent';
 
 export function AuthGate() {
   const { colors } = useTheme();
   const signIn = useAuthStore((s) => s.signIn);
   const signUp = useAuthStore((s) => s.signUp);
-  const verifyEmailCode = useAuthStore((s) => s.verifyEmailCode);
-  const resendCode = useAuthStore((s) => s.resendCode);
   const requestPasswordReset = useAuthStore((s) => s.requestPasswordReset);
 
   const [step, setStep] = useState<Step>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -43,8 +40,7 @@ export function AuthGate() {
     onOk();
   }
 
-  const title =
-    step === 'sign-in' ? 'Sign in' : step === 'sign-up' ? 'Create account' : step === 'verify' ? 'Check your email' : 'Reset password';
+  const title = step === 'sign-in' ? 'Sign in' : step === 'sign-up' ? 'Create account' : 'Reset password';
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -81,7 +77,7 @@ export function AuthGate() {
                 onPress={() =>
                   step === 'sign-in'
                     ? run(() => signIn(email, password), () => undefined)
-                    : run(() => signUp(email, password), () => setStep('verify'))
+                    : run(() => signUp(email, password), () => undefined)
                 }
               />
               {step === 'sign-in' ? (
@@ -98,31 +94,6 @@ export function AuthGate() {
                   <Text style={[styles.link, { color: colors.text2 }]}>Already have an account? Sign in</Text>
                 </Pressable>
               )}
-            </>
-          ) : step === 'verify' ? (
-            <>
-              <Text style={[styles.body, { color: colors.text2 }]}>
-                We emailed a 6-digit code to {email}. Enter it below to verify your account.
-              </Text>
-              <TextInput
-                value={code}
-                onChangeText={setCode}
-                placeholder="6-digit code"
-                placeholderTextColor={colors.text3}
-                keyboardType="number-pad"
-                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface2 }]}
-              />
-              {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
-              <Button
-                label="Verify"
-                fullWidth
-                loading={busy}
-                disabled={code.length < 4}
-                onPress={() => run(() => verifyEmailCode(email, code), () => undefined)}
-              />
-              <Pressable onPress={() => run(() => resendCode(email), () => setError('Code resent.'))}>
-                <Text style={[styles.link, { color: colors.text2 }]}>Resend code</Text>
-              </Pressable>
             </>
           ) : step === 'reset' ? (
             <>

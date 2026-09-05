@@ -16,8 +16,6 @@ type AuthState = {
   initializing: boolean;
   init: () => void;
   signUp: (email: string, password: string) => Promise<AuthResult>;
-  verifyEmailCode: (email: string, code: string) => Promise<AuthResult>;
-  resendCode: (email: string) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<AuthResult>;
@@ -48,25 +46,14 @@ export const useAuthStore = create<AuthState>()((set) => ({
     }
   },
 
-  // signUp sends Supabase's own confirmation email. The project's Auth
-  // template must be switched from the default magic-link to the OTP/code
-  // template (Supabase dashboard > Authentication > Email Templates) for
-  // that email to contain a 6-digit code instead of a link — a dashboard
-  // setting, not something this client controls.
+  // "Confirm email" is turned OFF in the Supabase dashboard (Authentication >
+  // Providers > Email) for this project, so signUp logs the user in
+  // immediately — no verification email, no SMTP setup needed. If that
+  // toggle is ever turned back on, this call still succeeds but the
+  // resulting session will be null until the user clicks a confirmation
+  // link Supabase emails via its default template.
   signUp: async (email, password) => {
     const { error } = await supabase.auth.signUp({ email: email.trim(), password });
-    if (error) return { ok: false, message: errorMessage(error) };
-    return { ok: true };
-  },
-
-  verifyEmailCode: async (email, code) => {
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
-    if (error) return { ok: false, message: errorMessage(error) };
-    return { ok: true };
-  },
-
-  resendCode: async (email) => {
-    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
     if (error) return { ok: false, message: errorMessage(error) };
     return { ok: true };
   },
