@@ -1,5 +1,5 @@
 import { getBestFreeOpenRouterModel } from '@/services/ai/openRouterModels';
-import type { ReceiptExtraction } from '@/services/ai/prompts';
+import type { CompanyIdentification, ReceiptExtraction } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
 
 // Second shared fallback, raced against Gemini in services/ai/client.ts —
@@ -58,4 +58,11 @@ export async function sendChatMessage(
 // shape; it's never actually called.
 export async function extractReceiptFromImage(): Promise<AiResult<ReceiptExtraction>> {
   return { ok: false, error: { type: 'unknown', message: 'Receipt extraction is not supported on this provider.' } };
+}
+
+// Never actually reached — identifyCompanyFromImage is never raceEligible
+// (see client.ts), same reasoning as extractReceiptFromImage above. Exists
+// only to satisfy ProviderClient's shape.
+export async function identifyCompanyFromImage(): Promise<AiResult<CompanyIdentification>> {
+  return { ok: false, error: { type: 'unknown', message: 'Company identification is not supported on this provider.' } };
 }

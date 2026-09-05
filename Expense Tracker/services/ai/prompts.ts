@@ -59,6 +59,20 @@ export function buildReceiptExtractionPrompt(): string {
   ].join('\n');
 }
 
+export type CompanyGuess = { name: string; confidence: number; reason: string };
+export type CompanyIdentification = { candidates: CompanyGuess[] };
+
+export function buildCompanyIdentificationPrompt(): string {
+  return [
+    'You identify the company or brand behind a product from a photo, for a stock-market education app — the user wants to look up that company\'s stock.',
+    'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
+    `{"candidates": [{"name": string, "confidence": number, "reason": string}, ...]}`,
+    '"candidates" is ranked most-likely first, at most 5 entries. "name" is the parent public company\'s common name (e.g. "Apple", "PepsiCo"), not the product name itself.',
+    '"confidence" is 0 to 1 — your genuine estimate, not always a high number. "reason" is a short 4-8 word visual cue (e.g. "Apple logo on the back panel").',
+    'If you cannot identify anything confidently, return fewer candidates (or an empty array) rather than guessing wildly — a low-confidence wrong guess is worse than admitting uncertainty.',
+  ].join('\n');
+}
+
 // --- Learn: quizzes, pattern detection, narrative challenges ---
 // Shared pedagogy: never assume prior knowledge, explain jargon before using
 // it, celebrate correct answers briefly, redirect (never shame) wrong ones,

@@ -138,7 +138,12 @@ export default function SettingsScreen() {
     }
   }
 
-  function handleDevLoginSuccess() {
+  function handleDevLoginSuccess(ownerName?: string) {
+    if (ownerName) {
+      setTier('max');
+      showToast(`Welcome owner, ${ownerName}! Max unlocked on this device.`);
+      return;
+    }
     const next = DEV_TIER_CYCLE[tier];
     setTier(next);
     showToast(`Developer override — you're now on ${TIER_LABELS[next]}.`);

@@ -1,5 +1,10 @@
 import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
-import { buildReceiptExtractionPrompt, type ReceiptExtraction } from '@/services/ai/prompts';
+import {
+  buildCompanyIdentificationPrompt,
+  buildReceiptExtractionPrompt,
+  type CompanyIdentification,
+  type ReceiptExtraction,
+} from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
 import { parseJsonResponse } from './shared';
 
@@ -68,4 +73,25 @@ export async function extractReceiptFromImage(
   const result = await callChat(messages, apiKey, model);
   if (!result.ok) return result;
   return parseJsonResponse<ReceiptExtraction>(extractText(result.data));
+}
+
+export async function identifyCompanyFromImage(
+  base64: string,
+  mimeType: string,
+  apiKey: string,
+  model?: string
+): Promise<AiResult<CompanyIdentification>> {
+  const messages: Message[] = [
+    { role: 'system', content: buildCompanyIdentificationPrompt() },
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Which company or brand made this product?' },
+        { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+      ],
+    },
+  ];
+  const result = await callChat(messages, apiKey, model);
+  if (!result.ok) return result;
+  return parseJsonResponse<CompanyIdentification>(extractText(result.data));
 }

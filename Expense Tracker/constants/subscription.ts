@@ -14,6 +14,7 @@ export type FeatureFlags = {
   multiplePortfolios: boolean; // create/switch between more than one paper portfolio
   limitOrders: boolean; // place buy/sell orders that fill automatically at a target price
   savedChartLimit: number; // how many named/saved expense pie charts a user can keep
+  productScanner: boolean; // camera scan a product -> AI-guessed company/companies, deep-linked to its stock
 };
 
 export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
@@ -24,6 +25,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     receiptAutoFill: false,
     adsEnabled: true,
     pushAlerts: true,
+    productScanner: false,
     stockDetailDailyLimit: 5,
     patternDetection: false,
     backtesting: false,
@@ -38,6 +40,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     receiptAutoFill: true,
     adsEnabled: false,
     pushAlerts: true,
+    productScanner: true,
     stockDetailDailyLimit: null,
     patternDetection: true,
     backtesting: false,
@@ -52,6 +55,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     receiptAutoFill: true,
     adsEnabled: false,
     pushAlerts: true,
+    productScanner: true,
     stockDetailDailyLimit: null,
     patternDetection: true,
     backtesting: true,
@@ -126,6 +130,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Real-time sentiment score + top headlines',
     `${AI_FEATURE_DAILY_LIMIT.pro} AI actions/day on the built-in key — unlimited with your own API key`,
     'AI-powered deep pattern analysis',
+    'Scan a product with your camera to find its stock',
     'Receipt "Auto-fill with AI"',
     'AI spending insights on your expenses',
     'Up to 20 saved spending-breakdown charts',

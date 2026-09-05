@@ -1,5 +1,5 @@
 import { getApiKey } from '@/services/ai/apiKey';
-import type { ReceiptExtraction } from '@/services/ai/prompts';
+import type { CompanyIdentification, ReceiptExtraction } from '@/services/ai/prompts';
 import * as claude from '@/services/ai/providers/claude';
 import * as gemini from '@/services/ai/providers/gemini';
 import * as openai from '@/services/ai/providers/openai';
@@ -29,6 +29,12 @@ type ProviderClient = {
     apiKey: string,
     model?: string
   ) => Promise<AiResult<ReceiptExtraction>>;
+  identifyCompanyFromImage: (
+    base64: string,
+    mimeType: string,
+    apiKey: string,
+    model?: string
+  ) => Promise<AiResult<CompanyIdentification>>;
 };
 
 function clientFor(provider: AiProvider): ProviderClient {
@@ -205,6 +211,15 @@ export async function sendChatMessage(
 export async function extractReceiptFromImage(base64: string, mimeType: string): Promise<AiResult<ReceiptExtraction>> {
   return withResolvedKey<ReceiptExtraction>(
     (client, apiKey, model) => client.extractReceiptFromImage(base64, mimeType, apiKey, model),
+    { applyCustomModel: false }
+  );
+}
+
+// Product scanner (Pro/Max) — same never-race-eligible reasoning as receipt
+// extraction above.
+export async function identifyCompanyFromImage(base64: string, mimeType: string): Promise<AiResult<CompanyIdentification>> {
+  return withResolvedKey<CompanyIdentification>(
+    (client, apiKey, model) => client.identifyCompanyFromImage(base64, mimeType, apiKey, model),
     { applyCustomModel: false }
   );
 }

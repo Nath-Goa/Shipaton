@@ -162,6 +162,11 @@ export default function MarketsScreen() {
           onPress={confirmRegenerate}
         />
         <MarketActionBtn
+          icon="camera-outline"
+          label="Scan"
+          onPress={() => router.push('/scanner')}
+        />
+        <MarketActionBtn
           icon="analytics-outline"
           label="Backtest"
           onPress={() => router.push('/markets/backtest')}

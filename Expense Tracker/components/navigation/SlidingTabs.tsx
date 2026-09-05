@@ -65,8 +65,12 @@ const OFFSCREEN_SCALE = 0.97;
 const OFFSCREEN_OPACITY = 0.55;
 
 const TAB_BAR_HEIGHT = 56;
-const PILL_DIAMETER = 42;
-const PILL_TOP_INSET = 5;
+// A rounded rect spanning the tab button's own full content box (icon +
+// label), not a fixed circle sitting only behind the icon — that left the
+// label uncovered below it.
+const PILL_VERTICAL_INSET = 4;
+const PILL_HORIZONTAL_MARGIN = 6;
+const PILL_RADIUS = 18;
 const ICON_SIZE = 24;
 
 // Tab roots stay mounted once rendered (this matches the previous <Tabs>
@@ -196,8 +200,10 @@ function SlidingTabNavigator({
   }));
 
   const tabWidth = width / routes.length;
+  const pillWidth = tabWidth - PILL_HORIZONTAL_MARGIN * 2;
   const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: progress.value * tabWidth + (tabWidth - PILL_DIAMETER) / 2 }],
+    width: pillWidth,
+    transform: [{ translateX: progress.value * tabWidth + PILL_HORIZONTAL_MARGIN }],
   }));
 
   return (
@@ -219,7 +225,16 @@ function SlidingTabNavigator({
           />
           <Animated.View
             pointerEvents="none"
-            style={[styles.pill, { backgroundColor: colors.accentSoft }, pillStyle]}
+            style={[
+              styles.pill,
+              // The tab bar's own height includes the bottom safe-area
+              // strip (paddingBottom below), which position:absolute
+              // children don't automatically exclude — without adding it
+              // back here the pill would stretch down into that strip
+              // instead of stopping at the tab content's actual bottom edge.
+              { backgroundColor: colors.accentSoft, bottom: PILL_VERTICAL_INSET + insets.bottom },
+              pillStyle,
+            ]}
           />
           {routes.map((route, i) => {
             const options = descriptors[route.key].options as SlidingTabOptions;
@@ -274,11 +289,9 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 10.5, fontWeight: '600' },
   pill: {
     position: 'absolute',
-    top: PILL_TOP_INSET,
+    top: PILL_VERTICAL_INSET,
     left: 0,
-    width: PILL_DIAMETER,
-    height: PILL_DIAMETER,
-    borderRadius: PILL_DIAMETER / 2,
+    borderRadius: PILL_RADIUS,
   },
 });
 

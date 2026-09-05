@@ -19,16 +19,27 @@ import { useTheme } from '@/hooks/useTheme';
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  // Called with an owner's name for one of the two fixed owner logins below
+  // (jumps straight to Max), or with no argument for the generic dev login
+  // (cycles free -> pro -> max -> free).
+  onSuccess: (ownerName?: string) => void;
 };
 
 // A hidden founder/developer gate — reached by tapping the Settings title
-// nine times — that advances the local tier switcher one step (free → pro
-// → max → free) per correct login. Entirely local: no backend, no network
-// call, just a string comparison, same threat model as the existing
-// no-RevenueCat-key dev tier switcher on the upgrade screen.
+// nine times. Entirely local: no backend, no network call, just a string
+// comparison, same threat model as the existing no-RevenueCat-key dev tier
+// switcher on the upgrade screen. Deliberately fake/throwaway credentials,
+// not real personal ones — this file gets committed to git, and a real
+// reused password would sit in git history forever once pushed.
 const DEV_USERNAME = 'aryanathan';
 const DEV_PASSWORD = 'unlimited_stocks';
+
+// Two fixed team-owner logins — always unlock Max directly rather than
+// cycling, and greet the specific person by name.
+const OWNER_LOGINS: { username: string; password: string; name: string }[] = [
+  { username: 'owner_arya', password: 'paper-trader-owner-arya-26', name: 'Arya' },
+  { username: 'owner_nathan', password: 'paper-trader-owner-nathan-26', name: 'Nathan' },
+];
 
 export function DevLoginModal({ visible, onClose, onSuccess }: Props) {
   const { colors } = useTheme();
@@ -50,6 +61,13 @@ export function DevLoginModal({ visible, onClose, onSuccess }: Props) {
   }));
 
   function handleSubmit() {
+    const owner = OWNER_LOGINS.find((o) => o.username === username && o.password === password);
+    if (owner) {
+      triggerFeedback('success');
+      onSuccess(owner.name);
+      onClose();
+      return;
+    }
     if (username === DEV_USERNAME && password === DEV_PASSWORD) {
       triggerFeedback('success');
       onSuccess();
