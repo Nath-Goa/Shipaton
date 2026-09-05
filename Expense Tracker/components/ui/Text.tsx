@@ -23,6 +23,18 @@ function isBoldWeight(fontWeight: unknown): boolean {
 
 export const Text = forwardRef<RNTextInstance, TextProps>(function Text({ style, ...rest }, ref) {
   const { regular, bold, scale } = useTypography();
+
+  // Fast path for the default settings (system font, 1x scale), which is
+  // what most renders use: with no family to apply and no scale to
+  // multiply, the override below is always empty, so flattening the style
+  // and rebuilding the array is pure waste — and this component wraps every
+  // piece of text in the app, hundreds of nodes per screen per render.
+  // Passing `style` straight through also preserves its identity, which
+  // keeps React Native's own style diffing cheap.
+  if (!regular && !bold && scale === 1) {
+    return <RNText ref={ref} {...rest} style={style} />;
+  }
+
   const flat = StyleSheet.flatten(style) ?? {};
   const family = isBoldWeight(flat.fontWeight) ? bold : regular;
 

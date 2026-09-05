@@ -119,10 +119,24 @@ const ACCENT_OVERRIDES: Record<AccentColor, { light: Pick<Palette, 'accent' | 'a
   },
 };
 
+// Memoized per scheme+accent, which is a tiny finite set. This is called by
+// useTheme, which nearly every component in the app calls on every render —
+// so the old unconditional spread both allocated a fresh palette hundreds of
+// times per render pass and, more importantly, handed every caller a new
+// `colors` object identity each time. That invalidated every useMemo and
+// useCallback keyed on colors and defeated memoized children, turning a
+// cheap object into app-wide re-render pressure. Same inputs must return the
+// same reference.
+const paletteCache = new Map<string, Palette>();
+
 export function paletteFor(scheme: 'light' | 'dark', accentColor: AccentColor = 'purple'): Palette {
+  const key = `${scheme}:${accentColor}`;
+  const cached = paletteCache.get(key);
+  if (cached) return cached;
   const base = scheme === 'dark' ? darkPalette : lightPalette;
-  const override = ACCENT_OVERRIDES[accentColor][scheme];
-  return { ...base, ...override };
+  const palette = { ...base, ...ACCENT_OVERRIDES[accentColor][scheme] };
+  paletteCache.set(key, palette);
+  return palette;
 }
 
 export const shadow = {
