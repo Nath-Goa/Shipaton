@@ -190,6 +190,13 @@ export function PredictionCard({ symbol }: Props) {
             That is a small edge over guessing, not a crystal ball — never trade real money on it.
           </Text>
         </View>
+
+        <View style={[styles.warningBanner, { backgroundColor: colors.dangerSoft }]}>
+          <Ionicons name="warning-outline" size={14} color={colors.danger} />
+          <Text style={[styles.warningText, { color: colors.danger }]}>
+            This isn&apos;t perfect — it&apos;s wrong a lot. Treat it as one data point, not a signal to act on.
+          </Text>
+        </View>
       </Card>
     </Animated.View>
   );
@@ -211,4 +218,13 @@ const styles = StyleSheet.create({
   headline: { fontSize: 12.5, lineHeight: 17 },
   footnote: { fontSize: 11.5, lineHeight: 16 },
   bar: { height: 4, borderRadius: radius.sm },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  warningText: { flex: 1, fontSize: 11, fontWeight: '600', lineHeight: 15 },
 });
