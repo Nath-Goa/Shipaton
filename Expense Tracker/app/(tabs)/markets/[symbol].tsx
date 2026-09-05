@@ -365,7 +365,7 @@ export default function StockDetailScreen() {
 
         <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
           <Text style={[styles.predictorDisclaimer, { color: colors.text3 }]}>
-            The direction call and price-range forecast are a simulated statistical estimate over this app's mock
+            The trend summary and price-range forecast are a simulated statistical estimate over this app's mock
             price history — not real market analysis, and not financial advice. They can be, and often will be,
             wrong. Use them for practice, not real decisions.
           </Text>
