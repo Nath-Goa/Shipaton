@@ -37,7 +37,11 @@ export default function PracticeTradeScreen() {
   const [message, setMessage] = useState<string | null>(null);
 
   const symbols = useMemo(() => TICKERS.map((t) => t.symbol), []);
-  const { quotes } = useQuotes(symbols, 4000);
+  // A pushed screen that remounts fresh on every visit (CLAUDE.md §5.1), so
+  // a mount-only fetch already gives one refresh per entry — no need to
+  // keep polling while the sandbox is open, matching the rest of the
+  // Markets tab.
+  const { quotes } = useQuotes(symbols, 0);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

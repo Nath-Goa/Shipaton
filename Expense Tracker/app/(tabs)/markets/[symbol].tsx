@@ -3,6 +3,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
+  Easing,
   FadeIn,
   FadeInDown,
   FadeInUp,
@@ -33,7 +34,7 @@ import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { detectPatterns, explainChartPoint } from '@/services/ai/learn';
 import { computeDirectionCall, computeForecastBand, computeSentiment } from '@/services/market/signals';
-import { getFullHistory, getHistory, subscribeLiveQuote } from '@/services/marketData/marketData';
+import { getFullHistory, getHistory, getQuote } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStockViewStore } from '@/store/useStockViewStore';
@@ -76,6 +77,7 @@ export default function StockDetailScreen() {
   const [explainError, setExplainError] = useState<string | null>(null);
 
   const starScale = useSharedValue(1);
+  const refreshSpin = useSharedValue(0);
   const priceFlashOpacity = useSharedValue(0);
   const prevPriceRef = useRef(quote?.price);
 
@@ -87,13 +89,28 @@ export default function StockDetailScreen() {
     setShowAd(features.adsEnabled && lookupCount % 3 === 0);
   }, [symbol, blocked, features.adsEnabled, recordStockView]);
 
+  // One fetch per visit, not a continuous poll — this screen unmounts and
+  // remounts fresh on every push/pop (CLAUDE.md §5.1), so a plain focus
+  // fetch already gives "current price when you open it." It then holds
+  // steady until the refresh button is tapped (handleRefreshQuote below),
+  // rather than ticking every few seconds while you're just reading the
+  // chart.
   useFocusEffect(
     useCallback(() => {
       if (blocked) return;
-      const unsubscribe = subscribeLiveQuote(symbol, setQuote);
-      return unsubscribe;
+      setQuote(getQuote(symbol));
     }, [symbol, blocked])
   );
+
+  function handleRefreshQuote() {
+    triggerFeedback('secondary');
+    refreshSpin.value = withTiming(refreshSpin.value + 360, { duration: 500, easing: Easing.out(Easing.cubic) });
+    setQuote(getQuote(symbol));
+  }
+
+  const refreshSpinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${refreshSpin.value}deg` }],
+  }));
 
   useEffect(() => {
     if (quote?.price && prevPriceRef.current && quote.price !== prevPriceRef.current) {
@@ -200,15 +217,22 @@ export default function StockDetailScreen() {
         options={{
           title: symbol,
           headerRight: () => (
-            <Pressable hitSlop={8} onPress={handleToggleWatchlist}>
-              <Animated.View style={starAnimatedStyle}>
-                <Ionicons
-                  name={watched ? 'star' : 'star-outline'}
-                  size={21}
-                  color={watched ? colors.warning : colors.text2}
-                />
-              </Animated.View>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable hitSlop={8} onPress={handleRefreshQuote}>
+                <Animated.View style={refreshSpinStyle}>
+                  <Ionicons name="refresh-outline" size={20} color={colors.text2} />
+                </Animated.View>
+              </Pressable>
+              <Pressable hitSlop={8} onPress={handleToggleWatchlist}>
+                <Animated.View style={starAnimatedStyle}>
+                  <Ionicons
+                    name={watched ? 'star' : 'star-outline'}
+                    size={21}
+                    color={watched ? colors.warning : colors.text2}
+                  />
+                </Animated.View>
+              </Pressable>
+            </View>
           ),
         }}
       />
@@ -454,6 +478,7 @@ function LockedCard({ title, message }: { title: string; message: string }) {
 }
 
 const styles = StyleSheet.create({
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   notFound: { padding: spacing.xl },
   name: { fontSize: 13, fontWeight: '600' },
