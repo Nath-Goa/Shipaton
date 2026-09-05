@@ -5,7 +5,6 @@ import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { springs } from '@/constants/animations';
-import { radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
 // iOS-style "liquid glass" tab bar background: a real blur (content behind
@@ -17,11 +16,12 @@ import { useTheme } from '@/hooks/useTheme';
 // riskier change than this visual pass calls for.
 const TAB_ROUTE_ORDER = ['index', 'learn', 'markets', 'portfolio', 'expenses', 'assistant'];
 const TAB_COUNT = TAB_ROUTE_ORDER.length;
-// A compact "bob" centered in each tab slot — tall enough to cover nearly
-// the full bar height, short enough to hug the icon+label instead of
-// spanning the whole column.
-const PILL_WIDTH_FRACTION = 0.62;
-const PILL_VERTICAL_INSET = 3;
+// A round highlight sized to the icon, not a pill stretched to the bar's
+// full height — the bar is much taller than the icon (it also has to fit
+// the label underneath), so spanning top-to-bottom read as a tall oval
+// hanging below the button instead of something wrapped around it.
+const PILL_DIAMETER = 42;
+const PILL_TOP_INSET = 5;
 
 function activeIndexFor(pathname: string): number {
   if (pathname === '/' || pathname === '' || pathname === '/index') return 0;
@@ -36,8 +36,7 @@ export function LiquidGlassTabBar() {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const tabWidth = width / TAB_COUNT;
-  const pillWidth = tabWidth * PILL_WIDTH_FRACTION;
-  const centerOffset = (tabWidth - pillWidth) / 2;
+  const centerOffset = (tabWidth - PILL_DIAMETER) / 2;
 
   const translateX = useSharedValue(activeIndexFor(pathname) * tabWidth + centerOffset);
 
@@ -58,7 +57,7 @@ export function LiquidGlassTabBar() {
       />
       <Animated.View
         pointerEvents="none"
-        style={[styles.pill, { width: pillWidth, backgroundColor: colors.accentSoft }, pillStyle]}
+        style={[styles.pill, { backgroundColor: colors.accentSoft }, pillStyle]}
       />
     </>
   );
@@ -67,9 +66,10 @@ export function LiquidGlassTabBar() {
 const styles = StyleSheet.create({
   pill: {
     position: 'absolute',
-    top: PILL_VERTICAL_INSET,
-    bottom: PILL_VERTICAL_INSET,
+    top: PILL_TOP_INSET,
     left: 0,
-    borderRadius: radius.pill,
+    width: PILL_DIAMETER,
+    height: PILL_DIAMETER,
+    borderRadius: PILL_DIAMETER / 2,
   },
 });

@@ -40,7 +40,7 @@ export function UpgradeBanner({ title, body, delay = 0 }: Props) {
             <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
             <Text style={[styles.body, { color: colors.text3 }]}>
               {body}
-              {remaining !== null ? ` (${remaining} AI action${remaining === 1 ? '' : 's'} left today)` : ''}
+              {remaining === 0 ? ' 0 free actions remaining today.' : ''}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.text3} />

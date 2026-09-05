@@ -1,11 +1,12 @@
-import { router } from 'expo-router';
-import { type ReactNode, useEffect, useState } from 'react';
+import { router, Stack } from 'expo-router';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { PinSetupModal } from '@/components/security/PinSetupModal';
 import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
+import { DevLoginModal } from '@/components/settings/DevLoginModal';
 import { FontPicker } from '@/components/settings/FontPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -16,7 +17,7 @@ import { Text } from '@/components/ui/Text';
 import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';
-import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
+import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS, type Tier } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import {
   disableAllReminders,
@@ -44,7 +45,12 @@ import {
   type TutorPersona,
 } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
+import { useToastStore } from '@/store/useToastStore';
 import { confirmAction } from '@/utils/confirm';
+
+// Cycles the local tier switcher one step per successful developer login,
+// matching the free → pro → max → free order the founders described.
+const DEV_TIER_CYCLE: Record<Tier, Tier> = { free: 'pro', pro: 'max', max: 'free' };
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -75,6 +81,7 @@ export default function SettingsScreen() {
     accentColor,
     setAccentColor,
     tier,
+    setTier,
     notificationsEnabled,
     setNotificationsEnabled,
     fontOption,
@@ -101,6 +108,7 @@ export default function SettingsScreen() {
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
   const badgeCount = useStreakStore((s) => s.badges.length);
   const getSuggestedHour = useUsageStore((s) => s.getSuggestedHour);
+  const showToast = useToastStore((s) => s.show);
   const features = TIER_FEATURES[tier];
 
   const [planModalOpen, setPlanModalOpen] = useState(false);
@@ -108,6 +116,32 @@ export default function SettingsScreen() {
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [biometricCaps, setBiometricCaps] = useState<BiometricCapabilities | null>(null);
   const [testingNotif, setTestingNotif] = useState(false);
+  const [devLoginVisible, setDevLoginVisible] = useState(false);
+
+  // Hidden developer-options gesture: tap the header title 9 times within
+  // 1.5s of each other to reach the login gate. Refs (not state) so rapid
+  // taps don't fight re-renders.
+  const titleTapCountRef = useRef(0);
+  const lastTitleTapAtRef = useRef(0);
+  const TITLE_TAP_THRESHOLD = 9;
+  const TITLE_TAP_WINDOW_MS = 1500;
+
+  function handleTitleTap() {
+    const now = Date.now();
+    if (now - lastTitleTapAtRef.current > TITLE_TAP_WINDOW_MS) titleTapCountRef.current = 0;
+    lastTitleTapAtRef.current = now;
+    titleTapCountRef.current += 1;
+    if (titleTapCountRef.current >= TITLE_TAP_THRESHOLD) {
+      titleTapCountRef.current = 0;
+      setDevLoginVisible(true);
+    }
+  }
+
+  function handleDevLoginSuccess() {
+    const next = DEV_TIER_CYCLE[tier];
+    setTier(next);
+    showToast(`Developer override — you're now on ${TIER_LABELS[next]}.`);
+  }
 
   useEffect(() => {
     getBiometricCapabilities().then(setBiometricCaps);
@@ -234,6 +268,15 @@ export default function SettingsScreen() {
 
   return (
     <Screen edges={['left', 'right', 'bottom']}>
+      <Stack.Screen
+        options={{
+          headerTitle: () => (
+            <Pressable onPress={handleTitleTap} hitSlop={12}>
+              <Text style={[styles.headerTitleText, { color: colors.text }]}>Settings</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Section title="Plan">
@@ -396,6 +439,11 @@ export default function SettingsScreen() {
         isChangingPin={isChangingPin}
         onClose={() => setPinModalOpen(false)}
       />
+      <DevLoginModal
+        visible={devLoginVisible}
+        onClose={() => setDevLoginVisible(false)}
+        onSuccess={handleDevLoginSuccess}
+      />
     </Screen>
   );
 }
@@ -541,6 +589,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.xl, paddingBottom: spacing.xxl },
+  headerTitleText: { fontSize: 17, fontWeight: '600' },
   sectionTitle: { fontSize: 15, fontWeight: '700' },
   sectionSubtitle: { fontSize: 12.5, marginTop: 2 },
   fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: spacing.sm },
