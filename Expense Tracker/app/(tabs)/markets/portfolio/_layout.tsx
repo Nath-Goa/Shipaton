@@ -16,6 +16,9 @@ export default function PortfolioLayout() {
       <Stack.Screen name="trade/[symbol]" options={{ presentation: 'modal', title: 'Trade' }} />
       <Stack.Screen name="manage" options={{ presentation: 'modal', title: 'Portfolios' }} />
       <Stack.Screen name="leaderboard" options={{ presentation: 'modal', title: 'Leaderboard' }} />
+      <Stack.Screen name="social/index" options={{ headerShown: false }} />
+      <Stack.Screen name="social/new-duel" options={{ presentation: 'modal', title: 'New duel' }} />
+      <Stack.Screen name="social/duel/[id]" options={{ title: 'Duel' }} />
     </Stack>
   );
 }

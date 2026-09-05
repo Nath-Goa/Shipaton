@@ -186,6 +186,7 @@ export default function PortfolioScreen() {
           <>
             <IconButton name="image-outline" onPress={() => setResultsCardOpen(true)} />
             <IconButton name="share-outline" onPress={handleShare} />
+            <IconButton name="people-outline" onPress={() => router.push('/markets/portfolio/social')} />
             <IconButton name="trophy-outline" onPress={() => router.push('/markets/portfolio/leaderboard')} />
             <IconButton name="swap-horizontal-outline" onPress={() => router.push('/markets/portfolio/manage')} />
           </>

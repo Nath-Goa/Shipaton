@@ -15,6 +15,7 @@ export type FeatureFlags = {
   limitOrders: boolean; // place buy/sell orders that fill automatically at a target price
   savedChartLimit: number; // how many named/saved expense pie charts a user can keep
   productScanner: boolean; // camera scan a product -> AI-guessed company/companies, deep-linked to its stock
+  duelTimeSkip: boolean; // vote to end a duel early once every participant agrees, instead of waiting out ends_at
 };
 
 export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
@@ -32,6 +33,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     multiplePortfolios: false,
     limitOrders: false,
     savedChartLimit: 5,
+    duelTimeSkip: false,
   },
   pro: {
     tier: 'pro',
@@ -47,6 +49,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     multiplePortfolios: false,
     limitOrders: false,
     savedChartLimit: 20,
+    duelTimeSkip: true,
   },
   max: {
     tier: 'max',
@@ -62,6 +65,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     multiplePortfolios: true,
     limitOrders: true,
     savedChartLimit: 100,
+    duelTimeSkip: true,
   },
 };
 
@@ -131,6 +135,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     `${AI_FEATURE_DAILY_LIMIT.pro} AI actions/day on the built-in key — unlimited with your own API key`,
     'AI-powered deep pattern analysis',
     'Scan a product with your camera to find its stock',
+    'Vote to end a friend or family duel early once everyone agrees',
     'Receipt "Auto-fill with AI"',
     'AI spending insights on your expenses',
     'Up to 20 saved spending-breakdown charts',
