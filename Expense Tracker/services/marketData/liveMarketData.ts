@@ -148,6 +148,16 @@ function maybeRefreshAllQuotesTwelveData(): void {
         quoteCache.set(symbol, { symbol, ...q });
         quoteFetchedAt.set(symbol, Date.now());
       }
+      // Twelve Data's batch can silently come back empty for every symbol —
+      // an invalid/revoked/quota-exhausted key isn't a thrown error, just a
+      // response with nothing usable in it — and unlike fetchDailyBars this
+      // has no per-symbol null to react to individually. Route whatever
+      // Twelve Data didn't return through Yahoo per symbol, the same way
+      // maybeRefreshBars already does for bars, so a bad key degrades to
+      // Yahoo's real quotes instead of sitting on stale/mock ones all day.
+      for (const t of TICKERS) {
+        if (!live.has(t.symbol)) maybeRefreshQuoteYahoo(t.symbol);
+      }
     })
     .finally(() => {
       batchQuoteInFlight = null;
