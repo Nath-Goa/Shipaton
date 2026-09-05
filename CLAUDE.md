@@ -64,12 +64,20 @@ Expense Tracker/                (app root — cd here for everything)
                      predictor/ (trained price-direction model — §5.4), news/
                      (services/news/newsFeed.ts + sentiment.ts — real Yahoo
                      headlines + on-device scoring, feeds both the predictor
-                     and the News tab)
+                     and the News tab), scanner/ (camera capture, mirrors
+                     receipts/), arena/ (self-contained $100k-vs-AI engine —
+                     never touches the real/mock market data other screens
+                     read), social/ (supabaseClient.ts — Phase 2 accounts,
+                     see §5.8)
   scripts/          Node-only tooling (npm run eval:predictor / sweep:predictor /
                      test:news) — excluded from tsconfig, never shipped
+  supabase/         schema.sql — paste-and-run in the Supabase SQL Editor;
+                     not applied by the app itself, no migration tooling
   components/       ui/, charts/, expenses/, portfolio/, markets/, stocks/,
                      chat/, reviews/, security/, settings/, onboarding/, games/,
-                     navigation/ (SlidingTabs, MarketsPortfolioSwitch)
+                     navigation/ (SlidingTabs, MarketsPortfolioSwitch),
+                     scanner/ (CompanyResultSheet), news/ (NewsCard),
+                     auth/ (AuthGate — §5.8)
   constants/        theme, animations, subscription, categories, tickers,
                      badges, quizTopics, quizBank, flashcardBank, courses
   hooks/            useTheme, useQuotes, useAiQuota, useHasApiKey, useUpgradeToTier
@@ -139,6 +147,18 @@ Local-only, no backend. Three kinds, each idempotent: 8pm daily check-in, same-d
 
 `useStreakStore.awardBadge(id)` is a generic, idempotent one-off award. `constants/badges.ts` is the single badge registry — a new badge needs an entry there plus an `awardBadge` call. `app/settings/achievements.tsx` renders every entry, earned or locked.
 
+### 5.8 Accounts (Supabase) — Phase 2, foundation only
+
+The **first real backend this app has ever had** — everything else in this repo is 100% local/on-device. `services/social/supabaseClient.ts` is the only place the app talks to Supabase. Fully additive/optional: with `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` unset, `isSupabaseConfigured()` is false and the app behaves exactly as before — no auth wall.
+
+When configured, `app/_layout.tsx` renders `components/auth/AuthGate.tsx` (sign-in/sign-up/verify-code/reset-password, one component with internal step state, same shape as `OnboardingScreen`) in place of the main app whenever there's no session. `store/useAuthStore.ts` mirrors Supabase's own auth listener — it is deliberately **not** `persist`-backed itself, since Supabase's client already persists the session to AsyncStorage.
+
+**A real crash was found and fixed here**: Expo Router's web output does an initial server-side render pass (plain Node, no `window`), and Supabase's client touches session storage the moment it's constructed — with no guard, that killed the entire dev server (`ReferenceError: window is not defined`, process exit code 7), not just a caught browser error. Fixed by disabling `persistSession`/`autoRefreshToken` and the `storage` adapter whenever `typeof window === 'undefined'`. Do not remove that guard.
+
+`supabase/schema.sql` has the full schema (`profiles` auto-created via trigger on signup, `friendships`, `families`/`family_members`, `duels`) with Row Level Security on every table — paste-and-run once in the Supabase SQL Editor; nothing in the app applies it automatically, there is no migration tooling.
+
+**Dashboard setting required, not yet done**: Supabase's signup confirmation email defaults to a magic link. The Auth email template (Authentication → Email Templates → Confirm signup) must be switched to the OTP/code variant, or users will get a link instead of the 6-digit code `AuthGate` asks them to enter.
+
 ## 6. Feature inventory, by tab
 
 - **Home** — net worth/P&L stats, free-tier upsell, watchlist, quick actions, AI weekly recap
@@ -177,23 +197,41 @@ Everything is optional and additive — the app is fully functional in demo mode
 | `EXPO_PUBLIC_SHARED_OPENROUTER_API_KEY` | Raced against Gemini for text features | Gemini-only fallback |
 | `EXPO_PUBLIC_TWELVEDATA_API_KEY` | Real live-ish market data | Local mock random-walk engine |
 | `EXPO_PUBLIC_SENTRY_DSN` | Crash reporting | No-op |
+| `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Accounts, email verification, families/friends/duels (§5.8) | No auth wall at all — app works exactly as today |
 
 `eas.json`: `development` / `preview` / `production` build profiles. `app.json`: bundle id `com.nathgoa.mockstocktrainer`, scheme `mockstocktrainer`.
 
 ## 9. Current state (last updated: this session)
 
-No open bugs, no half-finished features. Everything in §6 is built, typechecks clean, and is pushed to `main`. Tabs now slide horizontally between screens via a custom navigator (§5.1), replacing the per-screen entrance animation entirely (§7 rule #3), and the font/text-scale setting applies app-wide (§7 rule #8). The bottom tab bar is Home, Learn, Markets, News, Expenses, Assistant — Portfolio was folded under Markets as a nested route (not a bottom tab) when News was added, to keep the bar at six rather than growing to seven (§5.1). All 8 modal backdrops (the original six plus two added since) use the split entrance/touch pattern from rule #2 — no known gap left there. EAS builds run under the `nathgoas-team` account. Correction to an earlier version of this note: `app.json`'s `owner: "nathgoas-team"` and `extra.eas.projectId` are NOT optional or auto-recreated — a real build on the dashboard failed with "EAS project not configured" while they were absent, confirming `eas init --account nathgoas-team` doesn't run automatically anywhere in the build workflow. Both fields must stay committed in `app.json`; if either is ever missing or reverted, builds fail immediately until someone re-runs `eas init --account nathgoas-team` (interactively, from a real terminal — it can't self-configure non-interactively) and the resulting `app.json` diff is committed. The account must stay the team one, never a personal account.
+Everything in §6 plus the additions below is built, typechecks clean, and is pushed to `main`. Tabs slide horizontally via a custom navigator (§5.1), replacing the per-screen entrance animation entirely (§7 rule #3), and the font/text-scale setting applies app-wide (§7 rule #8). Bottom tab bar: Home, Learn, Markets, News, Expenses, Assistant — Portfolio is nested under Markets, not a bottom tab (kept at six rather than growing to seven). The tab bar's active-tab highlight is a rounded rect covering the whole tab button (icon+label), not a small circle behind just the icon. All 8 modal backdrops use the split entrance/touch pattern from rule #2.
 
-A second contributor (Arya) also pushes features directly to `main` via their own Claude Code sessions — their commits show up authored as either "Claude" or their own name depending on how they ran it. Treat any push you didn't make yourself the same as a user-facing bug report: diff it against your last known-good state, run `tsc --noEmit` yourself rather than trusting a commit message's claim, and check `app.json` hasn't reverted the EAS `owner`.
+**This session's big additions, in the order they were built:**
+1. **Price-direction predictor** (§5.4, `services/predictor/`) — a real, measured L2 logistic regression (not a heuristic), shipped weights fitted offline over 152k samples/90 tickers, ~58% accurate on the ~14% of calls it's confident enough to make. Ships with a launch-time self-test tripwire (`services/predictor/selfTest.ts`) that switches predictions off if on-device learning ever drifts the weights below shipped quality. Data collection is opt-in, asked during onboarding.
+2. **News tab** (`app/(tabs)/news/`, `services/news/marketNews.ts`) — sectioned fetch (Market / today's biggest movers / one section per held-or-watched stock), presented as an InShort-style swipeable one-headline-at-a-time card feed with an on-demand "Explain this" AI gloss per headline.
+3. **Product scanner** (Pro/Max, `app/scanner.tsx`, `services/scanner/`) — camera or library photo → AI identifies the company (mirrors the existing receipt-extraction vision-AI pattern exactly) → a draggable "blob" bottom sheet, swipe between ranked candidates, deep-links to the matching stock if tracked. Entry point: "Scan" action on Markets.
+4. **$100k vs AI investing arena** (`app/(tabs)/markets/arena.tsx`, `services/arena/arenaEngine.ts`) — a time-boxed head-to-head against a simple AI trader, entirely self-contained (its own seeded price paths, its own portfolio math) — never touches the real/mock market engine and never imports the predictor. Configurable cash/duration/AI difficulty/stock count, adjustable playback speed + instant skip-ahead. Entry point: button on the practice-trade sandbox.
+5. **Supabase accounts — foundation only** (§5.8) — sign-up/sign-in/email-code-verification/password-reset all working, `supabase/schema.sql` ready to run (profiles/friendships/families/duels, full RLS). **Friends/families/duels UI is NOT built yet** — this is the single biggest piece of unfinished, explicitly-requested work. See §10.
+6. Two **local-only, fake-credential** "owner" logins added to the existing hidden dev-login modal (Settings title tapped 9×) that jump straight to Max — deliberately not real emails/passwords, since this file's history is public once pushed.
+
+EAS builds run under the `nathgoas-team` account. `app.json`'s `owner: "nathgoas-team"` and `extra.eas.projectId` are NOT optional or auto-recreated — confirmed by a real build failing with "EAS project not configured" while they were absent. Both fields must stay committed; if either is ever missing, someone must re-run `eas init --account nathgoas-team` (interactive, real terminal — cannot self-configure non-interactively) and commit the resulting `app.json` diff.
+
+A second contributor (Arya) also pushes directly to `main` via their own Claude Code sessions, often running in parallel with whichever session is reading this file — commits show up authored as "Claude" or their own name. **This happened repeatedly this session**: treat any push you didn't make yourself as a real, possibly-conflicting change, not noise — `git fetch`/`git log HEAD..origin/main` before every commit, and if the same files are involved, read what changed before assuming your version should win (twice this session, the other side's design was genuinely better and got adopted instead of overwritten — see the News tab in point 2 above).
 
 **Known gaps**, not bugs:
-- No automated tests exist (§3) — this is accepted, not a TODO, unless the user asks to add a test setup.
+- No automated tests exist (§3) — accepted, not a TODO, unless asked.
+- Predictor and News headline fetches are CORS-blocked on the **web preview only** — expected, works on native (confirmed via curl with a browser User-Agent). Don't mistake this for a real bug when testing in the browser pane.
 
-## 10. Suggested next steps (discussed, not started)
+## 10. Suggested next steps
 
-- **Debt/loan payoff tracker** — mirror of savings goals (balance going down instead of up); reuses the recurring-contribution and progress-bar machinery almost entirely. Lowest effort of the four.
-- **Activity heatmap** — GitHub-style day-by-day grid of app activity, giving the streak/badge system a visual history.
-- **Custom expense categories** — user-defined categories (icon/color) beyond the fixed list in `constants/categories.ts` + generic "Other."
-- **Goal milestones on the net worth chart** — annotate `computeNetWorthHistory`'s chart with markers at each goal's `completedAt` date; both data sources already exist independently.
+**In progress / explicitly requested, not finished — do this first if the user doesn't specify:**
+- **Families/friends/duels UI** (§5.8) — the actual reason Phase 2 was started. Schema (`supabase/schema.sql`) is ready; needs: a friend-request flow (search/add by email or username, accept/decline), a "create/join family" flow, and a duel flow (challenge a friend or another family, both sides' portfolios trade the same simulated period, track `time_skip_votes` — "no time-skipping unless all participants agree" is a **Pro/Max-gated** rule per the original request, needs a new `FeatureFlags` flag). Supabase Realtime channels are the natural fit for live duel score updates (avoid polling).
+- **Supabase dashboard setting**: the signup confirmation email currently defaults to a magic link, not the 6-digit code `AuthGate` expects the user to type in. Someone with dashboard access needs to switch Authentication → Email Templates → "Confirm signup" to the OTP/code template.
+- **Learn-tab modes** (the rest of the original big feature request, not started): ELI5 toggle on lesson screens (free), a Pro/Max "visual learning mode" with animated charts (realistically 2-3 flagship courses with true custom visuals, not all 10 — said explicitly when scoped), a free storytelling mode (reuse the `generateNarrative` AI pattern), free text-to-speech (needs adding the `expo-speech` dependency — a genuinely new native module, needs a new EAS build to take effect), and a free daily trivia battle vs a seeded (not AI-per-question) bot opponent.
+
+**Older, discussed-but-not-started ideas** (lower priority than the above unless asked):
+- **Debt/loan payoff tracker** — mirror of savings goals (balance going down instead of up); reuses the recurring-contribution and progress-bar machinery almost entirely.
+- **Activity heatmap** — GitHub-style day-by-day grid of app activity.
+- **Custom expense categories** — user-defined categories beyond the fixed list in `constants/categories.ts`.
+- **Goal milestones on the net worth chart** — annotate `computeNetWorthHistory`'s chart with markers at each goal's `completedAt` date.
 
 Otherwise: ask the user what they want next rather than assuming one of the above.
