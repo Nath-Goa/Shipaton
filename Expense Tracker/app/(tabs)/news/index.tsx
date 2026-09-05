@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View, type ViewToken } from 'react-native';
 
 import { NewsCard } from '@/components/news/NewsCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -41,6 +41,15 @@ export default function NewsScreen() {
   const [sections, setSections] = useState<NewsSection[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  // Drives NewsCard's auto-summary — only the single centered card should
+  // ever be "focused" at once, never every card the FlatList happens to have
+  // mounted (which can be several, ahead/behind the visible one).
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const top = viewableItems.find((v) => v.isViewable);
+    if (top) setFocusedId((top.item as FlatNewsEntry).item.id);
+  }).current;
   // A background load (focus, hourly tick) still in flight must not block an
   // explicit pull-to-refresh — chaining onto whatever's already running
   // (rather than a plain in-flight boolean guard that would just skip the
@@ -83,6 +92,10 @@ export default function NewsScreen() {
   }
 
   const entries = flatten(sections ?? []);
+  // Fallback for the very first card: onViewableItemsChanged only fires once
+  // the FlatList has actually measured/laid out, which can lag a frame or
+  // two behind entries first landing.
+  const effectiveFocusedId = focusedId ?? entries[0]?.item.id ?? null;
 
   return (
     <Screen>
@@ -108,6 +121,8 @@ export default function NewsScreen() {
             showsVerticalScrollIndicator={false}
             snapToInterval={containerHeight}
             decelerationRate="fast"
+            viewabilityConfig={viewabilityConfig}
+            onViewableItemsChanged={onViewableItemsChanged}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
             renderItem={({ item: entry }) => (
               <NewsCard
@@ -115,6 +130,7 @@ export default function NewsScreen() {
                 height={containerHeight}
                 sectionLabel={entry.sectionLabel}
                 symbol={entry.symbol}
+                isFocused={entry.item.id === effectiveFocusedId}
                 watched={entry.symbol ? watchlist.includes(entry.symbol) : undefined}
                 onToggleWatch={entry.symbol ? () => toggleWatchlist(entry.symbol!) : undefined}
               />

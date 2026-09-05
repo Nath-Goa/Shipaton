@@ -65,11 +65,14 @@ export async function explainChartPoint(symbol: string, bars: PriceBar[], index:
   return sendChatMessage(systemPrompt, [{ role: 'user', text: `Recent bars leading up to the tapped point:\n${payload}` }]);
 }
 
-// News tab's "Explain this" — a focused single-turn gloss on one headline,
-// deliberately not run automatically for every card in the feed (that would
-// burn the shared AI_FEATURE_DAILY_LIMIT across a whole scrollable feed);
-// only called on demand, and the caller (News tab) caches the result per
-// headline id so re-swiping back doesn't re-spend quota.
+// A short plain-English gloss on one real headline, so the app itself
+// answers "why does this matter" without sending the user to the source
+// article. Deliberately never run for a whole feed at once (that would burn
+// the shared AI_FEATURE_DAILY_LIMIT across dozens of headlines at a time) —
+// every call site instead triggers this for exactly one headline at a time
+// (the single focused card in the News tab's one-at-a-time feed, or the
+// single active candidate in the product scanner), which keeps the cost
+// identical to the old on-demand button, just without the extra tap.
 export async function explainHeadline(item: NewsItem): Promise<AiResult<string>> {
   const systemPrompt = [
     'You are a finance news explainer inside an educational trading app.',
@@ -80,6 +83,24 @@ export async function explainHeadline(item: NewsItem): Promise<AiResult<string>>
     'Respond with plain text only, 2-3 sentences, no markdown, no JSON.',
   ].join(' ');
   return sendChatMessage(systemPrompt, [{ role: 'user', text: 'Explain this headline.' }]);
+}
+
+// Module-wide cache keyed by headline id, shared by every call site
+// (News tab, product scanner) so the same real-world headline is never
+// re-summarized twice even if it shows up in two places at once, and
+// re-visiting an already-explained card never re-spends quota.
+const headlineExplanationCache = new Map<string, string>();
+
+export function getCachedHeadlineExplanation(item: NewsItem): string | null {
+  return headlineExplanationCache.get(item.id) ?? null;
+}
+
+export async function explainHeadlineCached(item: NewsItem): Promise<AiResult<string>> {
+  const cached = headlineExplanationCache.get(item.id);
+  if (cached) return { ok: true, data: cached };
+  const result = await explainHeadline(item);
+  if (result.ok) headlineExplanationCache.set(item.id, result.data);
+  return result;
 }
 
 export async function generateTradeReflection(params: {
