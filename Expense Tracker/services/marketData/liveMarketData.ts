@@ -285,7 +285,11 @@ export function getAllQuotes(): Quote[] {
 
 const liveListeners = new Map<string, Set<(q: Quote) => void>>();
 const liveTimers = new Map<string, ReturnType<typeof setInterval>>();
-const LIVE_POLL_MS = 15_000;
+// Markets' own symbol detail screen no longer uses this (it fetches once
+// per visit plus a manual refresh button instead — see markets/[symbol].tsx)
+// — the remaining caller is Portfolio's trade screen, which should still
+// stay live but only needs a once-a-minute cadence, not every 15s.
+const LIVE_POLL_MS = 60_000;
 
 export function subscribeLiveQuote(symbol: string, onQuote: (q: Quote) => void): () => void {
   if (!liveListeners.has(symbol)) liveListeners.set(symbol, new Set());

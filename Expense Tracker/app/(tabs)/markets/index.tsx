@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
@@ -108,7 +108,18 @@ export default function MarketsScreen() {
   const showToast = useToastStore((s) => s.show);
 
   const symbols = useMemo(() => TICKERS.map((t) => t.symbol), []);
-  const { quotes, refresh } = useQuotes(symbols);
+  // Markets stays mounted as the tab root (CLAUDE.md §5.1), so a plain
+  // mount effect would only ever fetch once, on the very first visit —
+  // refetching on every focus is what actually gives "one fresh pull each
+  // time you open this tab." No background polling while it sits open
+  // (pollMs=0): pull-to-refresh and the Refresh prices action are the only
+  // other ways prices update while you're on this screen.
+  const { quotes, refresh } = useQuotes(symbols, 0);
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
