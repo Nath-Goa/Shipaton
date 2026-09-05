@@ -11,7 +11,7 @@ import {
   type TabRouterOptions,
 } from 'expo-router/react-navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -35,8 +35,10 @@ import { useTheme } from '@/hooks/useTheme';
 //
 // Built on React Navigation's custom-navigator API (useNavigationBuilder +
 // TabRouter) and surfaced to expo-router through withLayoutContext, so
-// routing, nested per-tab stacks, and typed routes all keep working exactly
-// as before — only the presentation changes.
+// routing and the nested per-tab stacks keep working exactly as before —
+// only the presentation changes. Tapping the already-focused tab still pops
+// that tab's stack to its root: this emits `tabPress` on every press, and
+// expo-router's stack navigator is what listens for it and pops.
 
 export type SlidingTabOptions = {
   title?: string;
@@ -227,8 +229,13 @@ function SlidingTabNavigator({
             return (
               <Pressable
                 key={route.key}
-                accessibilityRole="button"
-                accessibilityState={focused ? { selected: true } : {}}
+                // Matches what the stock bottom-tab item announces, so
+                // replacing the navigator didn't quietly downgrade TalkBack:
+                // "tab" as the role (iOS ignores it, hence the button there)
+                // and an explicit selected state on every tab, not just the
+                // active one.
+                role={Platform.select({ ios: 'button', default: 'tab' })}
+                aria-selected={focused}
                 accessibilityLabel={options.title ?? route.name}
                 style={styles.tabButton}
                 onPress={() => {
