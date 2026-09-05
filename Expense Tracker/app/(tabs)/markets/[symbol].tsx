@@ -355,6 +355,14 @@ export default function StockDetailScreen() {
           />
         )}
 
+        <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
+          <Text style={[styles.predictorDisclaimer, { color: colors.text3 }]}>
+            The direction call and price-range forecast are a simulated statistical estimate over this app's mock
+            price history — not real market analysis, and not financial advice. They can be, and often will be,
+            wrong. Use them for practice, not real decisions.
+          </Text>
+        </Animated.View>
+
         {/* Sentiment Gauge with Animated Needle */}
         <Animated.View entering={FadeInDown.delay(220).springify().damping(16)}>
           <Card>
@@ -492,6 +500,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: '700' },
   reason: { fontSize: 13.5, lineHeight: 19 },
   confidence: { fontSize: 12, marginTop: spacing.sm },
+  predictorDisclaimer: { fontSize: 11.5, lineHeight: 16, textAlign: 'center', paddingHorizontal: spacing.sm },
   tapHint: { fontSize: 11, textAlign: 'center', marginTop: spacing.sm },
   forecastRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   forecastCol: { alignItems: 'center', flex: 1 },

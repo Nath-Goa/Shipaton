@@ -1,4 +1,4 @@
-import { computeDirectionCall } from '@/services/market/signals';
+import { computeDirectionCall, FLAT_BAND_PCT } from '@/services/market/signals';
 import { getFullHistory } from '@/services/marketData/marketData';
 import type { Direction } from '@/types/stock';
 
@@ -7,6 +7,11 @@ import type { Direction } from '@/types/stock';
 // would've been available at that point, then checks it against what
 // actually happened `horizonDays` later. Purely a client-side replay over
 // already-generated mock data — no new data source involved.
+//
+// FLAT_BAND_PCT is imported from signals.ts rather than kept as a local
+// copy: it's the ground-truth definition of up/down/flat, and the thing
+// making calls and the thing grading them must never be able to drift out
+// of sync with each other.
 
 export type BacktestBucket = { predicted: number; correct: number };
 
@@ -19,12 +24,11 @@ export type BacktestResult = {
   byDirection: Record<Direction, BacktestBucket>;
 };
 
-// computeDirectionCall's moving averages need at least 20 bars of runway
-// before its signal means anything.
+// A short burn-in before the volatility estimate behind computeDirectionCall's
+// confidence has enough history to be meaningful — direction itself only
+// needs horizonDays of runway, but this keeps the earliest few calls from
+// being graded off a near-empty volatility sample.
 const MIN_WINDOW = 25;
-// A move smaller than this counts as "flat" — mirrors the classification
-// bands computeDirectionCall itself uses for momentum.
-const FLAT_BAND_PCT = 0.5;
 
 export function runBacktest(symbol: string, horizonDays: number): BacktestResult {
   const bars = getFullHistory(symbol);
