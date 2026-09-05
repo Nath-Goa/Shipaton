@@ -26,6 +26,7 @@ import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
+import { useTriviaStore } from '@/store/useTriviaStore';
 import { todayStr } from '@/utils/date';
 
 function FlameIcon() {
@@ -78,6 +79,11 @@ export default function LearnScreen() {
   const quizLocked = aiLocked;
   const narrativeRemaining = aiRemaining;
   const narrativeLocked = aiLocked;
+
+  const triviaPlayedToday = useTriviaStore((s) => s.hasPlayedToday());
+  const triviaLastYourScore = useTriviaStore((s) => s.lastYourScore);
+  const triviaLastBotScore = useTriviaStore((s) => s.lastBotScore);
+  const triviaStreak = useTriviaStore((s) => s.currentStreak);
 
   const topicsByCategory = useMemo(() => {
     const groups: Record<string, typeof QUIZ_TOPICS> = {};
@@ -202,6 +208,26 @@ export default function LearnScreen() {
               ) : (
                 <Button label="Take the challenge" variant="ghost" onPress={() => router.push('/learn/narrative')} />
               )}
+            </View>
+          </Card>
+        </View>
+
+        {/* Daily Trivia Battle Card */}
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Trivia battle</Text>
+          <Card style={{ marginTop: spacing.md }}>
+            <Text style={[styles.topicLabel, { color: colors.text }]}>5 questions vs an AI opponent</Text>
+            <Text style={[styles.topicMeta, { color: colors.text3 }]}>
+              {triviaPlayedToday
+                ? `You ${triviaLastYourScore} — ${triviaLastBotScore} Bot today${triviaStreak > 1 ? ` · 🔥 ${triviaStreak}-win streak` : ''}`
+                : 'One free round a day — beat the bot to build a streak.'}
+            </Text>
+            <View style={{ marginTop: spacing.md }}>
+              <Button
+                label={triviaPlayedToday ? "See today's result" : 'Play today\'s round'}
+                variant="ghost"
+                onPress={() => router.push('/learn/trivia')}
+              />
             </View>
           </Card>
         </View>

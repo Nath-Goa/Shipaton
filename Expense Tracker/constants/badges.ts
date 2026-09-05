@@ -24,6 +24,9 @@ export const BADGE_INFO: Record<string, BadgeInfo> = {
   stage_1_complete: { label: 'Foundations Complete', icon: '🥉' },
   stage_2_complete: { label: 'Building Skills Complete', icon: '🥈' },
   stage_3_complete: { label: 'Advanced Strategy Complete', icon: '🥇' },
+  // Daily trivia battle — store/useTriviaStore.ts.
+  trivia_first_win: { label: 'Beat the Bot', icon: '🤖' },
+  trivia_streak_5: { label: '5-Win Trivia Streak', icon: '🔥' },
 };
 
 export function badgeInfo(id: string): BadgeInfo {
