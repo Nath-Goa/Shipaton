@@ -14,3 +14,13 @@ export type NarrativeScenario = {
   options: NarrativeOption[];
   nextAction: string;
 };
+
+// Learn tab's storytelling mode (lesson.tsx) — a straight short story
+// illustrating one course's concept, not a decision scenario. Simpler than
+// NarrativeScenario on purpose: no branching options, since this is a
+// passive lesson-alternative, not the interactive Daily Challenge.
+export type TopicStory = {
+  title: string;
+  paragraphs: string[];
+  takeaway: string;
+};

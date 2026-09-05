@@ -162,3 +162,22 @@ export function buildNarrativePrompt(scenarioType: ScenarioType, difficulty: Dif
     .filter(Boolean)
     .join('\n');
 }
+
+// Learn tab's storytelling lesson mode — a straight short story, not a
+// branching decision scenario (that's buildNarrativePrompt's job, for the
+// separate Daily Challenge feature). This is a passive alternative reading
+// of a course's lesson, so no options/choices, no difficulty knob either —
+// every course has exactly one lesson to tell a story about.
+export function buildTopicStoryPrompt(courseTitle: string, summary: string): string {
+  return [
+    'You write short, engaging stories for a mock-trading education app that teach one specific investing concept through a relatable character and situation — not a textbook explanation.',
+    `Concept: "${courseTitle}" — ${summary}`,
+    'Write a 3-4 paragraph story with a relatable main character (a person, not the reader directly addressed as "you") who encounters a situation that naturally illustrates this concept. Make it concrete and specific — a real-feeling moment, not an abstract example.',
+    'The story should make the underlying concept clear through what happens, not through the character explaining it in dialogue like a lecture.',
+    'Never give direct buy/sell financial advice for real money — any trading in the story is clearly within a simulated/practice context.',
+    'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
+    '{"title": string, "paragraphs": [string], "takeaway": string}',
+    '"paragraphs" is 3-4 entries, each 2-4 sentences.',
+    '"takeaway" is one plain-English sentence stating the lesson the story teaches, without restating the story.',
+  ].join('\n');
+}

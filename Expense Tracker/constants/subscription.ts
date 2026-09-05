@@ -16,6 +16,7 @@ export type FeatureFlags = {
   savedChartLimit: number; // how many named/saved expense pie charts a user can keep
   productScanner: boolean; // camera scan a product -> AI-guessed company/companies, deep-linked to its stock
   duelTimeSkip: boolean; // vote to end a duel early once every participant agrees, instead of waiting out ends_at
+  visualLearning: boolean; // lesson.tsx's "Visual" mode — a curated video + a real chart per course
 };
 
 export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
@@ -34,6 +35,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     limitOrders: false,
     savedChartLimit: 5,
     duelTimeSkip: false,
+    visualLearning: false,
   },
   pro: {
     tier: 'pro',
@@ -50,6 +52,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     limitOrders: false,
     savedChartLimit: 20,
     duelTimeSkip: true,
+    visualLearning: true,
   },
   max: {
     tier: 'max',
@@ -66,6 +69,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     limitOrders: true,
     savedChartLimit: 100,
     duelTimeSkip: true,
+    visualLearning: true,
   },
 };
 

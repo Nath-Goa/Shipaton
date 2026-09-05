@@ -4,11 +4,12 @@ import {
   buildNarrativePrompt,
   buildPatternDetectionPrompt,
   buildQuizPrompt,
+  buildTopicStoryPrompt,
   buildTradeReflectionPrompt,
 } from '@/services/ai/prompts';
 import type { AiResult } from '@/types/ai';
 import type { Flashcard } from '@/types/flashcard';
-import type { ScenarioType, NarrativeScenario } from '@/types/narrative';
+import type { ScenarioType, NarrativeScenario, TopicStory } from '@/types/narrative';
 import type { PatternDetectionResult } from '@/types/pattern';
 import type { PriceBar } from '@/types/stock';
 import type { Difficulty, QuizQuestion } from '@/types/quiz';
@@ -122,4 +123,12 @@ export async function generateNarrative(
     buildNarrativePrompt(scenarioType, difficulty, portfolioContext),
     'Generate the scenario now.'
   );
+}
+
+// Learn tab's storytelling lesson mode (lesson.tsx) — one story per course,
+// cached by the caller (component state) so switching modes back and forth
+// doesn't regenerate/re-spend quota. See buildTopicStoryPrompt for why this
+// is a plain story, not the branching-options shape generateNarrative uses.
+export async function generateTopicStory(courseTitle: string, summary: string): Promise<AiResult<TopicStory>> {
+  return sendStructuredPrompt<TopicStory>(buildTopicStoryPrompt(courseTitle, summary), 'Write the story now.');
 }
