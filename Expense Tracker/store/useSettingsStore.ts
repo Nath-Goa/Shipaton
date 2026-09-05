@@ -53,6 +53,11 @@ type SettingsState = {
   // Independent of tier/pushAlerts — a core engagement feature, not a perk.
   smartNudgesEnabled: boolean;
   preferredStudyWindow: StudyWindow | null;
+  // Whether the price predictor may log its own calls on this device and
+  // train on how they turn out (store/usePredictorStore.ts). Off means the
+  // model still runs, but stays exactly as shipped — nothing is recorded and
+  // nothing adapts. Opt-in is collected during onboarding.
+  predictorDataCollection: boolean;
   // Learn tab's first-visit "what's your level?" gate. selectedLevel is
   // stored for future personalization but currently has no effect — every
   // learner's course/quiz progress starts at Beginner regardless.
@@ -79,6 +84,7 @@ type SettingsState = {
   setTextScale: (scale: TextScale) => void;
   setTutorPersona: (persona: TutorPersona) => void;
   setSmartNudgesEnabled: (enabled: boolean) => void;
+  setPredictorDataCollection: (enabled: boolean) => void;
   setPreferredStudyWindow: (window: StudyWindow | null) => void;
   selectLevel: (level: LearnerLevel) => void;
 };
@@ -105,6 +111,7 @@ export const useSettingsStore = create<SettingsState>()(
       tutorPersona: 'coach',
       smartNudgesEnabled: true,
       preferredStudyWindow: null,
+      predictorDataCollection: true,
       levelSelected: false,
       selectedLevel: null,
       setThemeMode: (themeMode) => set({ themeMode }),
@@ -140,6 +147,7 @@ export const useSettingsStore = create<SettingsState>()(
       setTextScale: (textScale) => set({ textScale }),
       setTutorPersona: (tutorPersona) => set({ tutorPersona }),
       setSmartNudgesEnabled: (smartNudgesEnabled) => set({ smartNudgesEnabled }),
+      setPredictorDataCollection: (predictorDataCollection) => set({ predictorDataCollection }),
       setPreferredStudyWindow: (preferredStudyWindow) => set({ preferredStudyWindow }),
       // Every learner currently starts at Beginner regardless of the answer —
       // see the `selectedLevel` field doc comment above.

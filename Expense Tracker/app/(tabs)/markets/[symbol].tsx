@@ -16,6 +16,7 @@ import Animated, {
 
 import { PriceChart } from '@/components/charts/PriceChart';
 import { DirectionBadge } from '@/components/stocks/DirectionBadge';
+import { PredictionCard } from '@/components/stocks/PredictionCard';
 import { SentimentGauge } from '@/components/stocks/SentimentGauge';
 import { AdPlaceholder } from '@/components/ui/AdPlaceholder';
 import { Button } from '@/components/ui/Button';
@@ -322,16 +323,23 @@ export default function StockDetailScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Direction Call */}
+        {/* Trained price-direction model — replaces the old moving-average
+            heuristic, which was a hand-written rule presented as a "call"
+            with a confidence number nothing had ever measured. */}
         <Animated.View entering={FadeInDown.delay(140).springify().damping(16)}>
+          <PredictionCard symbol={symbol} />
+        </Animated.View>
+
+        {/* Trend summary (the plain-language read of the moving averages) */}
+        <Animated.View entering={FadeInDown.delay(160).springify().damping(16)}>
           <Card>
             <View style={styles.cardHead}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Direction call</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Trend summary</Text>
               <DirectionBadge direction={directionCall.direction} />
             </View>
             <Text style={[styles.reason, { color: colors.text2 }]}>{directionCall.reason}</Text>
             <Text style={[styles.confidence, { color: colors.text3 }]}>
-              {Math.round(directionCall.confidence * 100)}% confidence · {directionCall.horizonDays}-day view · simulated, for practice only
+              A description of what the averages are doing right now — not a forecast.
             </Text>
           </Card>
         </Animated.View>

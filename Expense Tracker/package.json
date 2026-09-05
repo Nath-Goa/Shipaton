@@ -55,7 +55,10 @@
     "dev-client": "expo start --dev-client",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "eval:predictor": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/evaluate-predictor.ts",
+    "sweep:predictor": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/sweep-predictor.ts",
+    "test:news": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/test-news.ts"
   },
   "private": true
 }
