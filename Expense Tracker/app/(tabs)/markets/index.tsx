@@ -20,7 +20,6 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
-import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
 import { regenerateMarket } from '@/services/marketData/regenerateMarket';
@@ -129,10 +128,6 @@ export default function MarketsScreen() {
 
   const liveData = isLiveMarketDataConfigured();
 
-  const searchEntrance = useTabEntrance(0);
-  const actionsEntrance = useTabEntrance(60);
-  const listEntrance = useTabEntrance(120);
-
   function confirmRegenerate() {
     confirmAction(
       liveData
@@ -161,7 +156,7 @@ export default function MarketsScreen() {
   return (
     <Screen>
       <TopBar title="Markets" subtitle={liveData ? 'Mock trading — real live prices' : 'Mock stocks — simulated prices, real symbols'} />
-      <Animated.View style={[styles.searchWrap, searchEntrance]}>
+      <View style={styles.searchWrap}>
         <View style={[styles.searchBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
           <Ionicons name="search" size={16} color={colors.text3} />
           <TextInput
@@ -174,15 +169,14 @@ export default function MarketsScreen() {
             autoCorrect={false}
           />
         </View>
-      </Animated.View>
+      </View>
       <View style={styles.bannerWrap}>
         <UpgradeBanner
           title="Unlock full forecasts"
           body="Upgrade to Pro for price-range forecasts, live sentiment, and deep pattern analysis."
-          delay={40}
         />
       </View>
-      <Animated.View style={[styles.actionsRow, actionsEntrance]}>
+      <View style={styles.actionsRow}>
         <MarketActionBtn
           icon="flask-outline"
           label="Practice trade"
@@ -198,8 +192,8 @@ export default function MarketsScreen() {
           label="Backtest"
           onPress={() => router.push('/markets/backtest')}
         />
-      </Animated.View>
-      <Animated.View style={[styles.listWrap, listEntrance]}>
+      </View>
+      <View style={styles.listWrap}>
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.symbol}
@@ -225,7 +219,7 @@ export default function MarketsScreen() {
             );
           }}
         />
-      </Animated.View>
+      </View>
     </Screen>
   );
 }

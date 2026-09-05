@@ -21,7 +21,6 @@ import { badgeInfo } from '@/constants/badges';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { spacing } from '@/constants/theme';
 import { useAiQuota } from '@/hooks/useAiQuota';
-import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
@@ -88,20 +87,12 @@ export default function LearnScreen() {
     return groups;
   }, []);
 
-  const streakEntrance = useTabEntrance(0);
-  const badgeEntrance = useTabEntrance(60);
-  const coursePathEntrance = useTabEntrance(80);
-  const nextTopicEntrance = useTabEntrance(100);
-  const flashcardsEntrance = useTabEntrance(130);
-  const challengeEntrance = useTabEntrance(150);
-  const allTopicsEntrance = useTabEntrance(200);
-
   return (
     <Screen>
       <TopBar title="Learn" subtitle="Quizzes, patterns, and daily challenges" />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Animated Streak Card */}
-        <Animated.View style={streakEntrance}>
+        <View>
           <Card style={styles.streakCard}>
             <FlameIcon />
             <View style={{ flex: 1 }}>
@@ -111,25 +102,24 @@ export default function LearnScreen() {
               </Text>
             </View>
           </Card>
-        </Animated.View>
+        </View>
 
         <UpgradeBanner
           title="Upgrade for more AI actions"
           body="Pro and Max raise your daily AI limit for quizzes, challenges, and the analyst."
-          delay={40}
         />
 
         {badges.length > 0 ? (
-          <Animated.View style={[styles.badgeRow, badgeEntrance]}>
+          <View style={styles.badgeRow}>
             {badges.map((b) => {
               const info = badgeInfo(b);
               return <PillBadge key={b} label={`${info.icon} ${info.label}`} />;
             })}
-          </Animated.View>
+          </View>
         ) : null}
 
         {!levelSelected ? (
-          <Animated.View style={coursePathEntrance}>
+          <View>
             <Card style={styles.levelCard}>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.levelCardEyebrow, { color: colors.accent }]}>Personalize your path</Text>
@@ -142,19 +132,19 @@ export default function LearnScreen() {
                 <Button label="Choose level" variant="ghost" fullWidth onPress={() => router.push('/learn/level-select')} />
               </View>
             </Card>
-          </Animated.View>
+          </View>
         ) : null}
 
         {/* Course Path */}
-        <Animated.View style={coursePathEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Your Path</Text>
           <View style={{ marginTop: spacing.md }}>
             <CoursePath />
           </View>
-        </Animated.View>
+        </View>
 
         {/* Next Topic Card */}
-        <Animated.View style={nextTopicEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{isReview ? 'Review due' : 'Next up'}</Text>
           <Card style={{ marginTop: spacing.md }}>
             {nextTopic ? (
@@ -181,10 +171,10 @@ export default function LearnScreen() {
               </Text>
             )}
           </Card>
-        </Animated.View>
+        </View>
 
         {/* Flashcards Card */}
-        <Animated.View style={flashcardsEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Flashcards</Text>
           <Card style={{ marginTop: spacing.md }}>
             <Text style={[styles.topicLabel, { color: colors.text }]}>Quick term review</Text>
@@ -195,10 +185,10 @@ export default function LearnScreen() {
               <Button label="Study flashcards" variant="ghost" onPress={() => router.push('/learn/flashcards')} />
             </View>
           </Card>
-        </Animated.View>
+        </View>
 
         {/* Daily Challenge Card */}
-        <Animated.View style={challengeEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Daily challenge</Text>
           <Card style={{ marginTop: spacing.md }}>
             <Text style={[styles.topicLabel, { color: colors.text }]}>A realistic trading scenario</Text>
@@ -214,10 +204,10 @@ export default function LearnScreen() {
               )}
             </View>
           </Card>
-        </Animated.View>
+        </View>
 
         {/* All Topics Section */}
-        <Animated.View style={allTopicsEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>All topics</Text>
           {Object.entries(topicsByCategory).map(([category, topics]) => (
             <View key={category} style={{ marginTop: spacing.md }}>
@@ -240,7 +230,7 @@ export default function LearnScreen() {
               </Card>
             </View>
           ))}
-        </Animated.View>
+        </View>
       </ScrollView>
     </Screen>
   );

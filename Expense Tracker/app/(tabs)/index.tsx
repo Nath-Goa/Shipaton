@@ -24,7 +24,6 @@ import { categoryOf } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
-import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -55,12 +54,6 @@ export default function HomeScreen() {
   const { recap, setRecap } = useWeeklyRecapStore();
   const [recapLoading, setRecapLoading] = useState(false);
   const [recapError, setRecapError] = useState<string | null>(null);
-
-  const statsEntrance = useTabEntrance(0);
-  const upsellEntrance = useTabEntrance(80);
-  const watchlistEntrance = useTabEntrance(140);
-  const actionsEntrance = useTabEntrance(200);
-  const recapEntrance = useTabEntrance(260);
 
   const trackedSymbols = useMemo(
     () => Array.from(new Set([...Object.keys(holdings), ...watchlist])),
@@ -123,8 +116,7 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
-        {/* Animated Staggered Stats Row */}
-        <Animated.View style={[styles.statsRow, statsEntrance]}>
+        <View style={styles.statsRow}>
           <StatTile label="Net worth" value={money(summary.netWorth)} sub={`Cash: ${money(cash)}`} />
           <StatTile
             label="Today's P&L"
@@ -139,10 +131,10 @@ export default function HomeScreen() {
             valueColor={summary.allTimePnl >= 0 ? colors.success : colors.danger}
           />
           <StatTile label="Positions" value={String(summary.positionsCount)} sub={`Plan: ${TIER_LABELS[tier]}`} />
-        </Animated.View>
+        </View>
 
         {tier === 'free' ? (
-          <Animated.View style={upsellEntrance}>
+          <View>
             <Pressable onPress={() => upgradeToTier('pro')}>
               <Card style={[styles.upsell, { borderColor: colors.accent }]}>
                 <Ionicons name="sparkles" size={18} color={colors.accent} />
@@ -155,11 +147,9 @@ export default function HomeScreen() {
                 <Ionicons name="chevron-forward" size={18} color={colors.text3} />
               </Card>
             </Pressable>
-          </Animated.View>
+          </View>
         ) : null}
-
-        {/* Watchlist Section with Entrance Transition */}
-        <Animated.View style={watchlistEntrance}>
+        <View>
           <View style={styles.sectionHead}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Watchlist</Text>
             <Pressable onPress={() => router.push('/markets')}>
@@ -195,22 +185,22 @@ export default function HomeScreen() {
               })
             )}
           </Card>
-        </Animated.View>
+        </View>
 
         <MarketSpotlightCard />
 
         {/* Quick Actions with Spring Press Scale */}
-        <Animated.View style={actionsEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>Quick actions</Text>
           <View style={styles.actionsRow}>
             <QuickAction icon="receipt-outline" label="Log expense" onPress={() => router.push('/expenses/add')} />
             <QuickAction icon="stats-chart-outline" label="Explore markets" onPress={() => router.push('/markets')} />
             <QuickAction icon="sparkles-outline" label="Ask the analyst" onPress={() => router.push('/assistant')} />
           </View>
-        </Animated.View>
+        </View>
 
         {/* AI Weekly Recap */}
-        <Animated.View style={recapEntrance}>
+        <View>
           <View style={styles.sectionHead}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Weekly recap</Text>
             {recap ? (
@@ -242,7 +232,7 @@ export default function HomeScreen() {
             )}
             {recapError ? <Text style={[styles.recapError, { color: colors.danger }]}>{recapError}</Text> : null}
           </Card>
-        </Animated.View>
+        </View>
       </ScrollView>
     </Screen>
   );

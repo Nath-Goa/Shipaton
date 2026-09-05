@@ -22,7 +22,6 @@ import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
-import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { hasSharedFallback, sendChatMessage } from '@/services/ai/client';
@@ -54,8 +53,6 @@ export default function AssistantScreen() {
   const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const threadRowEntrance = useTabEntrance(0);
-  const messagesEntrance = useTabEntrance(80);
 
   useEffect(() => {
     if (paramSymbol) setActiveThread(paramSymbol.toUpperCase());
@@ -106,7 +103,7 @@ export default function AssistantScreen() {
       />
 
       {threadKeys.length > 1 ? (
-        <Animated.View style={threadRowEntrance}>
+        <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.threadRow}>
             {threadKeys.map((key) => (
               <Chip
@@ -117,14 +114,14 @@ export default function AssistantScreen() {
               />
             ))}
           </ScrollView>
-        </Animated.View>
+        </View>
       ) : null}
 
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
-        <Animated.View style={[styles.flex, messagesEntrance]}>
+        <View style={styles.flex}>
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.messages}
@@ -148,7 +145,7 @@ export default function AssistantScreen() {
             </>
           ) : null}
         </ScrollView>
-        </Animated.View>
+        </View>
 
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
           {hasKey === false && !hasSharedFallback() ? (

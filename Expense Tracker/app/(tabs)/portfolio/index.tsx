@@ -24,7 +24,6 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { SECTOR_COLORS, tickerOf } from '@/constants/tickers';
 import { useQuotes } from '@/hooks/useQuotes';
-import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { sharePortfolioSummary } from '@/services/export/exportData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
@@ -165,15 +164,6 @@ export default function PortfolioScreen() {
 
   const [resultsCardOpen, setResultsCardOpen] = useState(false);
 
-  const statsEntrance = useTabEntrance(0);
-  const benchmarkEntrance = useTabEntrance(60);
-  const bigMoveEntrance = useTabEntrance(75);
-  const holdingsEntrance = useTabEntrance(80);
-  const diversificationEntrance = useTabEntrance(120);
-  const autoInvestEntrance = useTabEntrance(130);
-  const dividendsEntrance = useTabEntrance(140);
-  const tradesEntrance = useTabEntrance(160);
-
   async function handleShare() {
     const result = await sharePortfolioSummary({
       name,
@@ -203,8 +193,7 @@ export default function PortfolioScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
-        {/* Animated Staggered Stats */}
-        <Animated.View style={[styles.statsRow, statsEntrance]}>
+        <View style={styles.statsRow}>
           <NetWorthTile value={summary.netWorth} />
           <StatTile label="Cash" value={money(cash)} />
           <StatTile
@@ -217,27 +206,26 @@ export default function PortfolioScreen() {
             value={signedPct(summary.allTimePnlPct)}
             valueColor={summary.allTimePnl >= 0 ? colors.success : colors.danger}
           />
-        </Animated.View>
+        </View>
 
         {benchmarkPoints.length > 1 ? (
-          <Animated.View style={benchmarkEntrance}>
+          <View>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>You vs. the market</Text>
             <Card style={{ marginTop: spacing.md }}>
               <BenchmarkChart points={benchmarkPoints} />
             </Card>
-          </Animated.View>
+          </View>
         ) : null}
 
         <UpgradeBanner
           title="Trade with an edge"
           body="Upgrade to Max for historical backtesting and up to 5 separate paper portfolios."
-          delay={40}
         />
 
         <TradeReflectionsCard />
 
         {bigMoveHolding ? (
-          <Animated.View style={bigMoveEntrance}>
+          <View>
             <Pressable onPress={() => router.push({ pathname: '/learn/quiz', params: { topic: 'volatility' } })}>
               <Card style={[styles.moveBanner, { borderColor: colors.accent }]}>
                 <Ionicons name="pulse-outline" size={18} color={colors.accent} />
@@ -247,11 +235,11 @@ export default function PortfolioScreen() {
                 </Text>
               </Card>
             </Pressable>
-          </Animated.View>
+          </View>
         ) : null}
 
         {/* Holdings Section */}
-        <Animated.View style={holdingsEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Holdings</Text>
           <Card style={{ marginTop: spacing.md }}>
             {holdingList.length === 0 ? (
@@ -273,11 +261,11 @@ export default function PortfolioScreen() {
               ))
             )}
           </Card>
-        </Animated.View>
+        </View>
 
         {/* Diversification Section */}
         {sectorBreakdown.segments.length > 0 ? (
-          <Animated.View style={diversificationEntrance}>
+          <View>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Diversification</Text>
             <Card style={[styles.diversificationCard, { marginTop: spacing.md }]}>
               <DonutChart
@@ -307,12 +295,12 @@ export default function PortfolioScreen() {
                 ) : null}
               </View>
             </Card>
-          </Animated.View>
+          </View>
         ) : null}
 
         {/* Auto-invest Plans Section */}
         {autoInvests.length > 0 ? (
-          <Animated.View style={autoInvestEntrance}>
+          <View>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Auto-invest plans</Text>
             <Card style={{ marginTop: spacing.md }}>
               {autoInvests.map((p, i) => (
@@ -329,12 +317,12 @@ export default function PortfolioScreen() {
                 </View>
               ))}
             </Card>
-          </Animated.View>
+          </View>
         ) : null}
 
         {/* Dividend Income Section */}
         {dividends.length > 0 ? (
-          <Animated.View style={dividendsEntrance}>
+          <View>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Dividend income</Text>
             <Card style={{ marginTop: spacing.md }}>
               <View style={styles.dividendTotalRow}>
@@ -353,11 +341,11 @@ export default function PortfolioScreen() {
                 </View>
               ))}
             </Card>
-          </Animated.View>
+          </View>
         ) : null}
 
         {/* Recent Trades Section */}
-        <Animated.View style={tradesEntrance}>
+        <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent trades</Text>
           <Card style={{ marginTop: spacing.md }}>
             {trades.length === 0 ? (
@@ -389,7 +377,7 @@ export default function PortfolioScreen() {
               ))
             )}
           </Card>
-        </Animated.View>
+        </View>
       </ScrollView>
 
       <ResultsCardModal

@@ -20,7 +20,6 @@ import { CATEGORIES, categoryOf } from '@/constants/categories';
 import { MOCK_CHART_SEGMENTS, MOCK_CHART_TOTAL } from '@/constants/mockExpenseChart';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { radius, spacing } from '@/constants/theme';
-import { useTabEntrance } from '@/hooks/useTabEntrance';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
@@ -214,11 +213,6 @@ export default function ExpensesScreen() {
     setInsight(result.data);
   }
 
-  const chipsEntrance = useTabEntrance(0);
-  const statsEntrance = useTabEntrance(70);
-  const breakdownEntrance = useTabEntrance(140);
-  const insightEntrance = useTabEntrance(180);
-
   function onLongPressExpense(expense: Expense) {
     Alert.alert(expense.desc || categoryOf(expense.category).label, undefined, [
       { text: 'Edit', onPress: () => router.push(`/expenses/${expense.id}`) },
@@ -255,21 +249,20 @@ export default function ExpensesScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.headerBlock}>
-            <Animated.View style={chipsEntrance}>
+            <View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {PRESETS.map((p) => (
                   <Chip key={p.value} label={p.label} active={preset === p.value} onPress={() => setPreset(p.value)} />
                 ))}
               </ScrollView>
-            </Animated.View>
+            </View>
 
             <UpgradeBanner
               title="Never miss a receipt"
               body="Upgrade to Pro for AI receipt auto-fill and zero ads."
-              delay={40}
             />
 
-            <Animated.View style={[styles.statsRow, statsEntrance]}>
+            <View style={styles.statsRow}>
               <StatTile label="Total spending" value={money(total)} sub={`${count} expense${count === 1 ? '' : 's'}`} />
               <StatTile label="This month" value={money(monthTotal)} />
               <StatTile label="Average" value={money(avg)} />
@@ -279,9 +272,9 @@ export default function ExpensesScreen() {
                 sub={topCategory ? money(topCategory.value) : 'no data'}
                 dotColor={topCategory?.color}
               />
-            </Animated.View>
+            </View>
 
-            <Animated.View style={breakdownEntrance}>
+            <View>
               <Card>
                 <View style={styles.chartHeadRow}>
                   <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>Spending by category</Text>
@@ -387,10 +380,10 @@ export default function ExpensesScreen() {
                   </>
                 )}
               </Card>
-            </Animated.View>
+            </View>
 
             {total > 0 ? (
-              <Animated.View style={insightEntrance}>
+              <View>
                 <Card>
                   <Text style={[styles.cardTitle, { color: colors.text }]}>AI spending insight</Text>
                   {!insight ? (
@@ -411,7 +404,7 @@ export default function ExpensesScreen() {
                     </View>
                   )}
                 </Card>
-              </Animated.View>
+              </View>
             ) : null}
 
             <Text style={[styles.cardTitle, { color: colors.text, marginTop: spacing.sm }]}>
