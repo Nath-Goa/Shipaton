@@ -34,6 +34,7 @@ Built for the **RevenueCat Shipaton** hackathon (team: Nathan Kumtakar, Arya Kak
 - AI: direct HTTP to **Claude, OpenAI, Gemini, and OpenRouter** — no SDK abstraction layer beyond `services/ai/client.ts`
 - **Sentry** for crash reporting (no-op without a DSN), **expo-notifications**, **expo-local-authentication** (biometric lock), **expo-store-review**, **expo-sharing** + **react-native-view-shot** (share-as-image), **@react-native-community/datetimepicker**
 - **No automated test suite.** Verification is `tsc --noEmit` + manual/self code review only. Be extra careful with anything load-bearing (recurring-cursor math, date arithmetic, store-selector purity) — nothing will catch a regression automatically.
+- **`npx expo export --platform android --output-dir <tmp>` is the strongest check available short of a build**, and worth running after any change that touches imports, routes, or assets. It statically requires every route file and compiles the whole bundle to Hermes bytecode, so it catches unresolved imports, missing assets, and module-init errors that `tsc --noEmit` cannot see. Takes a few minutes; write the output somewhere temporary, never into the repo.
 
 ## 4. Repository structure
 
