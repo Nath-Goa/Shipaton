@@ -1,4 +1,4 @@
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ import { FontPicker } from '@/components/settings/FontPicker';
 import { MarketDataStatusCard } from '@/components/settings/MarketDataStatusCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -117,9 +118,11 @@ export default function SettingsScreen() {
   const [biometricCaps, setBiometricCaps] = useState<BiometricCapabilities | null>(null);
   const [testingNotif, setTestingNotif] = useState(false);
 
-  // Hidden developer-options gesture: tap the header title 9 times within
-  // 1.5s of each other to reach the login gate. Refs (not state) so rapid
-  // taps don't fight re-renders.
+  // Hidden developer gesture: tap anywhere on the top bar 9 times to cycle
+  // free → pro → max → free. The gap between taps only has to stay under
+  // this window, which is deliberately well above the ~500ms a deliberate,
+  // unhurried tapping pace lands at — you shouldn't have to drum on it.
+  // Refs (not state) so rapid taps don't fight re-renders.
   const titleTapCountRef = useRef(0);
   const lastTitleTapAtRef = useRef(0);
   const TITLE_TAP_THRESHOLD = 9;
@@ -135,7 +138,14 @@ export default function SettingsScreen() {
       const next = DEV_TIER_CYCLE[tier];
       setTier(next);
       showToast(`Developer override — you're now on ${TIER_LABELS[next]}.`);
+      return;
     }
+    // Count down the last few taps the way Android's own developer-options
+    // gesture does. Without it there's no way to tell a tap that didn't
+    // register from a gesture that isn't working at all — which is exactly
+    // how this read while the tap target was only the title text.
+    const remaining = TITLE_TAP_THRESHOLD - titleTapCountRef.current;
+    if (remaining <= 3) showToast(`${remaining} more tap${remaining === 1 ? '' : 's'} to switch plans.`);
   }
 
   useEffect(() => {
@@ -262,16 +272,14 @@ export default function SettingsScreen() {
   }
 
   return (
-    <Screen edges={['left', 'right', 'bottom']}>
-      <Stack.Screen
-        options={{
-          headerTitle: () => (
-            <Pressable onPress={handleTitleTap} hitSlop={12}>
-              <Text style={[styles.headerTitleText, { color: colors.text }]}>Settings</Text>
-            </Pressable>
-          ),
-        }}
-      />
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
+      {/* The whole bar is one tap target for the hidden tier switcher — the
+          back button sits inside it and wins its own taps, so everything
+          else (title, empty space, the full width) counts toward the 9. */}
+      <Pressable onPress={handleTitleTap} style={[styles.header, { backgroundColor: colors.surface }]}>
+        <IconButton name="chevron-back" onPress={() => router.back()} />
+        <Text style={[styles.headerTitleText, { color: colors.text }]}>Settings</Text>
+      </Pressable>
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Section title="Plan">
@@ -585,6 +593,13 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.xl, paddingBottom: spacing.xxl },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
   headerTitleText: { fontSize: 17, fontWeight: '600' },
   sectionTitle: { fontSize: 15, fontWeight: '700' },
   sectionSubtitle: { fontSize: 12.5, marginTop: 2 },
