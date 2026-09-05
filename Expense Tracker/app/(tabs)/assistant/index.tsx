@@ -55,6 +55,7 @@ export default function AssistantScreen() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const threadRowEntrance = useTabEntrance(0);
+  const messagesEntrance = useTabEntrance(80);
 
   useEffect(() => {
     if (paramSymbol) setActiveThread(paramSymbol.toUpperCase());
@@ -123,6 +124,7 @@ export default function AssistantScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+        <Animated.View style={[styles.flex, messagesEntrance]}>
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.messages}
@@ -146,6 +148,7 @@ export default function AssistantScreen() {
             </>
           ) : null}
         </ScrollView>
+        </Animated.View>
 
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
           {hasKey === false && !hasSharedFallback() ? (

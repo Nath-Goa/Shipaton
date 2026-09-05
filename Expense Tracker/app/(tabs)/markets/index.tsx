@@ -120,6 +120,7 @@ export default function MarketsScreen() {
 
   const searchEntrance = useTabEntrance(0);
   const actionsEntrance = useTabEntrance(60);
+  const listEntrance = useTabEntrance(120);
 
   function confirmRegenerate() {
     confirmAction(
@@ -187,36 +188,39 @@ export default function MarketsScreen() {
           onPress={() => router.push('/markets/backtest')}
         />
       </Animated.View>
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.symbol}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}
-        ListEmptyComponent={<EmptyState icon="🔍" title="No matches" message="Try a different symbol or company name." />}
-        renderItem={({ item, index }) => {
-          const watched = watchlist.includes(item.symbol);
-          return (
-            <Animated.View entering={FadeInDown.delay(Math.min(index * 35, 400)).springify().damping(16)}>
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <StockListItem
-                    symbol={item.symbol}
-                    name={item.name}
-                    quote={quotes.get(item.symbol)}
-                    onPress={() => router.push(`/markets/${item.symbol}`)}
-                  />
+      <Animated.View style={[styles.listWrap, listEntrance]}>
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.symbol}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}
+          ListEmptyComponent={<EmptyState icon="🔍" title="No matches" message="Try a different symbol or company name." />}
+          renderItem={({ item, index }) => {
+            const watched = watchlist.includes(item.symbol);
+            return (
+              <Animated.View entering={FadeInDown.delay(Math.min(index * 35, 400)).springify().damping(16)}>
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <StockListItem
+                      symbol={item.symbol}
+                      name={item.name}
+                      quote={quotes.get(item.symbol)}
+                      onPress={() => router.push(`/markets/${item.symbol}`)}
+                    />
+                  </View>
+                  <StarButton symbol={item.symbol} watched={watched} onToggle={() => toggleWatchlist(item.symbol)} />
                 </View>
-                <StarButton symbol={item.symbol} watched={watched} onToggle={() => toggleWatchlist(item.symbol)} />
-              </View>
-            </Animated.View>
-          );
-        }}
-      />
+              </Animated.View>
+            );
+          }}
+        />
+      </Animated.View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  listWrap: { flex: 1 },
   searchWrap: { paddingHorizontal: spacing.xl, marginBottom: spacing.sm },
   searchBox: {
     flexDirection: 'row',

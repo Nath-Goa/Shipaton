@@ -8,6 +8,7 @@ import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
 import { ApiKeySection } from '@/components/settings/ApiKeySection';
 import { DevLoginModal } from '@/components/settings/DevLoginModal';
 import { FontPicker } from '@/components/settings/FontPicker';
+import { MarketDataStatusCard } from '@/components/settings/MarketDataStatusCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
@@ -338,6 +339,12 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(150).springify().damping(16)}>
           <Section title="AI provider" subtitle="Bring your own API key — stored only on this device.">
             <ApiKeySection />
+          </Section>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(160).springify().damping(16)}>
+          <Section title="Market data" subtitle="Where stock prices are coming from right now.">
+            <MarketDataStatusCard />
           </Section>
         </Animated.View>
 

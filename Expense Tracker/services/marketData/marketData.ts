@@ -1,5 +1,5 @@
 import * as live from '@/services/marketData/liveMarketData';
-import { isLiveMarketDataConfigured } from '@/services/marketData/liveMarketData';
+import { getMarketDataStatus, isLiveMarketDataConfigured, type MarketDataStatus } from '@/services/marketData/liveMarketData';
 import type { PriceBar, Quote, Range } from '@/types/stock';
 
 // Public entry point for stock price data — every screen imports from here,
@@ -8,7 +8,7 @@ import type { PriceBar, Quote, Range } from '@/types/stock';
 // otherwise Yahoo Finance's free unofficial endpoint (no key needed), and
 // falls back to the local mock engine per symbol on any failure — see
 // liveMarketData.ts for the full precedence chain.
-export { isLiveMarketDataConfigured };
+export { getMarketDataStatus, isLiveMarketDataConfigured, type MarketDataStatus };
 
 const engine = live;
 

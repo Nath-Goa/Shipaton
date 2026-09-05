@@ -5,7 +5,7 @@ import type { PriceBar } from '@/types/stock';
 // reliably reachable without auth/cookies (the older v7 "quote" endpoint has
 // increasingly needed a session crumb Yahoo doesn't grant to plain fetches),
 // and conveniently returns both daily OHLC bars AND a live-ish quote (via
-// `meta`) in a single request, so one fetch per symbol covers both needs.
+// `meta`) in a single request.
 //
 // Unofficial and undocumented by Yahoo — like any scraped endpoint it can
 // change or rate-limit without notice, which is exactly why every function
@@ -17,6 +17,35 @@ import type { PriceBar } from '@/types/stock';
 // iOS/Android fetch isn't subject to CORS at all, so this is expected to
 // work there even when it silently no-ops on web.
 const API_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
+
+// Every failure used to vanish into a bare `catch {}`, which made "why is it
+// still showing mock prices?" impossible to answer from the device. These
+// counters are surfaced read-only in Settings › Market data so a failing
+// install can actually be diagnosed instead of guessed at.
+let lastError: string | null = null;
+let lastErrorAt: number | null = null;
+let lastSuccessAt: number | null = null;
+let requestCount = 0;
+let failureCount = 0;
+
+export type YahooStatus = {
+  lastError: string | null;
+  lastErrorAt: number | null;
+  lastSuccessAt: number | null;
+  requestCount: number;
+  failureCount: number;
+};
+
+export function getYahooStatus(): YahooStatus {
+  return { lastError, lastErrorAt, lastSuccessAt, requestCount, failureCount };
+}
+
+function noteFailure(detail: string): null {
+  failureCount += 1;
+  lastError = detail;
+  lastErrorAt = Date.now();
+  return null;
+}
 
 export type LiveQuote = {
   price: number;
@@ -57,17 +86,34 @@ function utcDateStr(unixSeconds: number): string {
 const BROWSER_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// A hung request holds a slot in the throttle queue, which stalls every
+// other symbol behind it — cap it rather than waiting on the OS default.
+const REQUEST_TIMEOUT_MS = 12_000;
+
 async function fetchChart(symbol: string, range: string): Promise<ChartResult | null> {
+  requestCount += 1;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const url = `${API_BASE}/${encodeURIComponent(symbol)}?range=${range}&interval=1d`;
-    const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': BROWSER_USER_AGENT } });
-    if (!res.ok) return null;
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json', 'User-Agent': BROWSER_USER_AGENT },
+      signal: controller.signal,
+    });
+    if (!res.ok) return noteFailure(`${symbol}: HTTP ${res.status}`);
     const json = await res.json();
     const result = json?.chart?.result?.[0] as ChartResult | undefined;
-    if (!result || json?.chart?.error) return null;
+    if (json?.chart?.error) {
+      return noteFailure(`${symbol}: ${json.chart.error?.description ?? 'Yahoo returned an error'}`);
+    }
+    if (!result) return noteFailure(`${symbol}: empty response`);
+    lastSuccessAt = Date.now();
     return result;
-  } catch {
-    return null;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'network error';
+    return noteFailure(`${symbol}: ${message}`);
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -107,13 +153,24 @@ function quoteFromChart(result: ChartResult): LiveQuote | null {
 
 export type SymbolData = { bars: PriceBar[]; quote: LiveQuote | null };
 
-// One request covers both needs (bars + quote, via meta) — a 2-year range
-// comfortably covers the ~400 trading days the rest of the app expects
-// (mock engine included) while still giving a fresh meta.regularMarketPrice.
+// The full history fetch: one 2-year request covers the ~400 trading days
+// the rest of the app expects (mock engine included) and carries a fresh
+// meta.regularMarketPrice for free. Only worth paying for on the 6h bars
+// TTL — quote refreshes use fetchQuote below instead.
 export async function fetchSymbolData(symbol: string): Promise<SymbolData | null> {
   const result = await fetchChart(symbol, '2y');
   if (!result) return null;
   const bars = barsFromChart(result);
   if (!bars) return null;
   return { bars, quote: quoteFromChart(result) };
+}
+
+// Quote-only refresh. A 5-day range is a tiny fraction of the 2-year
+// payload and carries the same meta.regularMarketPrice, which matters a
+// lot here: quotes refresh many times more often than bars, across every
+// tracked symbol.
+export async function fetchQuote(symbol: string): Promise<LiveQuote | null> {
+  const result = await fetchChart(symbol, '5d');
+  if (!result) return null;
+  return quoteFromChart(result);
 }
