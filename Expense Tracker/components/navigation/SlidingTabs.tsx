@@ -12,6 +12,7 @@ import {
 } from 'expo-router/react-navigation';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -64,13 +65,13 @@ const SLIDE_EASING = Easing.bezier(0.2, 0, 0, 1);
 const OFFSCREEN_SCALE = 0.97;
 const OFFSCREEN_OPACITY = 0.55;
 
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 62;
 // A rounded rect spanning the tab button's own full content box (icon +
 // label), not a fixed circle sitting only behind the icon — that left the
 // label uncovered below it.
-const PILL_VERTICAL_INSET = 4;
+const PILL_VERTICAL_INSET = 6;
 const PILL_HORIZONTAL_MARGIN = 6;
-const PILL_RADIUS = 18;
+const PILL_RADIUS = 20;
 const ICON_SIZE = 24;
 
 // Tab roots stay mounted once rendered (this matches the previous <Tabs>
@@ -81,6 +82,11 @@ const ICON_SIZE = 24;
 // works: the slide itself runs on the UI thread, so it stays smooth even
 // while the newly mounted screens are still rendering.
 const WARMUP_DELAY_MS = 700;
+
+const SWIPE_ACTIVE_OFFSET = 32;
+const SWIPE_FAIL_OFFSET_Y = 18;
+const SWIPE_INTENT_THRESHOLD = 75;
+const SWIPE_VELOCITY_WEIGHT = 0.12;
 
 function TabPage({
   index,
@@ -147,6 +153,10 @@ function SlidingTabNavigator({
   // would restart the warm-up timer and it might never fire.
   const routesRef = useRef(routes);
   routesRef.current = routes;
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  const stateKeyRef = useRef(state.key);
+  stateKeyRef.current = state.key;
 
   // Which tabs have ever needed to exist. Grows to cover everything a slide
   // passes over, so intermediate tabs are real screens rather than gaps.
@@ -206,16 +216,40 @@ function SlidingTabNavigator({
     transform: [{ translateX: progress.value * tabWidth + PILL_HORIZONTAL_MARGIN }],
   }));
 
+  const navigateToAdjacentTab = (direction: -1 | 1) => {
+    const nextIndex = indexRef.current + direction;
+    const route = routesRef.current[nextIndex];
+    if (!route) return;
+
+    triggerFeedback('navigation');
+    navigation.dispatch({
+      ...CommonActions.navigate(route.name, route.params),
+      target: stateKeyRef.current,
+    });
+  };
+
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-SWIPE_ACTIVE_OFFSET, SWIPE_ACTIVE_OFFSET])
+    .failOffsetY([-SWIPE_FAIL_OFFSET_Y, SWIPE_FAIL_OFFSET_Y])
+    .onEnd(({ translationX, velocityX }) => {
+      const intent = translationX + velocityX * SWIPE_VELOCITY_WEIGHT;
+      if (Math.abs(intent) < SWIPE_INTENT_THRESHOLD) return;
+      navigateToAdjacentTab(intent < 0 ? 1 : -1);
+    })
+    .runOnJS(true);
+
   return (
     <NavigationContent>
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
-        <Animated.View style={[styles.row, { width: width * routes.length }, rowStyle]}>
-          {routes.map((route, i) => (
-            <TabPage key={route.key} index={i} progress={progress} width={width}>
-              {renderedKeys.has(route.key) ? descriptors[route.key].render() : null}
-            </TabPage>
-          ))}
-        </Animated.View>
+        <GestureDetector gesture={swipeGesture}>
+          <Animated.View style={[styles.row, { width: width * routes.length }, rowStyle]}>
+            {routes.map((route, i) => (
+              <TabPage key={route.key} index={i} progress={progress} width={width}>
+                {renderedKeys.has(route.key) ? descriptors[route.key].render() : null}
+              </TabPage>
+            ))}
+          </Animated.View>
+        </GestureDetector>
 
         <View style={[styles.tabBar, { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
           <BlurView
@@ -285,8 +319,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
   row: { flex: 1, flexDirection: 'row' },
   tabBar: { flexDirection: 'row', alignItems: 'flex-start' },
-  tabButton: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 7, gap: 2 },
-  tabLabel: { fontSize: 10.5, fontWeight: '600' },
+  tabButton: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 8, gap: 3 },
+  tabLabel: { fontSize: 10.5, fontWeight: '700', letterSpacing: 0.1 },
   pill: {
     position: 'absolute',
     top: PILL_VERTICAL_INSET,

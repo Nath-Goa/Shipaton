@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useAudioPlayer } from 'expo-audio';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -32,6 +33,10 @@ export default function WeeklyRecapScreen() {
   // should reshuffle mid-swipe just because a background poll ticked a price.
   const [cards] = useState<RecapCard[]>(() => buildWeeklyRecapCards());
   const [activeIndex, setActiveIndex] = useState(0);
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  // This short, original instrumental loop was generated for Shipaton, so
+  // the recap can ship with music without depending on third-party rights.
+  const music = useAudioPlayer(require('@/assets/sounds/recap-hype.mp3'));
 
   // Drives the whole deck's horizontal position — the same translateX-row
   // technique SlidingTabs.tsx uses to slide between tabs, reused here
@@ -47,6 +52,19 @@ export default function WeeklyRecapScreen() {
   const fillProgress = useSharedValue(0);
 
   const activeTone = useMemo(() => toneColors(colors, cards[activeIndex]?.tone ?? 'accent'), [colors, cards, activeIndex]);
+
+  useEffect(() => {
+    music.loop = true;
+    music.volume = 0.34;
+    music.seekTo(0);
+    music.play();
+    return () => music.pause();
+  }, [music]);
+
+  useEffect(() => {
+    if (musicEnabled) music.play();
+    else music.pause();
+  }, [music, musicEnabled]);
 
   function goTo(index: number) {
     const clamped = Math.max(0, Math.min(cards.length - 1, index));
@@ -116,6 +134,19 @@ export default function WeeklyRecapScreen() {
             ))}
           </View>
           <Pressable
+            accessibilityLabel={musicEnabled ? 'Mute recap music' : 'Play recap music'}
+            accessibilityRole="button"
+            hitSlop={10}
+            style={[styles.soundBtn, { backgroundColor: `${activeTone.fg}20` }]}
+            onPress={() => {
+              triggerFeedback('selection');
+              setMusicEnabled((enabled) => !enabled);
+            }}>
+            <Ionicons name={musicEnabled ? 'volume-high' : 'volume-mute'} size={17} color={activeTone.fg} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Close weekly recap"
+            accessibilityRole="button"
             hitSlop={12}
             style={styles.closeBtn}
             onPress={() => {
@@ -141,5 +172,6 @@ const styles = StyleSheet.create({
   progressRow: { flex: 1, flexDirection: 'row', gap: 4 },
   segmentTrack: { flex: 1, height: 3, borderRadius: 2, overflow: 'hidden' },
   segmentFill: { height: '100%', borderRadius: 2 },
-  closeBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  soundBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
 });

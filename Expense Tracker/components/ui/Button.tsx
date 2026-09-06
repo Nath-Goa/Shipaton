@@ -86,14 +86,15 @@ const styles = StyleSheet.create({
   btn: {
     alignSelf: 'flex-start',
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.sm,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    minHeight: 48,
+    paddingVertical: 13,
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   },
   titleWrap: { flexShrink: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  title: { fontSize: 24, fontWeight: '700', letterSpacing: -0.4, flexShrink: 1 },
-  subtitle: { fontSize: 13, marginTop: 2 },
+  title: { fontSize: 27, fontWeight: '800', letterSpacing: -0.7, flexShrink: 1 },
+  subtitle: { fontSize: 13.5, lineHeight: 19, marginTop: 3 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });

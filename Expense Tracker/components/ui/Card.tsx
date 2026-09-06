@@ -21,8 +21,8 @@ export function Card({ style, children, ...rest }: ViewProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderRadius: radius.md,
-    padding: spacing.lg,
+    padding: spacing.xl,
   },
 });

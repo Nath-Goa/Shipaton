@@ -1,7 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
 import type { Palette } from '@/constants/theme';
@@ -40,6 +48,7 @@ export function RecapCardView({ card, isActive }: { card: RecapCard; isActive: b
   const tone = toneColors(colors, card.tone);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
+  const orbit = useSharedValue(0);
 
   // Driven by the isActive prop rather than a remount-on-focus key — this
   // component stays mounted the whole time (CLAUDE.md §7 rule #3's lesson
@@ -51,6 +60,8 @@ export function RecapCardView({ card, isActive }: { card: RecapCard; isActive: b
     if (isActive) {
       opacity.value = withTiming(1, { duration: 260 });
       scale.value = withDelay(40, withSpring(1, { damping: 14, stiffness: 140 }));
+      orbit.value = 0;
+      orbit.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
     } else {
       opacity.value = 0;
       scale.value = 0.92;
@@ -61,9 +72,15 @@ export function RecapCardView({ card, isActive }: { card: RecapCard; isActive: b
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
   }));
+  const orbitStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${orbit.value * 360}deg` }],
+  }));
 
   return (
     <View style={[styles.card, { backgroundColor: tone.bg }]}>
+      <Animated.View style={[styles.orbit, { borderColor: `${tone.fg}28` }, orbitStyle]} />
+      <View style={[styles.blob, styles.blobTop, { backgroundColor: `${tone.fg}12` }]} />
+      <View style={[styles.blob, styles.blobBottom, { backgroundColor: `${tone.fg}16` }]} />
       <Animated.View style={[styles.inner, animatedStyle]}>
         <View style={[styles.iconChip, { backgroundColor: tone.chip }]}>
           <Ionicons name={card.icon} size={30} color={tone.fg} />
@@ -79,19 +96,30 @@ export function RecapCardView({ card, isActive }: { card: RecapCard; isActive: b
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxl },
+  card: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxl, overflow: 'hidden' },
+  orbit: {
+    position: 'absolute',
+    width: 430,
+    height: 430,
+    borderRadius: 215,
+    borderWidth: 54,
+    borderStyle: 'dashed',
+  },
+  blob: { position: 'absolute', borderRadius: 999 },
+  blobTop: { width: 210, height: 210, top: -70, right: -45 },
+  blobBottom: { width: 270, height: 270, bottom: -120, left: -80 },
   inner: { alignItems: 'center' },
   iconChip: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
   },
-  eyebrow: { fontSize: 13, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', opacity: 0.85 },
-  title: { fontSize: 26, fontWeight: '800', textAlign: 'center', lineHeight: 32, marginTop: spacing.sm },
-  stat: { fontSize: 52, fontWeight: '900', marginTop: spacing.md },
+  eyebrow: { fontSize: 13, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase', opacity: 0.88 },
+  title: { fontSize: 32, fontWeight: '900', letterSpacing: -1, textAlign: 'center', lineHeight: 37, marginTop: spacing.sm },
+  stat: { fontSize: 60, lineHeight: 68, fontWeight: '900', letterSpacing: -2.4, marginTop: spacing.md },
   statSub: { fontSize: 14.5, fontWeight: '600', textAlign: 'center', opacity: 0.9, marginTop: spacing.sm },
   body: { fontSize: 16, lineHeight: 23, textAlign: 'center', opacity: 0.95, marginTop: spacing.md },
 });
