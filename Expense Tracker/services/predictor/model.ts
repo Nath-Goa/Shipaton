@@ -3,10 +3,10 @@ import { FEATURE_COUNT } from '@/services/predictor/features';
 // L2-regularised logistic regression, trained by full-batch gradient descent
 // at bootstrap and then nudged by online SGD as real outcomes land.
 //
-// Why this and not something bigger: it trains on ~13k samples in well under
-// a second on a phone, it updates incrementally from a single labelled
-// sample (which is exactly the shape of "the user opened the app and a
-// 5-day-old prediction just resolved"), and every weight is directly
+// Why this and not something bigger: the fitted weights remain tiny at
+// runtime, it updates incrementally from a single labelled sample (which is
+// exactly the shape of "the user opened the app and a 20-session prediction
+// just resolved"), and every weight is directly
 // readable as "this feature pushes the odds up/down by this much" — so the
 // UI can show *why* a call was made instead of asserting a number.
 //
@@ -25,7 +25,7 @@ export type Model = {
   trainedAt: number;
 };
 
-export const MODEL_VERSION = 2;
+export const MODEL_VERSION = 3;
 const STANDARDIZED_FEATURE_LIMIT = 6;
 
 export function sigmoid(z: number): number {

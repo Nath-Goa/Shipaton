@@ -8,10 +8,9 @@
  * within noise of each other (npm run sweep:predictor prints the current
  * comparison) — there is no dramatic winner. What actually decided this was
  * scripts/evaluate-predictor.ts's "ON THE APP'S 27 TICKERS ONLY" line, the
- * slice that matches what a user actually sees: 20 measured confident calls
- * at ~65% accuracy over ~17% of them, versus ~58% over ~14% at 10. Re-run
- * both scripts before changing this — the sweep drifts over time as the
- * rolling holdout window moves forward with the market.
+ * slice that matches what a user actually sees. Twenty sessions retained the
+ * strongest selective-call accuracy in the measured comparison. Re-run both
+ * scripts before changing this because the rolling window moves with the market.
  *
  * Training uses the broad 90-symbol universe, while the displayed holdout
  * metric is measured with the app's exact 27-symbol market context.
@@ -32,12 +31,12 @@ export const PREDICTOR_L2 = 2e-2;
  * right meaningfully more often than the always-majority baseline, while
  * calls below it were not.
  *
- * Re-measured with the exact 27-symbol context used in production. A 0.575
- * cutoff produced about 59% accuracy at 27-30% coverage across independent
- * 10, 24, and 36-month windows. The previous 0.555 cutoff covered roughly
- * half the samples but only reached 54-56% accuracy in that same context.
+ * Re-measured with the exact 27-symbol context used in production. A 0.60
+ * cutoff produced materially stronger calls across independent 10, 24, and
+ * 36-month chronological windows. Coverage is deliberately lower because
+ * weak probabilities are reported as no clear signal.
  */
-export const CONFIDENCE_THRESHOLD = 0.575;
+export const CONFIDENCE_THRESHOLD = 0.6;
 
 /** Never claim more certainty than the holdout supports, however extreme the odds look. */
 export const MAX_DISPLAYED_CONFIDENCE = 0.75;

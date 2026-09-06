@@ -4,9 +4,9 @@ import { SELF_TEST_BASELINE, SELF_TEST_SET } from '@/services/predictor/selfTest
 // Launch-time integrity check for the on-device model.
 //
 // What this does and does not claim: it re-scores 400 frozen samples of real
-// market history from 2017-2018 that the shipped weights never trained on,
-// and compares the result to what those shipped weights scored at build
-// time. It is a *drift* detector, not a quality proof — the model's edge is
+// market history from 2017-2018 and compares the result to what the shipped
+// weights scored at build time. It is a *drift* detector, not a quality
+// proof — the model's edge is
 // regime-dependent and it scores below a coin flip on that particular era
 // (AUC 0.48), which is exactly why the comparison is against the recorded
 // shipped-weight result rather than against some absolute bar.
