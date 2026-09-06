@@ -82,7 +82,7 @@ function writeWeights(model: Model, metrics: ReturnType<typeof evaluate>, meta: 
 // (${meta.firstDate} to ${meta.trainEnd}), then measured against a ${meta.holdoutMonths}-month
 // holdout the fit never saw (${meta.testSamples} samples, ${meta.testStart} to ${meta.testEnd}).
 //
-// Measured out-of-sample: AUC ${metrics.auc.toFixed(4)}, accuracy ${pct(metrics.accuracy)}
+// Measured out-of-sample on the app's production ticker context: AUC ${metrics.auc.toFixed(4)}, accuracy ${pct(metrics.accuracy)}
 // vs a ${pct(metrics.baselineAccuracy)} always-majority baseline. On calls it is
 // confident enough to actually make, accuracy was ${pct(metrics.highConfidence.accuracy)} over
 // ${pct(metrics.highConfidence.coverage)} of samples. Regenerate with: npm run eval:predictor
@@ -259,17 +259,23 @@ async function main() {
     console.log(`  top-minus-bottom spread ${pct(top - bottom)}`);
   }
 
-  // Sanity: the app's own 27 tickers are a subset of the training universe,
-  // so confirm the edge holds on exactly the names users will see.
+  // Rebuild features from exactly the app's ticker universe. Filtering the
+  // broad dataset here would leave the market-context features calculated
+  // from 90 symbols, which is not what production runs and overstates the
+  // accuracy of confident calls.
   const appSymbols = new Set(TICKERS.map((t) => t.symbol));
-  const appTest = test.filter((s) => appSymbols.has(s.symbol));
+  const appBars = new Map([...barsBySymbol].filter(([symbol]) => appSymbols.has(symbol)));
+  const appSamples = buildDataset(appBars, { horizon: HORIZON_DAYS, labelMode: 'absolute' });
+  const appModern = appSamples.filter((s) => s.date >= SELFTEST_ERA_END);
+  const appTest = splitByDate(appModern, cutoffDate, HORIZON_DAYS).test;
+  let appOut = out;
   if (appTest.length > 100) {
-    const m = evaluate(model, appTest);
+    appOut = evaluate(model, appTest);
     console.log(`\n=== ON THE APP'S ${appSymbols.size} TICKERS ONLY ===`);
     console.log(
-      `  n=${m.samples}  acc ${pct(m.accuracy)}  base ${pct(m.baselineAccuracy)}  AUC ${m.auc.toFixed(
+      `  n=${appOut.samples}  acc ${pct(appOut.accuracy)}  base ${pct(appOut.baselineAccuracy)}  AUC ${appOut.auc.toFixed(
         4
-      )}  confident ${pct(m.highConfidence.accuracy)} over ${pct(m.highConfidence.coverage)}`
+      )}  confident ${pct(appOut.highConfidence.accuracy)} over ${pct(appOut.highConfidence.coverage)}`
     );
   }
 
@@ -290,9 +296,9 @@ async function main() {
   );
   writeSelfTestSet(frozen, frozenMetrics);
 
-  writeWeights(model, out, {
+  writeWeights(model, appOut, {
     trainSamples: train.length,
-    testSamples: test.length,
+    testSamples: appTest.length,
     universeSize: barsBySymbol.size,
     firstDate,
     trainEnd: train[train.length - 1].date,

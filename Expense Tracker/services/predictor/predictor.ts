@@ -8,7 +8,7 @@ import {
   MIN_HISTORY,
   type Bar,
 } from '@/services/predictor/features';
-import { predictProba, type Model } from '@/services/predictor/model';
+import { predictProba, standardize, type Model } from '@/services/predictor/model';
 import type { NewsSentiment, Prediction } from '@/types/prediction';
 
 // Runs the trained model against live cached bars, on device, synchronously.
@@ -113,10 +113,10 @@ export function predict({ symbol, model, news = null }: PredictInput): Predictio
 
   // Contribution of each feature to this specific call: its standardised
   // value times its weight, which is exactly its push on the log-odds.
+  const standardized = standardize(model, features);
   const drivers = features
-    .map((value, i) => {
-      const std = model.std[i] > 1e-9 ? model.std[i] : 1;
-      const z = (value - model.mean[i]) / std;
+    .map((_, i) => {
+      const z = standardized[i];
       return {
         feature: FEATURE_NAMES[i],
         label: FEATURE_LABELS[FEATURE_NAMES[i]] ?? FEATURE_NAMES[i],
@@ -142,11 +142,11 @@ export function predict({ symbol, model, news = null }: PredictInput): Predictio
 }
 
 /** Current features for a symbol, stored so an outcome can train on them later. */
-export function currentFeatures(symbol: string): { features: number[]; price: number } | null {
+export function currentFeatures(symbol: string): { features: number[]; price: number; priceDate: string } | null {
   const bars = getFullHistory(symbol);
   if (bars.length <= MIN_HISTORY) return null;
   const index = bars.length - 1;
   const features = extractFeatures(bars, index, universeContext().get(bars[index].date));
   if (!features) return null;
-  return { features, price: bars[index].close };
+  return { features, price: bars[index].close, priceDate: bars[index].date };
 }

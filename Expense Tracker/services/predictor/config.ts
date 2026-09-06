@@ -13,11 +13,8 @@
  * both scripts before changing this — the sweep drifts over time as the
  * rolling holdout window moves forward with the market.
  *
- * Note the in-app footnote (PRETRAINED_METRICS, PredictionCard.tsx) reports
- * the pooled 90-symbol number instead (a bigger, more statistically honest
- * sample — currently ~55% over ~15%), not this 27-ticker figure. Don't
- * "fix" that to show the flashier number; the pooled one is the one with
- * enough samples under it to actually trust.
+ * Training uses the broad 90-symbol universe, while the displayed holdout
+ * metric is measured with the app's exact 27-symbol market context.
  */
 export const HORIZON_DAYS = 20;
 
@@ -35,21 +32,12 @@ export const PREDICTOR_L2 = 2e-2;
  * right meaningfully more often than the always-majority baseline, while
  * calls below it were not.
  *
- * Set to 0.555, not a rounder 0.56, chasing a specific request: could the
- * predictor reach 65% accuracy at 20% confident-call coverage (on the app's
- * own 27 tickers)? Four interaction features were added to features.ts to
- * try (rsiXmktVol, trendXmktDrawdown, gapXvolScaledMom, mktVol20Sq — see
- * FEATURE_NAMES's comment there) and genuinely helped: out-of-sample AUC on
- * the app's tickers moved 0.581→0.584, and confident accuracy at a given
- * threshold improved by ~1.5-2 points across the board. At this exact
- * threshold, measured: 64.03% accuracy over 20.30% coverage — real, close
- * to the target, not quite over the line on accuracy. 0.56 would land
- * 66.41%/16.12% instead (over 65%, under 20%) — every threshold in this
- * region is a real tradeoff along the same curve, there is no point that
- * clears both 65 and 20 at once with this model. Re-run npm run
- * eval:predictor before nudging this further; it drifts with the market.
+ * Re-measured with the exact 27-symbol context used in production. A 0.575
+ * cutoff produced about 59% accuracy at 27-30% coverage across independent
+ * 10, 24, and 36-month windows. The previous 0.555 cutoff covered roughly
+ * half the samples but only reached 54-56% accuracy in that same context.
  */
-export const CONFIDENCE_THRESHOLD = 0.555;
+export const CONFIDENCE_THRESHOLD = 0.575;
 
 /** Never claim more certainty than the holdout supports, however extreme the odds look. */
 export const MAX_DISPLAYED_CONFIDENCE = 0.75;

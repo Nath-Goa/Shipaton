@@ -32,7 +32,7 @@ type PredictorState = {
   health: PredictorHealth | null;
 
   recordPrediction: (entry: Omit<PendingPrediction, 'id' | 'resolveAfter'>) => void;
-  resolvePending: (priceLookup: (symbol: string) => number | null) => number;
+  resolvePending: (priceLookup: (entry: PendingPrediction) => number | null) => number;
   markNewsScanned: () => void;
   checkHealth: () => PredictorHealth;
   accuracy: () => PredictorAccuracy;
@@ -67,8 +67,8 @@ export const usePredictorStore = create<PredictorState>()(
         const now = Date.now();
         const state = get();
         if (alreadyLoggedToday(state.pending, entry.symbol, now)) return;
-        // ~7 calendar days per 5 sessions; the resolver also re-checks that
-        // the price actually moved on, so an early wake-up is harmless.
+        // ~7 calendar days per 5 sessions; the resolver waits until the exact
+        // target market session exists, so an early wake-up is harmless.
         const resolveAfter = now + HORIZON_DAYS * 1.45 * 24 * 60 * 60 * 1000;
         const pending: PendingPrediction = {
           ...entry,
@@ -90,10 +90,11 @@ export const usePredictorStore = create<PredictorState>()(
             stillPending.push(entry);
             continue;
           }
-          const price = priceLookup(entry.symbol);
+          const price = priceLookup(entry);
           if (price === null || !(price > 0) || !(entry.priceAtPrediction > 0)) {
-            // No usable price to score against — drop rather than keep
-            // retrying forever against a symbol that never resolves.
+            // Live history can lag briefly. Keep the snapshot until the exact
+            // target session is available rather than learning from a later quote.
+            stillPending.push(entry);
             continue;
           }
           const actualReturn = price / entry.priceAtPrediction - 1;

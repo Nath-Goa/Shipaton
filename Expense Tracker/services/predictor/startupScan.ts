@@ -1,7 +1,8 @@
 import { TICKERS } from '@/constants/tickers';
-import { getQuote } from '@/services/marketData/marketData';
+import { getFullHistory } from '@/services/marketData/marketData';
 import { fetchHeadlines } from '@/services/news/newsFeed';
 import { aggregateSentiment } from '@/services/news/sentiment';
+import { HORIZON_DAYS } from '@/services/predictor/config';
 import { currentFeatures, invalidateUniverseCache, predict } from '@/services/predictor/predictor';
 import { usePredictorStore } from '@/store/usePredictorStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
@@ -24,6 +25,20 @@ const REQUEST_SPACING_MS = 180;
 
 const sentimentCache = new Map<string, { at: number; sentiment: NewsSentiment }>();
 const SENTIMENT_TTL_MS = 6 * 60 * 60 * 1000;
+
+function priceAtHorizon(symbol: string, predictionDate: string): number | null {
+  const bars = getFullHistory(symbol);
+  let predictionIndex = -1;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    if (bars[i].date <= predictionDate) {
+      predictionIndex = i;
+      break;
+    }
+  }
+  if (predictionIndex < 0) return null;
+  const target = bars[predictionIndex + HORIZON_DAYS];
+  return target && target.close > 0 ? target.close : null;
+}
 
 export function cachedSentiment(symbol: string): NewsSentiment | null {
   const entry = sentimentCache.get(symbol);
@@ -70,10 +85,12 @@ export async function runStartupScan(): Promise<{ resolved: number; scanned: num
   const collecting = useSettingsStore.getState().predictorDataCollection;
 
   const resolved = collecting
-    ? store.resolvePending((symbol) => {
-        const quote = getQuote(symbol);
-        return quote && quote.price > 0 ? quote.price : null;
-      })
+    ? store.resolvePending((entry) =>
+        priceAtHorizon(
+          entry.symbol,
+          entry.priceDateAtPrediction ?? new Date(entry.createdAt).toISOString().slice(0, 10)
+        )
+      )
     : 0;
 
   // Integrity check runs after resolution, because resolution is the only
@@ -99,6 +116,7 @@ export async function runStartupScan(): Promise<{ resolved: number; scanned: num
         usePredictorStore.getState().recordPrediction({
           symbol,
           createdAt: Date.now(),
+          priceDateAtPrediction: snapshot.priceDate,
           priceAtPrediction: snapshot.price,
           probabilityUp: prediction.probabilityUp,
           features: snapshot.features,

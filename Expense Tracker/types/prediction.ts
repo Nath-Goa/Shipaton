@@ -42,6 +42,8 @@ export type PendingPrediction = {
   id: string;
   symbol: string;
   createdAt: number;
+  /** Last market session used to form the feature snapshot. */
+  priceDateAtPrediction?: string;
   /** Session-count target date this resolves on. */
   resolveAfter: number;
   priceAtPrediction: number;

@@ -25,7 +25,8 @@ export type Model = {
   trainedAt: number;
 };
 
-export const MODEL_VERSION = 1;
+export const MODEL_VERSION = 2;
+const STANDARDIZED_FEATURE_LIMIT = 6;
 
 export function sigmoid(z: number): number {
   if (z >= 0) {
@@ -40,7 +41,10 @@ export function standardize(model: Pick<Model, 'mean' | 'std'>, features: number
   const out = new Array<number>(features.length);
   for (let i = 0; i < features.length; i++) {
     const std = model.std[i];
-    out[i] = std > 1e-9 ? (features[i] - model.mean[i]) / std : 0;
+    const value = std > 1e-9 ? (features[i] - model.mean[i]) / std : 0;
+    out[i] = Number.isFinite(value)
+      ? Math.max(-STANDARDIZED_FEATURE_LIMIT, Math.min(STANDARDIZED_FEATURE_LIMIT, value))
+      : 0;
   }
   return out;
 }
@@ -141,7 +145,7 @@ export function trainBatch(rows: number[][], labels: number[], options: TrainOpt
 // Deliberately small: one resolved prediction should refine the model, never
 // jerk it around. With L2 pulling weights toward zero on every update, a
 // long quiet stretch decays gently instead of drifting.
-const ONLINE_LEARNING_RATE = 0.02;
+const ONLINE_LEARNING_RATE = 0.002;
 const ONLINE_L2 = 1e-4;
 
 /** Fold a single newly-resolved outcome into the model, in place-safe form. */

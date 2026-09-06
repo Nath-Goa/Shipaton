@@ -2,51 +2,51 @@
 //
 // Weights fitted over 150223 pooled samples from 90 US large caps
 // (2017-09-14 to 2025-08-27), then measured against a 10-month
-// holdout the fit never saw (18900 samples, 2025-10-07 to 2026-08-07).
+// holdout the fit never saw (5670 samples, 2025-10-07 to 2026-08-07).
 //
-// Measured out-of-sample: AUC 0.5168, accuracy 54.07%
-// vs a 53.95% always-majority baseline. On calls it is
-// confident enough to actually make, accuracy was 55.76% over
-// 18.26% of samples. Regenerate with: npm run eval:predictor
+// Measured out-of-sample on the app's production ticker context: AUC 0.5874, accuracy 50.88%
+// vs a 50.39% always-majority baseline. On calls it is
+// confident enough to actually make, accuracy was 59.14% over
+// 27.41% of samples. Regenerate with: npm run eval:predictor
 import type { Model } from '@/services/predictor/model';
 
 export const PRETRAINED: Model = {
-  "version": 1,
+  "version": 2,
   "weights": [
-    -0.014509,
-    -0.019093,
-    0.014036,
-    -0.000029,
-    -0.011715,
-    -0.015225,
-    0.000136,
-    -0.001138,
-    0.028939,
-    0.00984,
-    0.009192,
-    -0.03228,
-    0.006072,
-    -0.055543,
-    -0.023625,
-    -0.083304,
-    -0.03949,
-    0.047017,
-    0.028462,
-    0.027121,
-    0.007998,
-    0.03479,
-    0.024811,
-    -0.040122,
-    -0.019018,
-    0.074033,
-    0.107521,
-    -0.127008,
-    0.014114,
-    0.02929,
-    0.001691,
-    0.06312
+    -0.015974,
+    -0.016789,
+    0.015968,
+    -0.004302,
+    -0.012348,
+    -0.018484,
+    -0.007148,
+    0.002676,
+    0.027602,
+    0.009944,
+    0.005099,
+    -0.023465,
+    0.007598,
+    -0.062968,
+    -0.022375,
+    -0.082802,
+    -0.039268,
+    0.048308,
+    0.032338,
+    0.029956,
+    0.00674,
+    0.036675,
+    0.030497,
+    -0.040193,
+    -0.018406,
+    0.075898,
+    0.112853,
+    -0.12677,
+    0.013615,
+    0.028373,
+    0.000099,
+    0.064241
   ],
-  "bias": 0.278423,
+  "bias": 0.28035,
   "mean": [
     0.00068302,
     0.0033953,
@@ -121,11 +121,11 @@ export const PRETRAINED: Model = {
 
 /** Out-of-sample measurements for the weights above, shown in the app. */
 export const PRETRAINED_METRICS = {
-  auc: 0.5168,
-  accuracy: 0.5407,
-  baselineAccuracy: 0.5395,
-  confidentAccuracy: 0.5576,
-  confidentCoverage: 0.1826,
-  testSamples: 18900,
+  auc: 0.5874,
+  accuracy: 0.5088,
+  baselineAccuracy: 0.5039,
+  confidentAccuracy: 0.5914,
+  confidentCoverage: 0.2741,
+  testSamples: 5670,
   holdoutMonths: 10,
 };
