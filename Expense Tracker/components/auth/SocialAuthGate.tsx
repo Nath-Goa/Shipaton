@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';

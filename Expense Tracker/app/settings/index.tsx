@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { PinSetupModal } from '@/components/security/PinSetupModal';
@@ -10,6 +10,7 @@ import { FontPicker } from '@/components/settings/FontPicker';
 import { MarketDataStatusCard } from '@/components/settings/MarketDataStatusCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { IconButton } from '@/components/ui/IconButton';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
@@ -549,6 +550,7 @@ function PlanDetailsModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)}>
           <Pressable
+            feedbackEnabled={false}
             style={[styles.modalSheet, { backgroundColor: colors.surface }]}
             onPress={(e: any) => e.stopPropagation()}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{TIER_LABELS[tier]} plan</Text>

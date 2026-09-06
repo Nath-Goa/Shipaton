@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { CourseCertificateModal } from '@/components/learn/CourseCertificateModal';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { STAGES, SUBPART_LABELS, SUBPART_SEQUENCE, courseOf, type SubpartType } from '@/constants/courses';
@@ -81,6 +82,7 @@ export default function CourseHomeScreen() {
         {complete ? (
           <Animated.View entering={FadeInDown.delay(40).springify().damping(16)}>
             <Pressable
+              feedbackCategory="success"
               onPress={() => setCertVisible(true)}
               style={[styles.completeBanner, { backgroundColor: colors.successSoft, borderColor: colors.success }]}>
               <Ionicons name="ribbon" size={20} color={colors.success} />
@@ -98,6 +100,7 @@ export default function CourseHomeScreen() {
             return (
               <Animated.View key={subpart} entering={FadeInDown.delay(60 + i * 40).springify().damping(16)}>
                 <Pressable
+                  feedbackCategory="navigation"
                   disabled={!subUnlocked}
                   onPress={() => openSubpart(subpart)}
                   style={[

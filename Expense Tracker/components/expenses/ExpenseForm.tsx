@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Image, Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { CategoryPicker } from '@/components/expenses/CategoryPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';

@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import { Text } from '@/components/ui/Text';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { STAGES, SUBPART_SEQUENCE, coursesForStage } from '@/constants/courses';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -66,6 +67,7 @@ export function CoursePath() {
 
                 return (
                   <Pressable
+                    feedbackCategory="navigation"
                     key={course.id}
                     disabled={!unlocked}
                     onPress={() => router.push(`/learn/course/${course.id}`)}

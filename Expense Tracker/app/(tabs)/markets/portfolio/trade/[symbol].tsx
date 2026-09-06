@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { QtyStepperButton } from '@/components/ui/QtyStepperButton';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -197,7 +198,7 @@ export default function TradeScreen() {
           />
 
           {!features.limitOrders ? (
-            <Pressable onPress={() => upgradeToTier('max')}>
+            <Pressable feedbackCategory="primary" onPress={() => upgradeToTier('max')}>
               <Card style={styles.lockedRow}>
                 <Ionicons name="lock-closed" size={14} color={colors.text3} />
                 <Text style={[styles.lockedText, { color: colors.text3 }]}>
@@ -293,7 +294,7 @@ export default function TradeScreen() {
                   <Text style={[styles.pendingText, { color: colors.text }]}>
                     {money(p.amount)} {p.frequency === 'weekly' ? 'weekly' : 'monthly'} · next {p.nextRunDate}
                   </Text>
-                  <Pressable hitSlop={8} onPress={() => cancelAutoInvest(p.id)}>
+                  <Pressable feedbackCategory="destructive" hitSlop={8} onPress={() => cancelAutoInvest(p.id)}>
                     <Ionicons name="close-circle" size={20} color={colors.text3} />
                   </Pressable>
                 </View>
@@ -309,7 +310,7 @@ export default function TradeScreen() {
                   <Text style={[styles.pendingText, { color: colors.text }]}>
                     {o.side === 'buy' ? 'Buy' : 'Sell'} {o.qty} @ {money(o.targetPrice)}
                   </Text>
-                  <Pressable hitSlop={8} onPress={() => cancelLimitOrder(o.id)}>
+                  <Pressable feedbackCategory="destructive" hitSlop={8} onPress={() => cancelLimitOrder(o.id)}>
                     <Ionicons name="close-circle" size={20} color={colors.text3} />
                   </Pressable>
                 </View>

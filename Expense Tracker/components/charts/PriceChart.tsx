@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { Platform, Pressable, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { Platform, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, ClipPath, Defs, G, Line, Path, Polygon, Rect } from 'react-native-svg';
 
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { useTheme } from '@/hooks/useTheme';
 import type { ForecastBand, PriceBar } from '@/types/stock';
 
@@ -151,7 +152,7 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
       {/* A plain Pressable nested inside the entering= view, never carrying
           its own entrance animation — see the Reanimated+touch rule this
           codebase already follows elsewhere (e.g. ResultsCardModal). */}
-      <Pressable onPress={onPointPress ? handlePress : undefined} disabled={!onPointPress}>
+      <Pressable feedbackCategory="selection" onPress={onPointPress ? handlePress : undefined} disabled={!onPointPress}>
         <Svg width={width} height={height}>
           <Defs>
             <ClipPath id={clipId}>

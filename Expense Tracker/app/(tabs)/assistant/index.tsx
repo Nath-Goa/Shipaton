@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { ChatBubble } from '@/components/chat/ChatBubble';
@@ -11,6 +11,7 @@ import { FlappyBirdLoader } from '@/components/games/FlappyBirdLoader';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { IconButton } from '@/components/ui/IconButton';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -236,6 +237,7 @@ function HistoryModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)}>
           <Pressable
+            feedbackEnabled={false}
             style={[styles.modalSheet, { backgroundColor: colors.surface }]}
             onPress={(e: any) => e.stopPropagation()}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Chat history</Text>

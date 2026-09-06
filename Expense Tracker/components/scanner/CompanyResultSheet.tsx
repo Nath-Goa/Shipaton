@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Linking, Pressable, StyleSheet, View, useWindowDimensions, type ViewToken } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Linking, StyleSheet, View, useWindowDimensions, type ViewToken } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -13,6 +13,7 @@ import Animated, {
 
 import { PriceChart } from '@/components/charts/PriceChart';
 import { PillBadge } from '@/components/ui/PillBadge';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Text } from '@/components/ui/Text';
 import { springs } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
@@ -72,6 +73,7 @@ function HeadlineRow({ item, active }: { item: NewsItem; active: boolean }) {
 
   return (
     <Pressable
+      feedbackCategory="navigation"
       onPress={() => item.url && Linking.openURL(item.url)}
       style={[styles.newsRow, { borderColor: colors.border }]}>
       <Text style={[styles.newsTitle, { color: colors.text }]} numberOfLines={2}>

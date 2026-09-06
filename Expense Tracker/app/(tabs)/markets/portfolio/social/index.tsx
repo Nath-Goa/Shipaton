@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { SocialAuthGate } from '@/components/auth/SocialAuthGate';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { IconButton } from '@/components/ui/IconButton';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
@@ -392,6 +393,7 @@ function DuelsSection() {
           const myPct = myBase ? ((myNw - myBase) / myBase) * 100 : 0;
           return (
             <Pressable
+              feedbackCategory="navigation"
               key={duel.id}
               style={[styles.listRowPress, i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}
               onPress={() => router.push(`/markets/portfolio/social/duel/${duel.id}`)}>

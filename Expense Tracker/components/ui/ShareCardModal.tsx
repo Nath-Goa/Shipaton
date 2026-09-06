@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Sharing from 'expo-sharing';
 import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 
 import { Button } from '@/components/ui/Button';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useToastStore } from '@/store/useToastStore';
@@ -55,7 +56,7 @@ export function ShareCardModal({ visible, onClose, shareDialogTitle, children }:
             area is a separate absolute-fill Pressable instead. */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.wrap}>
-          <Pressable onPress={(e: any) => e.stopPropagation()}>
+          <Pressable feedbackEnabled={false} onPress={(e: any) => e.stopPropagation()}>
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={[styles.card, { backgroundColor: colors.surface }]}>
               {children}
             </ViewShot>

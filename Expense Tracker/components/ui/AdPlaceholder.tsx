@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -16,6 +17,7 @@ export function AdPlaceholder() {
   const upgradeToTier = useUpgradeToTier();
   return (
     <Pressable
+      feedbackCategory="primary"
       onPress={() => upgradeToTier('pro')}
       style={[styles.wrap, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
       <View style={styles.row}>

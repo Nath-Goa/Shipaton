@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeOutDown,
@@ -7,6 +7,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui/Text';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { triggerHaptic } from '@/constants/animations';
 import { radius, shadow, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -48,6 +49,7 @@ export function ToastHost() {
         </Text>
         {actionLabel && onAction ? (
           <Pressable
+            feedbackCategory="primary"
             hitSlop={8}
             onPress={() => {
               onAction();

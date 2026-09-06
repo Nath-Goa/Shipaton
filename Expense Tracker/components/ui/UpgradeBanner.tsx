@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { spacing } from '@/constants/theme';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useTheme } from '@/hooks/useTheme';
@@ -29,7 +30,7 @@ export function UpgradeBanner({ title, body }: Props) {
 
   return (
     <View>
-      <Pressable onPress={() => upgradeToTier('pro')}>
+      <Pressable feedbackCategory="primary" onPress={() => upgradeToTier('pro')}>
         <Card style={[styles.upsell, { borderColor: colors.accent }]}>
           <Ionicons name="sparkles" size={18} color={colors.accent} />
           <View style={{ flex: 1 }}>

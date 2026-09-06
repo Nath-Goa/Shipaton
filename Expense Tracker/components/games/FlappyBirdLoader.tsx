@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useFrameCallback, useSharedValue } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -111,6 +112,7 @@ export function FlappyBirdLoader() {
 
   return (
     <Pressable
+      feedbackCategory="primary"
       onPressIn={flap}
       style={[
         styles.wrap,
