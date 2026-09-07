@@ -45,6 +45,31 @@ export function summarizePortfolio(
 
 export type BenchmarkPoint = { date: string; portfolioPct: number; benchmarkPct: number };
 
+function replayPortfolioAtDates(portfolio: PortfolioData, dates: string[]) {
+  const trades = [...portfolio.trades].sort((a, b) => a.date - b.date);
+  const dividends = [...portfolio.dividends].sort((a, b) => a.date - b.date);
+  const holdings = new Map<string, number>();
+  const snapshots: Array<{ date: string; cash: number; holdings: Map<string, number> }> = [];
+  let cash = STARTING_CASH;
+  let tradeIndex = 0;
+  let dividendIndex = 0;
+
+  for (const date of dates) {
+    const cutoffMs = parseDateLocal(date).getTime() + 24 * 60 * 60 * 1000 - 1;
+    while (tradeIndex < trades.length && trades[tradeIndex].date <= cutoffMs) {
+      const trade = trades[tradeIndex++];
+      cash += trade.side === 'buy' ? -trade.total : trade.total;
+      holdings.set(trade.symbol, (holdings.get(trade.symbol) ?? 0) + (trade.side === 'buy' ? trade.qty : -trade.qty));
+    }
+    while (dividendIndex < dividends.length && dividends[dividendIndex].date <= cutoffMs) {
+      cash += dividends[dividendIndex++].amount;
+    }
+    snapshots.push({ date, cash, holdings: new Map(holdings) });
+  }
+
+  return snapshots;
+}
+
 // Reconstructs the portfolio's net-worth curve (cash flow from trades and
 // dividends, replayed day by day, plus holdings priced at that day's close)
 // and compares its cumulative % return against an equal-weight benchmark of
@@ -78,19 +103,7 @@ export function computePortfolioVsBenchmark(portfolio: PortfolioData, days = 90)
   const points: BenchmarkPoint[] = [];
   let portfolioStartValue: number | null = null;
 
-  for (const date of dates) {
-    const cutoffMs = parseDateLocal(date).getTime() + 24 * 60 * 60 * 1000 - 1;
-    let cash = STARTING_CASH;
-    const holdings = new Map<string, number>();
-    for (const t of portfolio.trades) {
-      if (t.date > cutoffMs) continue;
-      cash += t.side === 'buy' ? -t.total : t.total;
-      holdings.set(t.symbol, (holdings.get(t.symbol) ?? 0) + (t.side === 'buy' ? t.qty : -t.qty));
-    }
-    for (const d of portfolio.dividends) {
-      if (d.date <= cutoffMs) cash += d.amount;
-    }
-
+  for (const { date, cash, holdings } of replayPortfolioAtDates(portfolio, dates)) {
     let holdingsValue = 0;
     for (const [symbol, qty] of holdings) {
       if (qty <= 0) continue;
@@ -155,19 +168,7 @@ export function computeNetWorthHistory(portfolio: PortfolioData, days = 90): Net
   if (dates.length === 0) return [];
 
   const points: NetWorthPoint[] = [];
-  for (const date of dates) {
-    const cutoffMs = parseDateLocal(date).getTime() + 24 * 60 * 60 * 1000 - 1;
-    let cash = STARTING_CASH;
-    const holdings = new Map<string, number>();
-    for (const t of portfolio.trades) {
-      if (t.date > cutoffMs) continue;
-      cash += t.side === 'buy' ? -t.total : t.total;
-      holdings.set(t.symbol, (holdings.get(t.symbol) ?? 0) + (t.side === 'buy' ? t.qty : -t.qty));
-    }
-    for (const d of portfolio.dividends) {
-      if (d.date <= cutoffMs) cash += d.amount;
-    }
-
+  for (const { date, cash, holdings } of replayPortfolioAtDates(portfolio, dates)) {
     let holdingsValue = 0;
     for (const [symbol, qty] of holdings) {
       if (qty <= 0) continue;

@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react-native';
 import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -20,6 +20,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { disableAllReminders, refreshBillReminders, refreshStreakRiskReminder } from '@/services/notifications/notifications';
 import { refreshStudyNudge, STUDY_NUDGE_ID } from '@/services/notifications/studyNudge';
 import { runStartupScan } from '@/services/predictor/startupScan';
+import { cleanupProductPhotoCache, cleanupUnreferencedReceiptFiles } from '@/services/images/storedImageFiles';
 import { initSentry } from '@/services/monitoring/sentry';
 import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
@@ -72,7 +73,20 @@ function RootLayout() {
   // selector itself (see LimitOrderWatcher for why that distinction matters).
   const expenses = useExpenseStore((s) => s.expenses);
   const seriesCursor = useExpenseStore((s) => s.seriesCursor);
+  const [expenseHydrated, setExpenseHydrated] = useState(useExpenseStore.persist.hasHydrated());
+  const cleanedReceiptFiles = useRef(false);
   const upcomingRecurring = useMemo(() => computeUpcomingRecurring(expenses, seriesCursor), [expenses, seriesCursor]);
+
+  useEffect(() => {
+    if (expenseHydrated) return;
+    return useExpenseStore.persist.onFinishHydration(() => setExpenseHydrated(true));
+  }, [expenseHydrated]);
+
+  useEffect(() => {
+    if (!expenseHydrated || cleanedReceiptFiles.current) return;
+    cleanedReceiptFiles.current = true;
+    cleanupUnreferencedReceiptFiles(new Set(expenses.flatMap((expense) => expense.photoUri ? [expense.photoUri] : [])));
+  }, [expenseHydrated, expenses]);
 
   useEffect(() => {
     if ((!fontsLoaded && !fontsError) || !settingsHydrated) return;
@@ -84,6 +98,10 @@ function RootLayout() {
   useEffect(() => {
     recordAppOpen();
   }, [recordAppOpen]);
+
+  useEffect(() => {
+    cleanupProductPhotoCache();
+  }, []);
 
   // Tapping the study-nudge notification deep-links straight into a bite-
   // sized focus session rather than just foregrounding the app.

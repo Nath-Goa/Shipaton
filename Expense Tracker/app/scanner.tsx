@@ -16,10 +16,10 @@ import { identifyCompanyFromImage } from '@/services/ai/client';
 import { describeAiError } from '@/services/ai/errorMessage';
 import {
   captureProductPhoto,
-  deleteProductPhoto,
   pickProductPhotoFromLibrary,
   type CapturedProductPhoto,
 } from '@/services/scanner/capture';
+import { cleanupProductPhotoCache, deleteProductPhoto } from '@/services/images/storedImageFiles';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 // A single-screen modal route (no nested _layout — see settings/upgrade.tsx
@@ -50,8 +50,11 @@ export default function ScannerScreen() {
   const [candidates, setCandidates] = useState<ScannerCandidate[] | null>(null);
   const photoRef = useRef<CapturedProductPhoto | null>(null);
 
-  useEffect(() => () => {
-    if (photoRef.current?.uri) deleteProductPhoto(photoRef.current.uri);
+  useEffect(() => {
+    cleanupProductPhotoCache();
+    return () => {
+      if (photoRef.current?.uri) deleteProductPhoto(photoRef.current.uri);
+    };
   }, []);
 
   async function runScan(captured: CapturedProductPhoto | null) {

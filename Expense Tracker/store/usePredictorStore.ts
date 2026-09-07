@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -7,6 +6,7 @@ import { onlineUpdate, type Model } from '@/services/predictor/model';
 import { PRETRAINED } from '@/services/predictor/pretrained';
 import { runSelfTest, type PredictorHealth } from '@/services/predictor/selfTest';
 import type { PendingPrediction, PredictorAccuracy, ResolvedPrediction } from '@/types/prediction';
+import { createDebouncedStorage } from '@/services/storage/debouncedStorage';
 
 // Owns the live model and its track record.
 //
@@ -164,7 +164,7 @@ export const usePredictorStore = create<PredictorState>()(
     }),
     {
       name: 'predictor-store',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => createDebouncedStorage()),
       // A shipped-weights or feature-set change makes every stored weight
       // and every pending row meaningless — they describe a different model.
       // Rehydrating them would produce confident nonsense, so they're

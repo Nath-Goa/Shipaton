@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -56,7 +56,7 @@ export default function AssistantScreen() {
   const [activeThread, setActiveThread] = useState<ThreadKey>('general');
   const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const messageListRef = useRef<FlatList<ChatMessage>>(null);
 
   useEffect(() => {
     if (paramSymbol) setActiveThread(paramSymbol.toUpperCase());
@@ -95,7 +95,7 @@ export default function AssistantScreen() {
         isError: true,
       });
     }
-    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    requestAnimationFrame(() => messageListRef.current?.scrollToEnd({ animated: true }));
   }
 
   return (
@@ -126,11 +126,14 @@ export default function AssistantScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <View style={styles.flex}>
-        <ScrollView
-          ref={scrollRef}
+        <FlatList
+          ref={messageListRef}
+          data={messages}
+          keyExtractor={(message) => message.id}
+          renderItem={({ item }) => <ChatBubble message={item} />}
           contentContainerStyle={styles.messages}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
-          {messages.length === 0 ? (
+          onContentSizeChange={() => messageListRef.current?.scrollToEnd({ animated: true })}
+          ListEmptyComponent={
             <>
               <EmptyState
                 icon="🤖"
@@ -139,16 +142,14 @@ export default function AssistantScreen() {
               />
               <UpgradeBanner title="Never run out of questions" body="Upgrade for a bigger daily AI allowance." />
             </>
-          ) : (
-            messages.map((m) => <ChatBubble key={m.id} message={m} />)
-          )}
-          {loading ? (
+          }
+          ListFooterComponent={loading ? (
             <>
               <TypingIndicator />
               <FlappyBirdLoader />
             </>
           ) : null}
-        </ScrollView>
+        />
         </View>
 
         <View style={[styles.footer, { borderTopColor: colors.border }]}>

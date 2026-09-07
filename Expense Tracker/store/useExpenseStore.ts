@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { deleteReceiptFile } from '@/services/receipts/capture';
+import { deleteReceiptFile } from '@/services/images/storedImageFiles';
 import { useSavingsGoalStore } from '@/store/useSavingsGoalStore';
 import type { Expense, RecurringFrequency } from '@/types/expense';
 import { addDaysStr, addMonthsStr, daysAgo, todayStr } from '@/utils/date';
