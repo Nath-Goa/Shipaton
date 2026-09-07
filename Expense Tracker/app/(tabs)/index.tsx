@@ -61,16 +61,26 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
         <View style={styles.statsRow}>
-          <StatTile label="Net worth" value={money(summary.netWorth)} sub={`Cash: ${money(cash)}`} />
+          <StatTile
+            label="Net worth"
+            value={money(summary.netWorth)}
+            numericValue={summary.netWorth}
+            format={money}
+            sub={`Cash: ${money(cash)}`}
+          />
           <StatTile
             label="Today's P&L"
             value={signedMoney(summary.todayPnl)}
+            numericValue={summary.todayPnl}
+            format={signedMoney}
             sub={signedPct(summary.todayPnlPct)}
             valueColor={summary.todayPnl >= 0 ? colors.success : colors.danger}
           />
           <StatTile
             label="All-time P&L"
             value={signedMoney(summary.allTimePnl)}
+            numericValue={summary.allTimePnl}
+            format={signedMoney}
             sub={signedPct(summary.allTimePnlPct)}
             valueColor={summary.allTimePnl >= 0 ? colors.success : colors.danger}
           />
