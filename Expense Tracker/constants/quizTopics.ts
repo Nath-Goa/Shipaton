@@ -1,7 +1,7 @@
 export type QuizTopic = {
   id: string;
   label: string;
-  category: 'valuation' | 'technical' | 'fundamentals' | 'strategy';
+  category: 'valuation' | 'technical' | 'fundamentals' | 'strategy' | 'practical';
 };
 
 export const QUIZ_TOPICS: QuizTopic[] = [
@@ -23,6 +23,12 @@ export const QUIZ_TOPICS: QuizTopic[] = [
   { id: 'position_sizing', label: 'Position Sizing', category: 'strategy' },
   { id: 'dollar_cost_averaging', label: 'Dollar-Cost Averaging', category: 'strategy' },
   { id: 'risk_management', label: 'Risk Management', category: 'strategy' },
+  { id: 'brokerage_accounts', label: 'Brokerage Accounts', category: 'practical' },
+  { id: 'etfs_index_funds', label: 'ETFs & Index Funds', category: 'practical' },
+  { id: 'capital_gains_tax', label: 'Capital Gains Tax', category: 'practical' },
+  { id: 'financial_statements', label: 'Financial Statements', category: 'practical' },
+  { id: 'options_basics', label: 'Options Basics', category: 'practical' },
+  { id: 'behavioral_biases', label: 'Investing Psychology & Biases', category: 'practical' },
 ];
 
 const TOPIC_MAP = new Map(QUIZ_TOPICS.map((t) => [t.id, t]));

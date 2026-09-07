@@ -23,8 +23,8 @@ export type PracticeAction = 'stock-viewed' | 'trade-placed' | 'watchlist-added'
 
 export type Course = {
   id: string;
-  stage: 1 | 2 | 3;
-  order: number; // 1-10, overall sequence
+  stage: 1 | 2 | 3 | 4;
+  order: number; // overall sequence, 1 and up
   title: string;
   icon: IconName;
   summary: string; // one-liner for the path node
@@ -50,10 +50,11 @@ export type Course = {
   };
 };
 
-export const STAGES: { id: 1 | 2 | 3; label: string }[] = [
+export const STAGES: { id: 1 | 2 | 3 | 4; label: string }[] = [
   { id: 1, label: 'Foundations' },
   { id: 2, label: 'Building Skills' },
   { id: 3, label: 'Advanced Strategy' },
+  { id: 4, label: 'Practical & Real-World' },
 ];
 
 export const COURSES: Course[] = [
@@ -484,6 +485,255 @@ export const COURSES: Course[] = [
       caption: 'Position sizing in one picture: a disciplined strategy risks a small, consistent slice per trade — not a giant bet that one bad call could wipe out.',
     },
   },
+  {
+    id: 'brokerage-accounts',
+    stage: 4,
+    order: 11,
+    title: 'Brokerage Accounts & Getting Started',
+    icon: 'wallet-outline',
+    summary: 'What actually happens when you open a real account and fund it.',
+    topicId: 'brokerage_accounts',
+    lesson: {
+      paragraphs: [
+        "Everything in this app is simulated — but a real brokerage account is the thing that turns \"knowing about investing\" into actually doing it. It's an account with a licensed firm (think Fidelity, Schwab, or a mobile-first broker) that lets you deposit money and place real buy/sell orders on an exchange.",
+        "Opening one today is usually just a form: identity verification, a linked bank account for funding, and a few questions about your experience and goals. Most mainstream brokerages charge $0 to open an account and $0 commission on US stock trades — a real change from decades past, when a chunk of every trade went straight to fees.",
+        "A cash account only lets you trade with money you've actually deposited. A margin account lets you borrow against your holdings to trade with more than you've put in — which can amplify gains, but just as easily amplify losses, since you can end up owing more than you started with. Starting with a cash account is the standard, lower-risk choice.",
+      ],
+      eli5: [
+        "This whole app is practice — a real brokerage account is the real version, where the trades actually count.",
+        "Opening one is basically like signing up for any account online: prove who you are, connect a bank account, answer a few questions. For most brokerages today, it costs nothing to open and nothing to trade US stocks.",
+        "A \"cash account\" only lets you spend money you actually have. A \"margin account\" lets you borrow extra to trade with — like a credit card for investing. Borrowed money can make good trades better, but it can make bad trades worse too.",
+      ],
+      keyTerms: [
+        { term: 'Brokerage account', def: 'An account with a licensed firm used to buy and sell investments like stocks and ETFs.' },
+        { term: 'Margin account', def: 'A brokerage account that allows borrowing against your holdings to trade with more money than you\'ve deposited.' },
+        { term: 'SIPC insurance', def: 'Protection for the cash and securities in your account (up to limits) if the brokerage itself fails — not protection against a stock losing value.' },
+      ],
+    },
+    practice: {
+      instruction: "Open Portfolio and look at your cash balance — in a real brokerage, that's the exact number that would show up after a bank transfer clears.",
+      action: 'manual',
+      ctaLabel: 'Check your cash balance',
+      ctaRoute: '/markets/portfolio',
+    },
+    visual: {
+      videoId: 'OJ5bLy8Yegw',
+      videoTitle: 'How to Pick a Broker: Investing for Beginners',
+      videoSource: 'Investopedia',
+      segments: [{ id: 'available', label: 'Of a deposit, available to invest — no account-opening fee', value: 100 }],
+      caption: 'Most modern online brokerages charge $0 to open an account and $0 commission on US stock trades — a real shift from decades past.',
+    },
+  },
+  {
+    id: 'etfs-index-funds',
+    stage: 4,
+    order: 12,
+    title: 'ETFs, Index Funds & Individual Stocks',
+    icon: 'layers-outline',
+    summary: 'The practical alternative to picking single companies yourself.',
+    topicId: 'etfs_index_funds',
+    lesson: {
+      paragraphs: [
+        "This app only lets you trade individual stocks — but most real-world investors put a meaningful share of their money into funds instead. An ETF (exchange-traded fund) bundles many stocks into one security that trades on an exchange all day, just like a single stock does.",
+        "An index fund is built to track a specific market index — like the S&P 500 — as closely as possible, rather than trying to beat it. Buying one share can spread your money across hundreds of companies at once, which is a level of diversification an individual stock-picker would need dozens of separate trades to match.",
+        "Funds aren't free, though — they charge an expense ratio, a small annual fee taken as a percentage of your investment. A 0.05% fund and a 0.80% fund don't feel very different in year one, but that gap compounds meaningfully over decades, which is why fee comparison matters just as much as picking the right fund.",
+      ],
+      eli5: [
+        "This app is stocks-only, but real investors often buy \"fund\" versions instead of picking companies one by one.",
+        "An ETF is like a gift basket instead of one single gift — one purchase, but it's actually a bunch of different companies bundled inside.",
+        "Funds charge a tiny yearly fee for the bundling. It looks small on day one, but a bigger fee eats away more and more the longer you hold it — so the fee size actually matters a lot over many years.",
+      ],
+      keyTerms: [
+        { term: 'ETF', def: 'A fund holding many stocks (or other assets) that trades on an exchange all day, just like a single stock.' },
+        { term: 'Index fund', def: 'A fund built to track a specific market index as closely as possible, rather than trying to beat it.' },
+        { term: 'Expense ratio', def: "A fund's annual fee, charged as a percentage of your investment." },
+      ],
+    },
+    practice: {
+      instruction: "Browse Markets and pick two of your holdings from different sectors — that spread is roughly what one diversified ETF gives you in a single trade.",
+      action: 'manual',
+      ctaLabel: 'Compare two holdings',
+      ctaRoute: '/markets',
+    },
+    visual: {
+      videoId: 'SFdsY9Rdh6w',
+      videoTitle: 'Exchange traded funds (ETFs)',
+      videoSource: 'Khan Academy',
+      segments: [
+        { id: 'top10', label: 'Typical top-10 holdings weight in a broad index ETF', value: 30 },
+        { id: 'rest', label: 'The other ~490 companies combined', value: 70 },
+      ],
+      caption: 'Illustrative, not this app\'s own data: a single broad-market ETF share can spread money across hundreds of companies in one purchase.',
+    },
+  },
+  {
+    id: 'capital-gains-tax',
+    stage: 4,
+    order: 13,
+    title: 'Taxes & Capital Gains',
+    icon: 'receipt-outline',
+    summary: 'What selling a real winning stock actually costs you.',
+    topicId: 'capital_gains_tax',
+    lesson: {
+      paragraphs: [
+        "This app has no real tax consequences — but every real profitable trade does. A capital gain is the profit made when you sell an investment for more than you paid for it, and in most countries that profit is taxable income.",
+        "How long you held the position usually matters more than how much you made. A gain on a position held about a year or less is generally a short-term gain, taxed at higher ordinary income rates; held longer, it generally qualifies for lower long-term capital gains rates — commonly cited around 20% at the top US federal bracket versus up to 37% short-term, though exact rates depend on income and change over time.",
+        "This creates a real, non-obvious tradeoff: an investor up nicely at 11 months might consider waiting one more month to cross into long-term treatment — but the position is still exposed to the market in the meantime, so the tax saving has to be weighed against the risk of holding longer.",
+      ],
+      eli5: [
+        "Nothing in this app is taxed — but in real life, making money by selling a stock usually means owing some of it to taxes, just like income from a job.",
+        "If you sell fast (about a year or less), the tax bite is usually bigger. If you wait longer than about a year, the tax bite is usually smaller. That's basically the whole rule.",
+        "Sometimes people wait a few extra weeks to sell, purely to cross that one-year line and pay less tax — but waiting also means the price could still move against them in the meantime.",
+      ],
+      keyTerms: [
+        { term: 'Capital gain', def: 'The profit made when you sell an investment for more than you paid for it.' },
+        { term: 'Short-term vs. long-term gain', def: 'Whether a position was held about a year or less (short-term, higher tax rate) or longer (long-term, typically lower rate).' },
+        { term: 'Capital loss', def: 'A loss from selling an investment for less than you paid — it can typically offset capital gains for tax purposes.' },
+      ],
+    },
+    practice: {
+      instruction: "Open Portfolio → Manage and find a holding you've had for a while — in real life, would selling it today count as short-term or long-term?",
+      action: 'manual',
+      ctaLabel: 'Check your holdings',
+      ctaRoute: '/markets/portfolio/manage',
+    },
+    visual: {
+      videoId: '0maGu_QHFjU',
+      videoTitle: 'Capital Gains Tax 101: Everything You Need to Know',
+      videoSource: 'Investopedia',
+      segments: [
+        { id: 'kept', label: 'Kept, at the top long-term capital-gains bracket', value: 80 },
+        { id: 'tax', label: 'Paid in tax', value: 20 },
+      ],
+      caption: 'Illustrative — the top long-term US federal capital-gains rate is commonly cited around 20%, versus up to 37% if the same gain is taxed as short-term. Exact rates depend on income and aren\'t this app\'s own data — this is a mock app with no real tax consequences.',
+    },
+  },
+  {
+    id: 'financial-statements',
+    stage: 4,
+    order: 14,
+    title: 'Reading Financial Statements',
+    icon: 'reader-outline',
+    summary: 'Balance sheets, income statements, and cash flow — beyond just P/E.',
+    topicId: 'financial_statements',
+    lesson: {
+      paragraphs: [
+        "The P/E ratio course covered one number pulled from a company's financials — but that number comes from three real documents every public company publishes. The balance sheet is a snapshot, as of one date, of what a company owns (assets), what it owes (liabilities), and what's left for shareholders (equity).",
+        "The income statement covers a period of time instead of one date — revenue, expenses, and the profit left over, usually reported quarterly and annually. The cash flow statement then tracks the actual cash that moved in and out over that same period, separate from the \"paper\" profit the income statement shows.",
+        "Those last two numbers can genuinely diverge: a company can report a solid profit while running low on cash, if a big share of its \"sales\" are unpaid customer invoices or it spent heavily on things that don't hit the income statement the same way. That gap is exactly why analysts check all three statements together, not just one.",
+      ],
+      eli5: [
+        "P/E is one number pulled from a company's report card — this lesson is about the actual report card it comes from.",
+        "The balance sheet is a photo taken on one specific day: what the company owns, what it owes, what's left over. The income statement is more like a video covering a stretch of time: money made, money spent, profit left.",
+        "The cash flow statement checks if the profit on paper actually turned into real cash in the bank — sometimes a company looks profitable on paper but is still low on actual cash, and this statement is how you'd catch that.",
+      ],
+      keyTerms: [
+        { term: 'Balance sheet', def: "A snapshot, as of one date, of what a company owns, owes, and what's left for shareholders." },
+        { term: 'Income statement', def: "A summary of a company's revenue, expenses, and profit over a period of time." },
+        { term: 'Cash flow statement', def: 'Tracks actual cash moving in and out of a company, separately from reported profit.' },
+      ],
+    },
+    practice: {
+      instruction: "Open a stock and notice what this app does and doesn't show you — a real balance sheet and income statement live on a company's own investor relations site, not in a mock trading app.",
+      action: 'manual',
+      ctaLabel: 'Open a stock',
+      ctaRoute: '/markets',
+    },
+    visual: {
+      videoId: 'hZvjH3Az87A',
+      videoTitle: 'Balance sheet and income statement relationship',
+      videoSource: 'Khan Academy',
+      segments: [
+        { id: 'liabilities', label: 'Liabilities (what it owes)', value: 40 },
+        { id: 'equity', label: 'Equity (what shareholders own)', value: 60 },
+      ],
+      caption: 'A hypothetical example, not any real company\'s numbers: assets are always financed by some mix of debt (liabilities) and shareholder equity — this shows one illustrative 40/60 split, not a rule.',
+    },
+  },
+  {
+    id: 'options-basics',
+    stage: 4,
+    order: 15,
+    title: 'Options Basics',
+    icon: 'git-compare-outline',
+    summary: 'Calls, puts, and why leverage cuts both ways.',
+    topicId: 'options_basics',
+    lesson: {
+      paragraphs: [
+        "This app trades stocks only — options are a different, more advanced instrument worth understanding even if you never use them. A call option gives its owner the right, but not the obligation, to buy a stock at a fixed price before a set expiration date. A put option is the mirror image: the right to sell at a fixed price before expiration.",
+        "An option typically costs far less than buying the shares outright, because it's a smaller, time-limited bet rather than outright ownership — it can expire completely worthless if the stock doesn't move the right way in time. That low upfront cost is exactly what creates leverage: the same dollar move in the stock becomes a much bigger percentage move on the option.",
+        "That leverage cuts both ways. Amplified gains if the stock moves favorably come with a real chance of losing the entire amount paid for the option (the premium) if it doesn't move enough before expiration — unlike owning the stock itself, which simply sits there and can be held indefinitely waiting for a recovery.",
+      ],
+      eli5: [
+        "This app doesn't have options — just regular stock buying and selling. But it's worth knowing what they are.",
+        "A call option is like paying a small deposit for the right to buy something at today's price later — you don't have to go through with it if it's not a good deal anymore. A put option is the same idea, but for selling.",
+        "Options cost way less than the actual stock, which sounds great — but that small cost can also shrink to zero if the stock doesn't move the way you bet, while a real share of stock never just disappears like that.",
+      ],
+      keyTerms: [
+        { term: 'Call option', def: 'The right, but not the obligation, to buy a stock at a fixed price before a set expiration date.' },
+        { term: 'Put option', def: 'The right, but not the obligation, to sell a stock at a fixed price before a set expiration date.' },
+        { term: 'Premium (options)', def: 'The price paid to buy an option contract — the most an option buyer can lose.' },
+      ],
+    },
+    practice: {
+      instruction: "Open a stock you know well and imagine controlling the same 100 shares through one option contract instead — would the smaller upfront cost make you more comfortable, or less, once you factor in it can expire worthless?",
+      action: 'manual',
+      ctaLabel: 'Open a stock',
+      ctaRoute: '/markets',
+    },
+    visual: {
+      videoId: 'f7A7PTmBNH8',
+      videoTitle: 'Options Basics',
+      videoSource: 'Investopedia',
+      segments: [
+        { id: 'option', label: 'Illustrative cost to control 100 shares via one call option', value: 8 },
+        { id: 'shares', label: 'Cost to buy 100 shares outright', value: 92 },
+      ],
+      caption: 'Illustrative example only, not a real quote: an option can let you control the same shares for a fraction of the outright cost — exactly why options amplify both gains and losses.',
+    },
+  },
+  {
+    id: 'behavioral-biases',
+    stage: 4,
+    order: 16,
+    title: 'Investing Psychology & Common Mistakes',
+    icon: 'flask-outline',
+    summary: 'Loss aversion, herd mentality, and why "obvious" advice is hard to follow.',
+    topicId: 'behavioral_biases',
+    lesson: {
+      paragraphs: [
+        "Almost every earlier lesson in this path was a tool — a ratio, an order type, a chart pattern. This one is about the thing that most often gets in the way of using those tools well: your own psychology. Loss aversion is the well-documented tendency to feel the pain of a loss more strongly than the pleasure of an equal-sized gain.",
+        "In practice, loss aversion often shows up as holding a losing stock far longer than your own analysis would otherwise justify — because selling makes the loss feel \"real,\" even though the money is already lost or gained the moment the price moves, whether or not you've sold. A related pattern, herd mentality, is buying or selling because everyone else seems to be doing it, rather than because of your own research or plan.",
+        "None of this makes you irrational — it makes you human; these biases are well-studied precisely because they're common and predictable, not rare failures of willpower. The fix isn't willpower alone, it's structure: a written plan, a pre-set stop-loss, or a position-sizing rule decided calmly in advance does the discipline for you, before the emotion of a real move sets in.",
+      ],
+      eli5: [
+        "Every earlier lesson was a tool. This one is about the biggest obstacle to actually using those tools: your own brain, in the moment.",
+        "Losing $10 usually feels worse than finding $10 feels good — even though it's the same amount. That's called loss aversion, and it's why people hang onto bad investments way too long, hoping to \"get back to even\" before selling.",
+        "\"Herd mentality\" just means doing what everyone else seems to be doing, instead of your own plan. The fix for both isn't just willpower — it's deciding your rules ahead of time, before your emotions are involved.",
+      ],
+      keyTerms: [
+        { term: 'Loss aversion', def: 'The tendency to feel the pain of a loss more strongly than the pleasure of an equal-sized gain.' },
+        { term: 'Herd mentality', def: "Buying or selling because everyone else seems to be doing it, rather than because of your own research or plan." },
+        { term: 'Recency bias', def: 'Giving too much weight to recent events — like assuming a stock that just went up will keep going up.' },
+      ],
+    },
+    practice: {
+      instruction: "Open Portfolio → Manage and look at your trade history — can you spot one trade that looks like it was made out of fear or excitement rather than a plan?",
+      action: 'manual',
+      ctaLabel: 'Review your trade history',
+      ctaRoute: '/markets/portfolio/manage',
+    },
+    visual: {
+      videoId: 'vrCv34jWiNE',
+      videoTitle: 'An Introduction to Behavioural Finance: 5 Financial Biases & How to Avoid Them',
+      videoSource: 'Lighthouse Financial',
+      segments: [
+        { id: 'lossFeeling', label: 'How strongly a loss is felt', value: 2 },
+        { id: 'gainFeeling', label: 'How strongly an equal-sized gain is felt', value: 1 },
+      ],
+      caption: 'Illustrative, from behavioral-finance research rather than this app\'s own data: a loss is commonly found to feel roughly twice as painful as an equal-sized gain feels good — a big part of why it\'s so hard to sell a loser.',
+    },
+  },
 ];
 
 const COURSE_MAP = new Map(COURSES.map((c) => [c.id, c]));
@@ -492,7 +742,7 @@ export function courseOf(id: string): Course | undefined {
   return COURSE_MAP.get(id);
 }
 
-export function coursesForStage(stage: 1 | 2 | 3): Course[] {
+export function coursesForStage(stage: 1 | 2 | 3 | 4): Course[] {
   return COURSES.filter((c) => c.stage === stage).sort((a, b) => a.order - b.order);
 }
 

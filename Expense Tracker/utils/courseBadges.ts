@@ -6,7 +6,7 @@ export function courseBadgeId(courseId: string): string {
   return `course_${courseId.replace(/-/g, '_')}`;
 }
 
-export function stageBadgeId(stage: 1 | 2 | 3): string {
+export function stageBadgeId(stage: 1 | 2 | 3 | 4): string {
   return `stage_${stage}_complete`;
 }
 
