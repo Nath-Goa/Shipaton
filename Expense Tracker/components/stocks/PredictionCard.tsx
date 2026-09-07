@@ -102,24 +102,35 @@ export function PredictionCard({ symbol }: Props) {
   const tone = unclear ? colors.text2 : up ? colors.success : colors.danger;
   const toneSoft = unclear ? colors.surface2 : up ? colors.successSoft : colors.dangerSoft;
   const probability = Math.round(prediction.probabilityUp * 100);
+  const heroLabel = unclear ? 'Too close to call' : up ? 'Leaning up' : 'Leaning down';
+  const heroIcon = unclear ? 'remove-outline' : up ? 'trending-up' : 'trending-down';
+  const heroSub = unclear
+    ? "The signals don't line up enough for a confident call right now."
+    : `The model leans toward ${symbol} closing ${up ? 'higher' : 'lower'} over the next ${prediction.horizonDays} trading days.`;
 
   return (
     <Animated.View entering={FadeIn.duration(260)}>
       <Card>
         <View style={styles.head}>
           <Text style={[styles.title, { color: colors.text }]}>Price outlook</Text>
-          <PillBadge
-            label={unclear ? 'No clear signal' : up ? 'Leaning up' : 'Leaning down'}
-            color={tone}
-            backgroundColor={toneSoft}
-          />
+          <PillBadge label={`${prediction.horizonDays}-day model`} color={colors.text3} backgroundColor={colors.surface2} />
         </View>
 
-        <View style={styles.probRow}>
-          <Text style={[styles.prob, { color: tone }]}>{probability}%</Text>
-          <Text style={[styles.probLabel, { color: colors.text2 }]}>
-            estimated chance {symbol} closes higher {prediction.horizonDays} trading days from now
-          </Text>
+        {/* The direction call is the actual answer to "what does this card
+            say" — leads with a plain-English label instead of a raw
+            percentage, since that's what was unclear to most readers. */}
+        <View style={styles.heroRow}>
+          <View style={[styles.heroIconWrap, { backgroundColor: toneSoft }]}>
+            <Ionicons name={heroIcon} size={22} color={tone} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.heroLabel, { color: tone }]}>{heroLabel}</Text>
+            <Text style={[styles.heroSub, { color: colors.text2 }]}>{heroSub}</Text>
+          </View>
+          <View style={styles.heroPctWrap}>
+            <Text style={[styles.heroPct, { color: tone }]}>{probability}%</Text>
+            <Text style={[styles.heroPctLabel, { color: colors.text3 }]}>chance up</Text>
+          </View>
         </View>
 
         {unclear ? (
@@ -128,6 +139,18 @@ export function PredictionCard({ symbol }: Props) {
             answer most of the time — it only commits when the signals line up.
           </Text>
         ) : null}
+
+        {/* Directly answers "why does every stock show a similar number?" —
+            a real question people asked after seeing this card on a few
+            different stocks, not an edge case worth burying in a footnote. */}
+        <View style={[styles.infoBanner, { backgroundColor: colors.surface2 }]}>
+          <Ionicons name="information-circle-outline" size={14} color={colors.text3} />
+          <Text style={[styles.infoText, { color: colors.text3 }]}>
+            Numbers usually cluster close to 50% across different stocks — that&apos;s expected, not a bug.
+            Predicting short-term price moves is genuinely hard, so even a real, backtested model only has a
+            small, honest edge, never a big one.
+          </Text>
+        </View>
 
         <View style={[styles.section, { borderTopColor: colors.border }]}>
           <Text style={[styles.sectionLabel, { color: colors.text3 }]}>What&apos;s driving this</Text>
@@ -205,9 +228,22 @@ export function PredictionCard({ symbol }: Props) {
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   title: { fontSize: 15, fontWeight: '700' },
-  probRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, marginTop: spacing.md },
-  prob: { fontSize: 34, fontWeight: '700', letterSpacing: -0.5 },
-  probLabel: { flex: 1, fontSize: 12, lineHeight: 16, paddingBottom: 4 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg },
+  heroIconWrap: { width: 44, height: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  heroLabel: { fontSize: 17, fontWeight: '700' },
+  heroSub: { fontSize: 12.5, lineHeight: 17, marginTop: 2 },
+  heroPctWrap: { alignItems: 'center' },
+  heroPct: { fontSize: 22, fontWeight: '700', letterSpacing: -0.3 },
+  heroPctLabel: { fontSize: 10.5, fontWeight: '600', marginTop: 1 },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  infoText: { flex: 1, fontSize: 11, lineHeight: 15 },
   body: { fontSize: 13, lineHeight: 19, marginTop: spacing.sm },
   section: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.md, gap: 6 },
   sectionLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
