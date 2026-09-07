@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { useShallow } from 'zustand/react/shallow';
 
 import { Text } from '@/components/ui/Text';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
@@ -43,7 +44,13 @@ function ProgressRing({ progress, color, trackColor }: { progress: number; color
 // which are unchanged and still work for open-ended review.
 export function CoursePath() {
   const { colors } = useTheme();
-  const { courseProgress, isCourseUnlocked, isCourseComplete } = useCourseStore();
+  const { courseProgress, isCourseUnlocked, isCourseComplete } = useCourseStore(
+    useShallow((s) => ({
+      courseProgress: s.courseProgress,
+      isCourseUnlocked: s.isCourseUnlocked,
+      isCourseComplete: s.isCourseComplete,
+    }))
+  );
 
   return (
     <View style={{ gap: spacing.xl }}>

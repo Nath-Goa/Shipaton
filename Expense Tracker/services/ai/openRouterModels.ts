@@ -40,7 +40,7 @@ function isFree(m: OpenRouterModel): boolean {
 
 async function discoverFreeModels(): Promise<string[]> {
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/models');
+    const res = await fetchWithTimeout('https://openrouter.ai/api/v1/models');
     if (!res.ok) return [];
     const json = await res.json();
     const list = (json?.data as OpenRouterModel[] | undefined) ?? [];
@@ -88,3 +88,4 @@ export function getBestFreeOpenRouterModel(): string {
   const pool = cachedModels && cachedModels.length > 0 ? cachedModels : STATIC_FALLBACK_MODELS;
   return fastestFirst(pool)[0];
 }
+import { fetchWithTimeout } from '@/services/network/fetchWithTimeout';

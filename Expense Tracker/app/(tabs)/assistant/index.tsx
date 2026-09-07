@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -46,7 +47,9 @@ export default function AssistantScreen() {
   const upgradeToTier = useUpgradeToTier();
   const { hasKey } = useHasApiKey();
   const { remaining, locked: quotaExhausted } = useAiQuota();
-  const { threads, addMessage, clearThread } = useChatStore();
+  const { threads, addMessage, clearThread } = useChatStore(
+    useShallow((s) => ({ threads: s.threads, addMessage: s.addMessage, clearThread: s.clearThread }))
+  );
   const recordAnalystQuestion = useStreakStore((s) => s.recordAnalystQuestion);
   const showToast = useToastStore((s) => s.show);
 
@@ -74,7 +77,7 @@ export default function AssistantScreen() {
 
     const context = activeThread !== 'general' ? { symbol: activeThread, name: tickerOf(activeThread)?.name ?? activeThread } : undefined;
     const systemPrompt = buildAnalystSystemPrompt(context, tutorPersona);
-    const history = [...messages, userMessage].map((m) => ({ role: m.role, text: m.text }));
+    const history = [...messages, userMessage].slice(-40).map((m) => ({ role: m.role, text: m.text }));
 
     const result = await sendChatMessage(systemPrompt, history);
     setLoading(false);

@@ -6,6 +6,7 @@ import {
   type ReceiptExtraction,
 } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
+import { fetchWithTimeout } from '@/services/network/fetchWithTimeout';
 import { parseJsonResponse } from './shared';
 
 const API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -15,7 +16,7 @@ type Message = { role: 'system' | 'user' | 'assistant'; content: string | Conten
 
 async function callChat(messages: Message[], apiKey: string, model?: string): Promise<AiResult<any>> {
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

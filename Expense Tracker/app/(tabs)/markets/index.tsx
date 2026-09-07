@@ -8,6 +8,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 
 import { MarketsPortfolioSwitch } from '@/components/navigation/MarketsPortfolioSwitch';
 import { StarButton } from '@/components/stocks/StarButton';
@@ -77,7 +78,9 @@ function MarketActionBtn({
 export default function MarketsScreen() {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
-  const { watchlist, toggleWatchlist } = usePortfolioStore();
+  const { watchlist, toggleWatchlist } = usePortfolioStore(
+    useShallow((s) => ({ watchlist: s.watchlist, toggleWatchlist: s.toggleWatchlist }))
+  );
   const showToast = useToastStore((s) => s.show);
 
   const symbols = useMemo(() => TICKERS.map((t) => t.symbol), []);

@@ -6,6 +6,7 @@ import {
   type ReceiptExtraction,
 } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
+import { fetchWithTimeout } from '@/services/network/fetchWithTimeout';
 import { parseJsonResponse } from './shared';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
@@ -21,7 +22,7 @@ async function callMessages(
   apiKey: string
 ): Promise<AiResult<any>> {
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

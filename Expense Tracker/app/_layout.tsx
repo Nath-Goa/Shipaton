@@ -24,6 +24,7 @@ import { initSentry } from '@/services/monitoring/sentry';
 import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
+import { usePredictorStore } from '@/store/usePredictorStore';
 import { useReviewStore } from '@/store/useReviewStore';
 import { useSavingsGoalStore } from '@/store/useSavingsGoalStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -82,8 +83,7 @@ function RootLayout() {
   // that the smart study-nudge suggestion (below) is derived from.
   useEffect(() => {
     recordAppOpen();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [recordAppOpen]);
 
   // Tapping the study-nudge notification deep-links straight into a bite-
   // sized focus session rather than just foregrounding the app.
@@ -150,8 +150,7 @@ function RootLayout() {
   useEffect(() => {
     if (!smartNudgesEnabled) return;
     refreshStudyNudge({ suggestedHour: getSuggestedHour(preferredStudyWindow), enabled: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [smartNudgesEnabled, preferredStudyWindow]);
+  }, [smartNudgesEnabled, preferredStudyWindow, getSuggestedHour]);
 
   // RevenueCat is the source of truth for entitlement state: configure once
   // at app start, adopt whatever tier the store already reports for this
@@ -194,6 +193,7 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
   );
   const hasPrompted = useReviewStore((s) => s.hasPrompted);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [predictorHydrated, setPredictorHydrated] = useState(usePredictorStore.persist.hasHydrated());
   // hasPrompted starts false until AsyncStorage finishes rehydrating it, so
   // gating on this too (not just hasPrompted) stops a returning user who
   // already reviewed from briefly re-qualifying before their prior answer
@@ -205,6 +205,11 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
     return useReviewStore.persist.onFinishHydration(() => setReviewStoreHydrated(true));
   }, [reviewStoreHydrated]);
 
+  useEffect(() => {
+    if (predictorHydrated) return;
+    return usePredictorStore.persist.onFinishHydration(() => setPredictorHydrated(true));
+  }, [predictorHydrated]);
+
   // Predictor upkeep, once per app open: resolve any prediction whose
   // 20-session horizon has elapsed (each resolved outcome trains the model
   // one step), then scan headlines and log fresh predictions for the symbols
@@ -212,9 +217,9 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
   // inside degrades to "no news", never to a broken start. Held until
   // onboarding is done so a first-run user isn't fetching news mid-setup.
   useEffect(() => {
-    if (!ready || !onboardingComplete) return;
+    if (!ready || !onboardingComplete || !predictorHydrated) return;
     runStartupScan().catch(() => undefined);
-  }, [ready, onboardingComplete]);
+  }, [ready, onboardingComplete, predictorHydrated]);
 
   // Ask once, only after the person has actually done something — a badge
   // earned (Learn/Markets) or a few trades (Portfolio) — rather than

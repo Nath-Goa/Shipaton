@@ -1,4 +1,5 @@
 import type { PriceBar } from '@/types/stock';
+import { fetchWithTimeout } from '@/services/network/fetchWithTimeout';
 
 // Thin client for the Twelve Data REST API (twelvedata.com) — free tier is
 // 8 requests/minute and 800 credits/day, which is why every caller in
@@ -65,7 +66,7 @@ export async function fetchQuotesBatch(symbols: string[]): Promise<Map<string, L
   if (!API_KEY || symbols.length === 0) return result;
   try {
     const url = `${API_BASE}/quote?symbol=${encodeURIComponent(symbols.join(','))}&apikey=${API_KEY}`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     if (!res.ok) return result;
     const json = await res.json();
     if (symbols.length === 1) {
@@ -91,7 +92,7 @@ export async function fetchDailyBars(symbol: string, outputSize = 400): Promise<
   if (!API_KEY) return null;
   try {
     const url = `${API_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=1day&outputsize=${outputSize}&order=ASC&apikey=${API_KEY}`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     if (!res.ok) return null;
     const json = await res.json();
     if (json.status === 'error' || !Array.isArray(json.values)) return null;

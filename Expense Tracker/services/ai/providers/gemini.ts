@@ -6,6 +6,7 @@ import {
   type ReceiptExtraction,
 } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
+import { fetchWithTimeout } from '@/services/network/fetchWithTimeout';
 import { parseJsonResponse } from './shared';
 
 type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
@@ -37,7 +38,7 @@ async function callGenerate(
 ): Promise<AiResult<any>> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || DEFAULT_AI_MODEL.gemini}:generateContent?key=${encodeURIComponent(apiKey)}`;
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({

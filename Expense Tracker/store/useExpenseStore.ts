@@ -12,6 +12,8 @@ function nextOccurrence(dateStr: string, freq: RecurringFrequency): string {
   return freq === 'weekly' ? addDaysStr(dateStr, 7) : addMonthsStr(dateStr, 1);
 }
 
+const DELETE_UNDO_WINDOW_MS = 4_500;
+
 // A template per series (desc/category/amount/frequency) — whichever
 // instance is still around, not necessarily the most recent one, since the
 // actual "how far have we generated" position comes from seriesCursor, not
@@ -131,6 +133,14 @@ export const useExpenseStore = create<ExpenseState>()(
           expenses: state.expenses.filter((e) => e.id !== id),
           lastDeleted: { expense, index: idx },
         }));
+        if (expense.photoUri) {
+          setTimeout(() => {
+            const pending = get().lastDeleted;
+            if (pending?.expense.id !== id) return;
+            deleteReceiptFile(expense.photoUri!);
+            set({ lastDeleted: null });
+          }, DELETE_UNDO_WINDOW_MS);
+        }
       },
       undoDelete: () => {
         const pending = get().lastDeleted;

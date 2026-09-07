@@ -1,6 +1,7 @@
 import { getBestFreeOpenRouterModel } from '@/services/ai/openRouterModels';
 import type { CompanyIdentification, ReceiptExtraction } from '@/services/ai/prompts';
 import type { AiResult, SimpleChatMessage } from '@/types/ai';
+import { fetchWithTimeout } from '@/services/network/fetchWithTimeout';
 
 // Second shared fallback, raced against Gemini in services/ai/client.ts —
 // text-only. Every request is pinned to a live-verified $0 ":free" model
@@ -13,7 +14,7 @@ type Message = { role: 'system' | 'user' | 'assistant'; content: string };
 
 async function callChat(messages: Message[], apiKey: string): Promise<AiResult<any>> {
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

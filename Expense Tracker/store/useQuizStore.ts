@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { QUIZ_TOPICS } from '@/constants/quizTopics';
-import type { Difficulty, QuizAttempt, QuizHistoryEntry, TopicProgress } from '@/types/quiz';
+import type { Difficulty, QuizHistoryEntry, TopicProgress } from '@/types/quiz';
 import { parseDateLocal, toDateStr, todayStr } from '@/utils/date';
 
 // A generous cap so a topic's saved history (mirrors the chat "threads"
@@ -26,7 +26,6 @@ function addDays(dateStr: string, days: number): string {
 }
 
 type QuizState = {
-  attempts: QuizAttempt[];
   topicProgress: Record<string, TopicProgress>;
   // Indices into constants/quizBank.ts's per-topic question array that this
   // device has already been shown — once every index for a topic is seen,
@@ -48,7 +47,6 @@ type QuizState = {
 export const useQuizStore = create<QuizState>()(
   persist(
     (set, get) => ({
-      attempts: [],
       topicProgress: {},
       seenBankIndices: {},
       history: {},
@@ -85,7 +83,6 @@ export const useQuizStore = create<QuizState>()(
         };
 
         set((state) => ({
-          attempts: [...state.attempts, { topic, date: today, score, difficulty }],
           topicProgress: { ...state.topicProgress, [topic]: progress },
         }));
 

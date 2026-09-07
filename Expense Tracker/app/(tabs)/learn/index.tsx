@@ -8,6 +8,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 
 import { CoursePath } from '@/components/learn/CoursePath';
 import { Button } from '@/components/ui/Button';
@@ -61,8 +62,12 @@ function FlameIcon() {
 export default function LearnScreen() {
   const { colors } = useTheme();
   const upgradeToTier = useUpgradeToTier();
-  const { topicProgress, getDueTopic, getNextNewTopic } = useQuizStore();
-  const { streakDays, badges } = useStreakStore();
+  const { topicProgress, getDueTopic, getNextNewTopic } = useQuizStore(
+    useShallow((s) => ({ topicProgress: s.topicProgress, getDueTopic: s.getDueTopic, getNextNewTopic: s.getNextNewTopic }))
+  );
+  const { streakDays, badges } = useStreakStore(
+    useShallow((s) => ({ streakDays: s.streakDays, badges: s.badges }))
+  );
   const levelSelected = useSettingsStore((s) => s.levelSelected);
 
   // Quizzes and the daily challenge draw from the same unified AI quota as

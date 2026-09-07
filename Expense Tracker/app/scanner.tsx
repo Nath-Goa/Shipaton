@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 
 import { CompanyResultSheet, type ScannerCandidate } from '@/components/scanner/CompanyResultSheet';
@@ -14,7 +14,12 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { identifyCompanyFromImage } from '@/services/ai/client';
 import { describeAiError } from '@/services/ai/errorMessage';
-import { captureProductPhoto, pickProductPhotoFromLibrary, type CapturedProductPhoto } from '@/services/scanner/capture';
+import {
+  captureProductPhoto,
+  deleteProductPhoto,
+  pickProductPhotoFromLibrary,
+  type CapturedProductPhoto,
+} from '@/services/scanner/capture';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 // A single-screen modal route (no nested _layout — see settings/upgrade.tsx
@@ -43,9 +48,20 @@ export default function ScannerScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<ScannerCandidate[] | null>(null);
+  const photoRef = useRef<CapturedProductPhoto | null>(null);
+
+  useEffect(() => () => {
+    if (photoRef.current?.uri) deleteProductPhoto(photoRef.current.uri);
+  }, []);
 
   async function runScan(captured: CapturedProductPhoto | null) {
-    if (!captured || !captured.base64) return;
+    if (!captured) return;
+    if (!captured.base64) {
+      deleteProductPhoto(captured.uri);
+      return;
+    }
+    if (photoRef.current?.uri && photoRef.current.uri !== captured.uri) deleteProductPhoto(photoRef.current.uri);
+    photoRef.current = captured;
     setPhoto(captured);
     setCandidates(null);
     setError(null);
@@ -67,6 +83,8 @@ export default function ScannerScreen() {
   }
 
   function reset() {
+    if (photoRef.current?.uri) deleteProductPhoto(photoRef.current.uri);
+    photoRef.current = null;
     setPhoto(null);
     setCandidates(null);
     setError(null);

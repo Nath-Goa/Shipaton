@@ -35,6 +35,8 @@ export function isLiveMarketDataConfigured(): boolean {
 const BARS_TTL_MS = 6 * 60 * 60 * 1000;
 const QUOTE_TTL_MS = 5 * 60 * 1000;
 const STORAGE_KEY = 'live-market-data-cache-v1';
+type CompactBar = [string, number, number, number, number];
+type StoredBars = { bars: CompactBar[]; at: number };
 
 const barsCache = new Map<string, PriceBar[]>();
 const barsFetchedAt = new Map<string, number>();
@@ -48,11 +50,22 @@ let hydrated = false;
 AsyncStorage.getItem(STORAGE_KEY)
   .then((raw) => {
     if (!raw) return;
-    const parsed = JSON.parse(raw) as { bars?: Record<string, { bars: PriceBar[]; at: number }> };
+    const parsed = JSON.parse(raw) as {
+      bars?: Record<string, { bars: Array<PriceBar | CompactBar>; at: number }>;
+    };
+    let legacyFormat = false;
     for (const [symbol, entry] of Object.entries(parsed.bars ?? {})) {
-      barsCache.set(symbol, entry.bars);
+      const bars = entry.bars.map((bar) => {
+        if (Array.isArray(bar)) {
+          return { date: bar[0], open: bar[1], high: bar[2], low: bar[3], close: bar[4] };
+        }
+        legacyFormat = true;
+        return bar;
+      });
+      barsCache.set(symbol, bars);
       barsFetchedAt.set(symbol, entry.at);
     }
+    if (legacyFormat) persistBars();
   })
   .catch(() => undefined)
   .finally(() => {
@@ -73,10 +86,12 @@ function persistBars(): void {
   if (persistTimer) return;
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    const bars: Record<string, { bars: PriceBar[]; at: number }> = {};
+    const bars: Record<string, StoredBars> = {};
     for (const [symbol, value] of barsCache.entries()) {
       bars[symbol] = {
-        bars: value.slice(Math.max(0, value.length - PERSISTED_BARS_PER_SYMBOL)),
+        bars: value
+          .slice(Math.max(0, value.length - PERSISTED_BARS_PER_SYMBOL))
+          .map((bar) => [bar.date, bar.open, bar.high, bar.low, bar.close]),
         at: barsFetchedAt.get(symbol) ?? 0,
       };
     }

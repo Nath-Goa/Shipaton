@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 
 import { DonutChart } from '@/components/charts/DonutChart';
 import { ExpenseListItem } from '@/components/expenses/ExpenseListItem';
@@ -47,7 +48,15 @@ type Row = { kind: 'header'; date: string; total: number } | { kind: 'item'; exp
 
 export default function ExpensesScreen() {
   const { colors } = useTheme();
-  const { expenses, seedIfNeeded, generateDueRecurring, deleteExpense, undoDelete } = useExpenseStore();
+  const { expenses, seedIfNeeded, generateDueRecurring, deleteExpense, undoDelete } = useExpenseStore(
+    useShallow((s) => ({
+      expenses: s.expenses,
+      seedIfNeeded: s.seedIfNeeded,
+      generateDueRecurring: s.generateDueRecurring,
+      deleteExpense: s.deleteExpense,
+      undoDelete: s.undoDelete,
+    }))
+  );
   const showToast = useToastStore((s) => s.show);
   const [preset, setPreset] = useState<Preset>('all');
   const [highlight, setHighlight] = useState<string | null>(null);

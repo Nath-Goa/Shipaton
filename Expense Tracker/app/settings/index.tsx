@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { useShallow } from 'zustand/react/shallow';
 
 import { PinSetupModal } from '@/components/security/PinSetupModal';
 import { AccentColorPicker } from '@/components/settings/AccentColorPicker';
@@ -96,7 +97,19 @@ export default function SettingsScreen() {
     setSmartNudgesEnabled,
     preferredStudyWindow,
     setPreferredStudyWindow,
-  } = useSettingsStore();
+  } = useSettingsStore(
+    useShallow((s) => ({
+      themeMode: s.themeMode, setThemeMode: s.setThemeMode,
+      accentColor: s.accentColor, setAccentColor: s.setAccentColor,
+      tier: s.tier, setTier: s.setTier,
+      notificationsEnabled: s.notificationsEnabled, setNotificationsEnabled: s.setNotificationsEnabled,
+      fontOption: s.fontOption, setFontOption: s.setFontOption,
+      textScale: s.textScale, setTextScale: s.setTextScale,
+      tutorPersona: s.tutorPersona, setTutorPersona: s.setTutorPersona,
+      smartNudgesEnabled: s.smartNudgesEnabled, setSmartNudgesEnabled: s.setSmartNudgesEnabled,
+      preferredStudyWindow: s.preferredStudyWindow, setPreferredStudyWindow: s.setPreferredStudyWindow,
+    }))
+  );
 
   const appLockEnabled = useSettingsStore((s) => s.appLockEnabled || s.biometricLockEnabled);
   const pinLength = useSettingsStore((s) => s.pinLength);
@@ -177,7 +190,7 @@ export default function SettingsScreen() {
         destructive: true,
       },
       () => {
-        useQuizStore.setState({ attempts: [], topicProgress: {}, seenBankIndices: {}, history: {} });
+        useQuizStore.setState({ topicProgress: {}, seenBankIndices: {}, history: {} });
         useCourseStore.setState({ courseProgress: {} });
       }
     );
