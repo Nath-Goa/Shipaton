@@ -28,7 +28,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { TIER_FEATURES } from '@/constants/subscription';
-import { spacing } from '@/constants/theme';
+import { radius, spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -206,10 +206,14 @@ export default function StockDetailScreen() {
           <Animated.View entering={FadeInDown.duration(350).springify().damping(16)}>
             <View style={styles.priceRow}>
               <Text style={[styles.price, { color: colors.text }]}>{money(price)}</Text>
-              <Text style={[styles.change, { color: up ? colors.success : colors.danger }]}>
-                {signedMoney(quote?.changeAbs ?? 0)} ({signedPct(changePct)})
-              </Text>
+              <View style={[styles.changePill, { backgroundColor: up ? colors.successSoft : colors.dangerSoft }]}>
+                <Ionicons name={up ? 'caret-up' : 'caret-down'} size={12} color={up ? colors.success : colors.danger} />
+                <Text style={[styles.change, { color: up ? colors.success : colors.danger }]}>
+                  {signedMoney(quote?.changeAbs ?? 0)} ({signedPct(changePct)})
+                </Text>
+              </View>
             </View>
+            <Text style={[styles.todayLabel, { color: colors.text3 }]}>Today</Text>
           </Animated.View>
 
           <Card style={styles.notTrackedBanner}>
@@ -295,10 +299,14 @@ export default function StockDetailScreen() {
               />
               <Text style={[styles.price, { color: colors.text }]}>{money(price)}</Text>
             </View>
-            <Text style={[styles.change, { color: up ? colors.success : colors.danger }]}>
-              {signedMoney(quote?.changeAbs ?? 0)} ({signedPct(changePct)})
-            </Text>
+            <View style={[styles.changePill, { backgroundColor: up ? colors.successSoft : colors.dangerSoft }]}>
+              <Ionicons name={up ? 'caret-up' : 'caret-down'} size={12} color={up ? colors.success : colors.danger} />
+              <Text style={[styles.change, { color: up ? colors.success : colors.danger }]}>
+                {signedMoney(quote?.changeAbs ?? 0)} ({signedPct(changePct)})
+              </Text>
+            </View>
           </View>
+          <Text style={[styles.todayLabel, { color: colors.text3 }]}>Today's change</Text>
         </Animated.View>
 
         {showAd ? <AdPlaceholder /> : null}
@@ -537,9 +545,18 @@ const styles = StyleSheet.create({
   notTrackedBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   notTrackedText: { flex: 1, fontSize: 12.5, lineHeight: 17 },
   name: { fontSize: 13, fontWeight: '600' },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.md, marginTop: 2 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 2 },
   price: { fontSize: 30, fontWeight: '700', letterSpacing: -0.5 },
-  change: { fontSize: 14, fontWeight: '700' },
+  changePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  change: { fontSize: 13, fontWeight: '700' },
+  todayLabel: { fontSize: 11.5, fontWeight: '600', marginTop: 4 },
   positionCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   positionLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   positionQty: { fontSize: 14, fontWeight: '600', marginTop: 2 },

@@ -194,7 +194,7 @@ export function PredictionCard({ symbol }: Props) {
         <View style={[styles.warningBanner, { backgroundColor: colors.dangerSoft }]}>
           <Ionicons name="warning-outline" size={14} color={colors.danger} />
           <Text style={[styles.warningText, { color: colors.danger }]}>
-            This isn&apos;t perfect — it&apos;s wrong a lot. Treat it as one data point, not a signal to act on.
+            This is one data point, not a signal to act on — the measured accuracy above is real, but modest.
           </Text>
         </View>
       </Card>
