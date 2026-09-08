@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -18,7 +18,7 @@ import {
 } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import { PAYWALL_RESULT, presentCustomerCenter, presentPaywallForTier } from '@/services/purchases/paywallUI';
-import { isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
+import { fetchTierPrice, isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -33,6 +33,31 @@ export default function UpgradeScreen() {
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [openingCenter, setOpeningCenter] = useState(false);
+  // Real, store-localized prices, once RevenueCat has told us what they are.
+  // TIER_PRICE's figures are demo pricing and can be flatly wrong against a
+  // live dashboard or in another currency, so they're only ever shown when
+  // there's no RevenueCat to ask — never as a placeholder next to copy
+  // promising App Store / Play billing.
+  const [livePrice, setLivePrice] = useState<Partial<Record<Exclude<Tier, 'free'>, string>>>({});
+
+  useEffect(() => {
+    if (!configured) return;
+    let alive = true;
+    Promise.all([fetchTierPrice('pro'), fetchTierPrice('max')]).then(([pro, max]) => {
+      if (!alive) return;
+      setLivePrice({ ...(pro ? { pro } : {}), ...(max ? { max } : {}) });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [configured]);
+
+  function priceLabel(t: Tier): string {
+    if (t === 'free') return TIER_PRICE.free;
+    if (!configured) return `From ${TIER_PRICE[t]}`;
+    const live = livePrice[t];
+    return live ? `From ${live}` : 'See pricing →';
+  }
 
   // Opens RevenueCat's own Paywall UI for this tier's Offering (its
   // "monthly" / "yearly" / "lifetime" packages) — pricing, layout, and the
@@ -43,7 +68,11 @@ export default function UpgradeScreen() {
     setBusyTier(null);
 
     if (!outcome.shown) {
-      showToast('Demo mode — set up RevenueCat to enable real purchases. See .env.example.');
+      showToast(
+        outcome.reason === 'not_configured'
+          ? 'Demo mode — set up RevenueCat to enable real purchases. See .env.example.'
+          : outcome.message
+      );
       return;
     }
     switch (outcome.result) {
@@ -104,7 +133,7 @@ export default function UpgradeScreen() {
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Text style={[styles.intro, { color: colors.text3 }]}>
             {configured
-              ? 'Purchases are processed by the App Store / Google Play — pricing and billing period are shown on the next screen.'
+              ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
               : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
           </Text>
         </Animated.View>
@@ -119,9 +148,7 @@ export default function UpgradeScreen() {
                   <Text style={[styles.tierName, { color: colors.text }]}>{TIER_LABELS[t]}</Text>
                   {isCurrent ? <PillBadge label="Current" /> : null}
                 </View>
-                <Text style={[styles.price, { color: colors.text }]}>
-                  {t === 'free' ? TIER_PRICE.free : `From ${TIER_PRICE[t]}`}
-                </Text>
+                <Text style={[styles.price, { color: colors.text }]}>{priceLabel(t)}</Text>
                 <Text style={[styles.headline, { color: colors.text2 }]}>{TIER_HEADLINE[t]}</Text>
 
                 <View style={styles.features}>
