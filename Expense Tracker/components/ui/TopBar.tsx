@@ -18,13 +18,13 @@ export function TopBar({ title, subtitle, right }: Props) {
     <View style={styles.row}>
       <View style={styles.titleWrap}>
         <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
             {title}
           </Text>
           <TierBadge />
         </View>
         {subtitle ? (
-          <Text style={[styles.subtitle, { color: colors.text3 }]} numberOfLines={1}>
+          <Text style={[styles.subtitle, { color: colors.text3 }]} numberOfLines={1} ellipsizeMode="tail">
             {subtitle}
           </Text>
         ) : null}

@@ -96,5 +96,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 15,
     fontWeight: '700',
+    textAlign: 'center',
+    // `btn` centers its child by content size (alignItems: 'center'), which
+    // never bounds this Text's width — at a large font scale it rendered at
+    // its full unwrapped width and got clipped with no "…" the moment that
+    // exceeded the button's actual (fullWidth-stretched) box. flexShrink
+    // lets Yoga bound it to the space available and wrap onto a 2nd line
+    // instead, which every current call site has the height to spare.
+    flexShrink: 1,
   },
 });
