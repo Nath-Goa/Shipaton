@@ -86,6 +86,7 @@ export function buildQuizPrompt(topicLabel: string, difficulty: Difficulty, cont
     context ? `Context: ${context}` : '',
     'Test exactly ONE concept — no compound logic, no trick questions.',
     'Write exactly 4 answer options: one correct, three plausible distractors representing common misconceptions (not random wrong answers).',
+    'Vary the correct answer position instead of consistently putting it first.',
     'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
     '{"question": string, "options": [string, string, string, string], "correctIndex": 0|1|2|3, "explanation": string, "learningObjective": string, "followUpTopic": string}',
     '"explanation" is 2-3 sentences explaining why the correct answer is right, written for a total beginner.',

@@ -48,6 +48,8 @@ function RootLayout() {
   const [fontsLoaded, fontsError] = useFonts(CUSTOM_FONTS_TO_LOAD);
   const setTier = useSettingsStore((s) => s.setTier);
   const tier = useSettingsStore((s) => s.tier);
+  const learningRewardExpiresAt = useSettingsStore((s) => s.learningRewardExpiresAt);
+  const refreshLearningReward = useSettingsStore((s) => s.refreshLearningReward);
   const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
   const smartNudgesEnabled = useSettingsStore((s) => s.smartNudgesEnabled);
@@ -67,6 +69,33 @@ function RootLayout() {
     if (settingsHydrated) return;
     return useSettingsStore.persist.onFinishHydration(() => setSettingsHydrated(true));
   }, [settingsHydrated]);
+
+  useEffect(() => {
+    if (!settingsHydrated) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    function refreshAndSchedule() {
+      if (cancelled) return;
+      refreshLearningReward();
+      const expiresAt = useSettingsStore.getState().learningRewardExpiresAt;
+      if (!expiresAt) return;
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        refreshLearningReward();
+        return;
+      }
+      // Long rewards can exceed the platform's safe timeout range. Recheck
+      // every six hours, then schedule close to the deadline when it nears.
+      timer = setTimeout(refreshAndSchedule, Math.min(remaining + 250, 6 * 60 * 60 * 1_000));
+    }
+
+    refreshAndSchedule();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [settingsHydrated, learningRewardExpiresAt, refreshLearningReward]);
 
   // Raw, referentially-stable store fields — computeUpcomingRecurring builds
   // the actual (fresh-array) result in a useMemo below, never inside a

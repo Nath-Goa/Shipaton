@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { COURSES, SUBPART_SEQUENCE, type SubpartType } from '@/constants/courses';
+import type { LearningRewardGrant } from '@/constants/learningRewards';
 import { useSettingsStore, type LearnerLevel } from '@/store/useSettingsStore';
 import { todayStr } from '@/utils/date';
 
@@ -22,7 +23,10 @@ function selectedStartStage(): 1 | 2 | 3 | 4 {
 
 type CourseState = {
   courseProgress: Record<string, CourseProgress>;
-  completeSubpart: (courseId: string, subpart: SubpartType) => { courseCompleted: boolean };
+  completeSubpart: (courseId: string, subpart: SubpartType) => {
+    courseCompleted: boolean;
+    reward: LearningRewardGrant | null;
+  };
   isSubpartDone: (courseId: string, subpart: SubpartType) => boolean;
   isCourseComplete: (courseId: string) => boolean;
   isCourseUnlocked: (courseId: string) => boolean;
@@ -38,7 +42,7 @@ export const useCourseStore = create<CourseState>()(
       completeSubpart: (courseId, subpart) => {
         const state = get();
         const prior = state.courseProgress[courseId] ?? { subpartsDone: [], completedAt: null };
-        if (prior.subpartsDone.includes(subpart)) return { courseCompleted: !!prior.completedAt };
+        if (prior.subpartsDone.includes(subpart)) return { courseCompleted: !!prior.completedAt, reward: null };
 
         const subpartsDone = [...prior.subpartsDone, subpart];
         const courseCompleted = SUBPART_SEQUENCE.every((s) => subpartsDone.includes(s));
@@ -46,8 +50,16 @@ export const useCourseStore = create<CourseState>()(
           subpartsDone,
           completedAt: courseCompleted ? todayStr() : prior.completedAt,
         };
-        set({ courseProgress: { ...state.courseProgress, [courseId]: progress } });
-        return { courseCompleted };
+        const courseProgress = { ...state.courseProgress, [courseId]: progress };
+        set({ courseProgress });
+
+        const completedCount = courseCompleted
+          ? COURSES.filter((course) => !!courseProgress[course.id]?.completedAt).length
+          : 0;
+        const reward = courseCompleted
+          ? useSettingsStore.getState().grantLearningReward(completedCount)
+          : null;
+        return { courseCompleted, reward };
       },
 
       isSubpartDone: (courseId, subpart) => !!get().courseProgress[courseId]?.subpartsDone.includes(subpart),

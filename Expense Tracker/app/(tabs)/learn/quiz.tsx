@@ -206,14 +206,20 @@ export default function QuizScreen() {
     // matches flashcards' looser "seen it" completion. The "mastery" subpart
     // is stricter: only a correct answer on a hard question counts.
     let courseBadges: string[] = [];
+    let courseRewardMessage: string | null = null;
     if (fromCourse && !isMastery) {
       completeSubpart(fromCourse, 'quiz');
     } else if (fromCourse && isMastery && isCorrect) {
-      const { courseCompleted } = completeSubpart(fromCourse, 'mastery');
+      const { courseCompleted, reward } = completeSubpart(fromCourse, 'mastery');
       if (courseCompleted) courseBadges = awardCourseCompletionBadges(fromCourse);
+      if (reward) {
+        const tierLabel = reward.tier === 'max' ? 'Max' : 'Pro';
+        courseRewardMessage = `🎁 ${reward.milestone} courses complete — ${tierLabel} unlocked for ${reward.durationLabel}!`;
+      }
     }
 
-    if (mastered) showToast(`🎉 You've mastered ${topicMeta?.label}!`);
+    if (courseRewardMessage) showToast(courseRewardMessage);
+    else if (mastered) showToast(`🎉 You've mastered ${topicMeta?.label}!`);
     else if (courseBadges.length) showToast(`${badgeInfo(courseBadges[0]).icon} Badge earned: ${badgeInfo(courseBadges[0]).label}`);
     else if (earnedBadges.length) showToast(`${badgeInfo(earnedBadges[0]).icon} Badge earned: ${badgeInfo(earnedBadges[0]).label}`);
     else if (isMastery && !isCorrect) showToast("Not quite — that's a hard one. Try again!");

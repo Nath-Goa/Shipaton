@@ -1,4 +1,5 @@
 import type { Difficulty, QuizQuestion } from '@/types/quiz';
+import { randomizeQuizOptions } from '@/utils/quizOptions';
 
 export type BankQuizQuestion = QuizQuestion & { difficulty: Difficulty };
 
@@ -1095,5 +1096,5 @@ export const QUIZ_BANK: Record<string, BankQuizQuestion[]> = {
 };
 
 export function bankQuestionsFor(topicId: string): BankQuizQuestion[] {
-  return QUIZ_BANK[topicId] ?? [];
+  return (QUIZ_BANK[topicId] ?? []).map(randomizeQuizOptions);
 }

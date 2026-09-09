@@ -14,16 +14,18 @@ import type { PatternDetectionResult } from '@/types/pattern';
 import type { PriceBar } from '@/types/stock';
 import type { Difficulty, QuizQuestion } from '@/types/quiz';
 import type { NewsItem } from '@/types/prediction';
+import { randomizeQuizOptions } from '@/utils/quizOptions';
 
 export async function generateQuiz(
   topicLabel: string,
   difficulty: Difficulty,
   context?: string
 ): Promise<AiResult<QuizQuestion>> {
-  return sendStructuredPrompt<QuizQuestion>(
+  const result = await sendStructuredPrompt<QuizQuestion>(
     buildQuizPrompt(topicLabel, difficulty, context),
     'Generate the quiz question now.'
   );
+  return result.ok ? { ...result, data: randomizeQuizOptions(result.data) } : result;
 }
 
 const AI_FLASHCARD_BATCH_SIZE = 5;
