@@ -143,7 +143,6 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Receipt "Auto-fill with AI"',
     'AI spending insights on your expenses',
     'Up to 20 saved spending-breakdown charts',
-    'Zero ads',
   ],
   max: [
     'Everything in Pro',
