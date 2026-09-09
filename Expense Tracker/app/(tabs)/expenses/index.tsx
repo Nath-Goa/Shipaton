@@ -269,7 +269,7 @@ export default function ExpensesScreen() {
 
             <UpgradeBanner
               title="Never miss a receipt"
-              body="Upgrade to Pro for AI receipt auto-fill and zero ads."
+              body="Upgrade to Pro for AI receipt auto-fill and AI spending insights."
             />
 
             <View style={styles.statsRow}>

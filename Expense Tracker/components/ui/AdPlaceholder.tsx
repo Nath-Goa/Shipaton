@@ -7,11 +7,11 @@ import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 
-// No third-party ad network is wired up — this is an in-house placeholder
-// that stands in for the "every 3rd lookup" ad slot on Free, styled like a
-// real ad unit but honestly self-promotional rather than pretending to
-// serve third-party ad content. Free is the only tier this renders for
-// (see adsEnabled in constants/subscription.ts).
+// No ad network is wired up anywhere in the app. This is an in-house upgrade
+// nudge shown in the Free-tier "every 3rd lookup" slot on the stock detail
+// screen — it promotes this app's own Pro subscription only, and is not
+// third-party advertising or cross-promotion of other products. Free is the
+// only tier this renders for (see adsEnabled in constants/subscription.ts).
 export function AdPlaceholder() {
   const { colors } = useTheme();
   const upgradeToTier = useUpgradeToTier();
@@ -21,10 +21,10 @@ export function AdPlaceholder() {
       onPress={() => upgradeToTier('pro')}
       style={[styles.wrap, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
       <View style={styles.row}>
-        <Text style={[styles.label, { color: colors.text3 }]}>SPONSORED</Text>
+        <Text style={[styles.label, { color: colors.text3 }]}>PRO</Text>
         <Ionicons name="sparkles-outline" size={13} color={colors.text3} />
       </View>
-      <Text style={[styles.body, { color: colors.text2 }]}>Go ad-free and unlock live sentiment with Pro.</Text>
+      <Text style={[styles.body, { color: colors.text2 }]}>Unlock live sentiment and full forecasts with Pro.</Text>
     </Pressable>
   );
 }
