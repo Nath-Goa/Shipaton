@@ -12,7 +12,7 @@
       "bundleIdentifier": "com.nathgoa.mockstocktrainer"
     },
     "android": {
-      "package": "com.nathgoa.mockstocktrainer",
+      "package": "com.nathgoa.markva",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -93,7 +93,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "projectId": "c8bfbcb2-eccd-4587-8d77-0bb0a541b05c"
+      }
+    },
+    "owner": "nathgoas-team"
   }
 }
