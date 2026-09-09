@@ -151,6 +151,7 @@ export default function HomeScreen() {
             <QuickAction icon="receipt-outline" label="Log expense" onPress={() => router.push('/expenses/add')} />
             <QuickAction icon="stats-chart-outline" label="Explore markets" onPress={() => router.push('/markets')} />
             <QuickAction icon="sparkles-outline" label="Ask the analyst" onPress={() => router.push('/assistant')} />
+            <QuickAction icon="calculator-outline" label="Investor toolkit" onPress={() => router.push('/toolkit')} />
           </View>
         </View>
 

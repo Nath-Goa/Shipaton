@@ -73,6 +73,7 @@ const FINANCE_LINKS: DebugLink[] = [
 
 const SYSTEM_LINKS: DebugLink[] = [
   { label: 'Bird game', href: '/game' },
+  { label: 'Investor toolkit (20 tools)', href: '/toolkit' },
   { label: 'Weekly recap', href: '/recap' },
   { label: 'Upgrade / paywall', href: '/settings/upgrade' },
   { label: 'Achievements', href: '/settings/achievements' },

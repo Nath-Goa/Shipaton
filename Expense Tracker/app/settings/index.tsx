@@ -457,6 +457,12 @@ export default function SettingsScreen() {
           </Section>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(235).springify().damping(16)}>
+          <Section title="Investor Toolkit" subtitle="Twenty quick calculators for investing, trading, and planning.">
+            <Button label="Open all 20 tools" variant="ghost" fullWidth onPress={() => router.push('/toolkit')} />
+          </Section>
+        </Animated.View>
+
         <Animated.View entering={FadeInDown.delay(250).springify().damping(16)}>
           <Section title="Data">
             <Button label="Reset all app data" variant="danger" onPress={resetAllData} />

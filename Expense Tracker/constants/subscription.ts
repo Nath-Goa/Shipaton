@@ -130,6 +130,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     '24h-delayed sentiment score',
     'Expense tracker with photo receipts',
     'Up to 5 saved spending-breakdown charts',
+    '8 quick investor calculators',
   ],
   pro: [
     'Everything in Free',
@@ -143,6 +144,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Receipt "Auto-fill with AI"',
     'AI spending insights on your expenses',
     'Up to 20 saved spending-breakdown charts',
+    '8 advanced growth, valuation, and risk calculators',
   ],
   max: [
     'Everything in Pro',
@@ -152,6 +154,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Up to 5 paper-trading portfolios, so you can run separate strategies side by side',
     'Limit orders — buy or sell automatically once a stock hits your target price',
     'Up to 100 saved spending-breakdown charts',
+    '4 professional optimization and planning calculators',
   ],
 };
 
