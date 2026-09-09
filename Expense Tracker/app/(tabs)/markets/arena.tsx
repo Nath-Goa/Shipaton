@@ -1,7 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -11,7 +19,7 @@ import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StatTile } from '@/components/ui/StatTile';
 import { Text } from '@/components/ui/Text';
-import { triggerFeedback } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS, tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
@@ -70,6 +78,16 @@ export default function ArenaScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [qtyText, setQtyText] = useState('1');
   const [message, setMessage] = useState<string | null>(null);
+
+  const progress = useSharedValue(0);
+  const trophyScale = useSharedValue(0);
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+  const trophyStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: trophyScale.value }],
+  }));
 
   const finalCash = () => {
     const parsed = Number(customCashText);
@@ -130,6 +148,16 @@ export default function ArenaScreen() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, tick, totalTicks, speed]);
+
+  useEffect(() => {
+    progress.value = withTiming(totalTicks > 0 ? tick / totalTicks : 0, { duration: 350 });
+  }, [tick, totalTicks, progress]);
+
+  useEffect(() => {
+    if (phase !== 'results') return;
+    trophyScale.value = 0;
+    trophyScale.value = withSequence(withSpring(1.15, springs.bouncy), withSpring(1, springs.snappy));
+  }, [phase, trophyScale]);
 
   function skipAhead() {
     triggerFeedback('secondary');
@@ -216,12 +244,14 @@ export default function ArenaScreen() {
       <Screen edges={['left', 'right', 'bottom']}>
         {tutorialModal}
         <ScrollView contentContainerStyle={styles.configContent}>
-          <Animated.View entering={FadeInDown.duration(250)} style={{ gap: spacing.lg }}>
+          <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
             <Text style={[styles.title, { color: colors.text }]}>$100k vs AI</Text>
             <Text style={[styles.subtitle, { color: colors.text2 }]}>
               Set up a head-to-head trading session against an AI opponent.
             </Text>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(60).duration(300).springify().damping(16)}>
             <Card>
               <Text style={[styles.label, { color: colors.text3 }]}>Starting cash</Text>
               <View style={styles.chipRow}>
@@ -246,7 +276,9 @@ export default function ArenaScreen() {
                 style={[styles.input, { color: colors.text, borderColor: colors.border }]}
               />
             </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(110).duration(300).springify().damping(16)}>
             <Card>
               <Text style={[styles.label, { color: colors.text3 }]}>Duration</Text>
               <View style={styles.chipRow}>
@@ -271,7 +303,9 @@ export default function ArenaScreen() {
                 style={[styles.input, { color: colors.text, borderColor: colors.border }]}
               />
             </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(160).duration(300).springify().damping(16)}>
             <Card>
               <Text style={[styles.label, { color: colors.text3 }]}>AI difficulty</Text>
               <View style={{ marginTop: spacing.sm }}>
@@ -285,7 +319,9 @@ export default function ArenaScreen() {
                 />
               </View>
             </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(210).duration(300).springify().damping(16)}>
             <Card>
               <Text style={[styles.label, { color: colors.text3 }]}>Stocks in play</Text>
               <View style={{ marginTop: spacing.sm }}>
@@ -296,7 +332,9 @@ export default function ArenaScreen() {
                 />
               </View>
             </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(260).duration(300).springify().damping(16)}>
             <Button label="Start session" fullWidth onPress={startSession} />
           </Animated.View>
         </ScrollView>
@@ -309,28 +347,35 @@ export default function ArenaScreen() {
     return (
       <Screen edges={['left', 'right', 'bottom']}>
         <View style={styles.resultsWrap}>
-          <Ionicons name={userWon ? 'trophy' : 'sad-outline'} size={48} color={userWon ? colors.warning : colors.text3} />
-          <Text style={[styles.resultsTitle, { color: colors.text }]}>{userWon ? 'You won!' : 'The AI won this one'}</Text>
-          <View style={styles.resultsRow}>
+          <Animated.View style={trophyStyle}>
+            <Ionicons name={userWon ? 'trophy' : 'sad-outline'} size={56} color={userWon ? colors.warning : colors.text3} />
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(80).springify().damping(16)}>
+            <Text style={[styles.resultsTitle, { color: colors.text }]}>{userWon ? 'You won!' : 'The AI won this one'}</Text>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(140).springify().damping(16)} style={styles.resultsRow}>
             <StatTile label="You" value={money(userValue)} />
             <StatTile label="AI" value={money(botValue)} />
-          </View>
-          <Text style={[styles.resultsDelta, { color: userWon ? colors.success : colors.danger }]}>
-            {signedMoney(userValue - botValue)} difference
-          </Text>
-          <Button label="Play again" fullWidth onPress={() => setPhase('config')} />
+          </Animated.View>
+          <Animated.View entering={FadeIn.delay(220).duration(300)}>
+            <Text style={[styles.resultsDelta, { color: userWon ? colors.success : colors.danger }]}>
+              {signedMoney(userValue - botValue)} difference
+            </Text>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(280).springify().damping(16)} style={{ width: '100%' }}>
+            <Button label="Play again" fullWidth onPress={() => setPhase('config')} />
+          </Animated.View>
         </View>
       </Screen>
     );
   }
 
   // Live session.
-  const progress = totalTicks > 0 ? tick / totalTicks : 0;
   return (
     <Screen edges={['left', 'right', 'bottom']}>
       <View style={styles.liveContent}>
         <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
-          <View style={[styles.progressFill, { backgroundColor: colors.accent, width: `${progress * 100}%` }]} />
+          <Animated.View style={[styles.progressFill, { backgroundColor: colors.accent }, progressStyle]} />
         </View>
 
         <View style={styles.statsRow}>

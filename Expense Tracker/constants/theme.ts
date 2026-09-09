@@ -1,18 +1,23 @@
 // Color tokens ported 1:1 from the reference web app's styles.css custom properties.
+// Spacing/radius were bumped up one notch app-wide (from 12/16/20/28 and
+// 12/18/24 respectively) to give every screen more breathing room — the app
+// read as visually cramped since every Card/content padding traces back to
+// these few tokens, so this one change reaches everywhere at once instead of
+// a per-screen pass.
 export const radius = {
-  sm: 12,
-  md: 18,
-  lg: 24,
+  sm: 14,
+  md: 20,
+  lg: 28,
   pill: 999,
 };
 
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 28,
+  md: 14,
+  lg: 20,
+  xl: 24,
+  xxl: 32,
 };
 
 export type Palette = {

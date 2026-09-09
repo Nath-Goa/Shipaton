@@ -27,6 +27,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
+    // Same hug-content-vs-actual-render-width mismatch as Chip.tsx — keep
+    // any overflow inside this pill's own bounds rather than bleeding past
+    // its edge onto whatever sits next to it.
+    overflow: 'hidden',
   },
   label: {
     fontSize: 12,

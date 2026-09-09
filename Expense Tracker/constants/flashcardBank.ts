@@ -113,6 +113,42 @@ export const FLASHCARD_BANK: Record<string, BankFlashcard[]> = {
     { front: 'Why is risk management described as key to "surviving to see your winners pay off"?', back: 'One oversized, uncontrolled loss can erase many previous gains or force you out before a recovery.' },
     { front: 'Risk/Reward Ratio', back: 'A comparison of how much you stand to lose versus how much you stand to gain on a given trade.' },
   ],
+  brokerage_accounts: [
+    { front: 'Brokerage Account', back: 'An account with a licensed firm that lets you buy and sell stocks, ETFs, and other securities.' },
+    { front: 'Cash Account vs. Margin Account', back: 'A cash account only lets you trade with money you\'ve deposited; a margin account lets you borrow against your holdings to trade with more.' },
+    { front: 'Why do most modern online brokerages charge $0 commission on US stock trades?', back: 'Competition drove commissions to zero — brokerages now mostly earn money other ways, like interest on uninvested cash.' },
+    { front: 'SIPC Insurance', back: 'Protects the securities and cash in your brokerage account (up to limits) if the brokerage itself fails — it does not protect against a stock losing value.' },
+  ],
+  etfs_index_funds: [
+    { front: 'ETF (Exchange-Traded Fund)', back: 'A basket of many stocks or bonds bundled into one security that trades on an exchange all day, just like a single stock.' },
+    { front: 'Index Fund', back: 'A fund built to track a specific market index (like the S&P 500) as closely as possible, rather than trying to beat it.' },
+    { front: 'Why does one ETF share give more built-in diversification than one individual stock?', back: 'The ETF already holds many companies inside it, so one purchase spreads your money across all of them at once.' },
+    { front: 'Expense Ratio', back: 'The small annual fee, as a percentage of your investment, that a fund charges to manage it.' },
+  ],
+  capital_gains_tax: [
+    { front: 'Capital Gain', back: 'The profit made when you sell an investment for more than you paid for it.' },
+    { front: 'Short-Term vs. Long-Term Capital Gain', back: 'Short-term applies to positions held one year or less and is taxed at higher ordinary income rates; long-term applies to positions held longer and is taxed at lower rates.' },
+    { front: 'Why might an investor deliberately wait a few extra days before selling a winning position?', back: 'To cross the one-year mark and qualify the gain for the lower long-term capital gains tax rate instead of the higher short-term rate.' },
+    { front: 'Capital Loss', back: 'A loss from selling an investment for less than you paid — it can typically offset capital gains for tax purposes.' },
+  ],
+  financial_statements: [
+    { front: 'Balance Sheet', back: 'A snapshot of what a company owns (assets), owes (liabilities), and what\'s left over for shareholders (equity), as of one specific date.' },
+    { front: 'Income Statement', back: 'A summary of a company\'s revenue, expenses, and profit over a period of time, like a quarter or a year.' },
+    { front: 'Cash Flow Statement', back: 'Tracks the actual cash moving in and out of a company — separate from the "paper" profit shown on the income statement.' },
+    { front: 'Why can a company report a profit on its income statement but still run low on cash?', back: 'Profit includes non-cash items and unpaid invoices — the cash flow statement shows what actually moved, which can look very different.' },
+  ],
+  options_basics: [
+    { front: 'Call Option', back: 'A contract giving the right (not the obligation) to buy a stock at a fixed price before a set expiration date.' },
+    { front: 'Put Option', back: 'A contract giving the right (not the obligation) to sell a stock at a fixed price before a set expiration date.' },
+    { front: 'Why do options amplify both gains and losses compared to owning the stock outright?', back: 'A small upfront cost controls a much larger position, so the same dollar price move is a much bigger percentage move on the option.' },
+    { front: 'Premium (Options)', back: 'The price paid to buy an option contract — this is the maximum an option buyer can lose.' },
+  ],
+  behavioral_biases: [
+    { front: 'Loss Aversion', back: 'The tendency to feel the pain of a loss more intensely than the pleasure of an equal-sized gain.' },
+    { front: 'Herd Mentality (Investing)', back: 'Buying or selling because everyone else seems to be doing it, rather than because of your own research or plan.' },
+    { front: 'Why is it so hard to sell a losing stock, even when the original reason to own it no longer applies?', back: 'Loss aversion makes selling at a loss feel like "locking in" the pain, even though the money already lost either way.' },
+    { front: 'Recency Bias', back: 'Giving too much weight to recent events — like assuming a stock that just went up will keep going up.' },
+  ],
 };
 
 export function bankFlashcardsFor(topicId: string): BankFlashcard[] {

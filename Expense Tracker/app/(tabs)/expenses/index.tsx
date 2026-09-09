@@ -38,10 +38,11 @@ import { money } from '@/utils/money';
 type Preset = DateRangePreset;
 
 const PRESETS: { value: Preset; label: string }[] = [
-  { value: 'all', label: 'All time' },
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This week' },
   { value: 'month', label: 'This month' },
-  { value: '30', label: 'Last 30 days' },
   { value: 'year', label: 'This year' },
+  { value: 'all', label: 'All time' },
 ];
 
 type Row = { kind: 'header'; date: string; total: number } | { kind: 'item'; expense: Expense };

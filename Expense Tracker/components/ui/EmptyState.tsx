@@ -96,6 +96,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   icon: { fontSize: 26 },
-  title: { fontSize: 15, fontWeight: '600' },
+  title: { fontSize: 15, fontWeight: '600', textAlign: 'center', maxWidth: 280, flexShrink: 1 },
   message: { fontSize: 13, textAlign: 'center', maxWidth: 280, lineHeight: 18 },
 });

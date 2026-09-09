@@ -61,16 +61,26 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
         <View style={styles.statsRow}>
-          <StatTile label="Net worth" value={money(summary.netWorth)} sub={`Cash: ${money(cash)}`} />
+          <StatTile
+            label="Net worth"
+            value={money(summary.netWorth)}
+            numericValue={summary.netWorth}
+            format={money}
+            sub={`Cash: ${money(cash)}`}
+          />
           <StatTile
             label="Today's P&L"
             value={signedMoney(summary.todayPnl)}
+            numericValue={summary.todayPnl}
+            format={signedMoney}
             sub={signedPct(summary.todayPnlPct)}
             valueColor={summary.todayPnl >= 0 ? colors.success : colors.danger}
           />
           <StatTile
             label="All-time P&L"
             value={signedMoney(summary.allTimePnl)}
+            numericValue={summary.allTimePnl}
+            format={signedMoney}
             sub={signedPct(summary.allTimePnlPct)}
             valueColor={summary.allTimePnl >= 0 ? colors.success : colors.danger}
           />
@@ -96,7 +106,7 @@ export default function HomeScreen() {
         <View>
           <View style={styles.sectionHead}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Watchlist</Text>
-            <Pressable onPress={() => router.push('/markets')}>
+            <Pressable style={styles.linkPressable} onPress={() => router.push('/markets')}>
               <Text style={[styles.link, { color: colors.accent }]}>See all markets</Text>
             </Pressable>
           </View>
@@ -204,7 +214,9 @@ function QuickAction({
       style={[styles.actionItem, animatedStyle]}>
       <Card style={styles.actionCard}>
         <Ionicons name={icon} size={20} color={colors.accent} />
-        <Text style={[styles.actionLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.actionLabel, { color: colors.text }]} numberOfLines={2}>
+          {label}
+        </Text>
       </Card>
     </AnimatedPressable>
   );
@@ -222,8 +234,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  sectionTitle: { fontSize: 15.5, fontWeight: '700' },
+  // flexShrink on the title and on the link's own Pressable (flexShrink has
+  // to sit on the actual flex child, not a grandchild) — without either,
+  // "Watchlist" and "See all markets" each render at their unwrapped
+  // natural width and, once that no longer fits at a larger font scale,
+  // clip with no "…" instead of wrapping onto a 2nd line.
+  sectionTitle: { fontSize: 15.5, fontWeight: '700', flexShrink: 1 },
   link: { fontSize: 13, fontWeight: '600' },
+  linkPressable: { flexShrink: 1 },
   watchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   // Four across is too narrow for the labels on a phone, so these wrap to a
   // 2x2 grid: basis under half the row forces two per line, and flexGrow
@@ -231,7 +249,11 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   actionItem: { flexGrow: 1, flexBasis: '45%' },
   actionCard: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
-  actionLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  // actionCard centers its children by content size, which never bounds
+  // this Text's width — flexShrink (+ the numberOfLines={2} at the call
+  // site) lets a label that no longer fits at a larger font scale wrap
+  // instead of getting clipped mid-word with no "…".
+  actionLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', flexShrink: 1 },
   recapLauncher: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
   recapIconWrap: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   recapTitle: { fontSize: 14.5, fontWeight: '700' },

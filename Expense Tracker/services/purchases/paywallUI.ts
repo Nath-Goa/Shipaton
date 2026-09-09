@@ -1,13 +1,20 @@
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
-import { ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/constants/subscription';
-import { fetchCurrentTier, fetchOfferingForTier, isPurchasesConfigured, tierFromCustomerInfo } from '@/services/purchases/revenuecat';
+import type { Tier } from '@/constants/subscription';
+import {
+  fetchCurrentTier,
+  fetchOfferingForTier,
+  isPurchasesConfigured,
+  tierFromCustomerInfo,
+  tierSatisfies,
+} from '@/services/purchases/revenuecat';
 
 export { PAYWALL_RESULT };
 
 export type PresentPaywallOutcome =
   | { shown: true; result: PAYWALL_RESULT; tier?: Tier }
-  | { shown: false; reason: 'not_configured' };
+  | { shown: false; reason: 'not_configured' }
+  | { shown: false; reason: 'error'; message: string };
 
 // PAYWALL_RESULT tells us a purchase/restore happened, but not the
 // resulting tier directly (a restore especially could land on either paid
@@ -34,32 +41,36 @@ export async function presentPaywallForTier(tier: Exclude<Tier, 'free'>): Promis
     const offering = await fetchOfferingForTier(tier);
     const result = await RevenueCatUI.presentPaywall({ offering: offering ?? undefined });
     return resolveOutcome(result);
-  } catch {
-    // A "configured" but invalid/placeholder key (present, but rejected by
-    // RevenueCat's servers) reaches here rather than crashing the tap —
-    // callers treat this the same as not_configured and fall back to the
-    // demo-mode upgrade screen.
-    return { shown: false, reason: 'not_configured' };
+  } catch (e: any) {
+    // A configured-but-failing paywall (no offering set up in the
+    // dashboard, a product missing from Play Console, no network) is NOT
+    // the same thing as demo mode, and telling someone with real keys to
+    // "set up RevenueCat" sends them looking in the wrong place. Callers
+    // get a distinct reason so they can say something true instead.
+    return { shown: false, reason: 'error', message: e?.message || 'Could not open the paywall. Try again.' };
   }
 }
 
 // Modern "only show it if they need it" pattern: skips the paywall entirely
-// when the customer already holds the required entitlement. Used on
-// Max-only feature gates so tapping a locked feature can go straight to a
+// when the customer already has the tier they're being asked to buy. Used
+// on feature gates so tapping a locked feature can go straight to a
 // purchase flow instead of just routing to the Settings paywall screen.
+//
+// Deliberately NOT RevenueCatUI.presentPaywallIfNeeded: that matches on one
+// literal entitlement identifier, so a subscriber whose dashboard grants
+// the umbrella ENTITLEMENT_APP (RevenueCat's own default for a project that
+// hasn't split entitlements per tier) would never satisfy a required "pro"
+// and would be shown the paywall again on every gated tap despite already
+// paying. tierFromCustomerInfo is the single place that knows all three
+// entitlement identifiers, so the "do they need it?" question is answered
+// against that instead.
 export async function presentPaywallIfNeededForTier(tier: Exclude<Tier, 'free'>): Promise<PresentPaywallOutcome> {
   if (!isPurchasesConfigured()) return { shown: false, reason: 'not_configured' };
-  try {
-    const offering = await fetchOfferingForTier(tier);
-    const requiredEntitlementIdentifier = tier === 'max' ? ENTITLEMENT_MAX : ENTITLEMENT_PRO;
-    const result = await RevenueCatUI.presentPaywallIfNeeded({
-      requiredEntitlementIdentifier,
-      offering: offering ?? undefined,
-    });
-    return resolveOutcome(result);
-  } catch {
-    return { shown: false, reason: 'not_configured' };
+  const current = await fetchCurrentTier();
+  if (current && tierSatisfies(current, tier)) {
+    return { shown: true, result: PAYWALL_RESULT.NOT_PRESENTED, tier: current };
   }
+  return presentPaywallForTier(tier);
 }
 
 export async function presentCustomerCenter(): Promise<{ ok: boolean; message?: string }> {

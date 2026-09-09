@@ -810,6 +810,288 @@ export const QUIZ_BANK: Record<string, BankQuizQuestion[]> = {
       followUpTopic: 'Diversification',
     },
   ],
+  brokerage_accounts: [
+    {
+      difficulty: 'easy',
+      question: 'What is a brokerage account?',
+      options: [
+        'An account with a licensed firm that lets you buy and sell investments',
+        'A type of savings account offered only by banks',
+        'A loan you take out to buy stocks',
+        'A government account that holds your retirement savings automatically',
+      ],
+      correctIndex: 0,
+      explanation:
+        'A brokerage account is opened with a licensed brokerage firm and is the account you actually place buy and sell orders through — it\'s the real-world equivalent of what this app simulates.',
+      learningObjective: 'Recognize what a brokerage account is and what it\'s for.',
+      followUpTopic: 'ETFs & Index Funds',
+    },
+    {
+      difficulty: 'medium',
+      question: 'What is the main practical difference between a cash account and a margin account?',
+      options: [
+        'A margin account lets you borrow against your holdings to trade with more than you\'ve deposited',
+        'A cash account pays a higher interest rate on deposits',
+        'A margin account is only available to companies, not individuals',
+        'There is no real difference — the names are interchangeable',
+      ],
+      correctIndex: 0,
+      explanation:
+        'A cash account restricts you to trading with money you\'ve actually deposited. A margin account lets you borrow from the brokerage to trade a larger position — which also means larger potential losses, since you can lose more than you put in.',
+      learningObjective: 'Distinguish cash accounts from margin accounts.',
+      followUpTopic: 'Risk Management',
+    },
+    {
+      difficulty: 'hard',
+      question: 'If most online brokerages charge $0 commission on US stock trades, how do they make money?',
+      options: [
+        'Mainly through interest on uninvested cash, margin lending, and routing order flow — not per-trade fees',
+        'They don\'t make money — brokerages operate at a permanent loss',
+        'They charge a hidden fee on every trade that isn\'t disclosed anywhere',
+        'They only make money by selling users\' personal contact information',
+      ],
+      correctIndex: 0,
+      explanation:
+        'Commission-free trading became standard once brokerages found other revenue: interest earned on cash sitting in accounts, margin interest, and payment for order flow (getting paid by market makers to route trades to them) are the big ones — all disclosed in a brokerage\'s public filings.',
+      learningObjective: 'Understand how commission-free brokerages actually generate revenue.',
+      followUpTopic: 'Financial Statements',
+    },
+  ],
+  etfs_index_funds: [
+    {
+      difficulty: 'easy',
+      question: 'What is an ETF?',
+      options: [
+        'A basket of many stocks (or other assets) bundled into one security that trades on an exchange',
+        'A single company\'s stock, just under a different name',
+        'A type of savings bond issued by the government',
+        'A brokerage account specifically for retirement',
+      ],
+      correctIndex: 0,
+      explanation:
+        'An ETF (exchange-traded fund) holds many underlying securities inside one fund, and shares of that fund trade on an exchange throughout the day just like a single stock would.',
+      learningObjective: 'Recognize what an ETF is at a basic level.',
+      followUpTopic: 'Diversification',
+    },
+    {
+      difficulty: 'medium',
+      question: 'Why does buying one share of a broad-market index ETF give more diversification than buying one share of a single stock?',
+      options: [
+        'The ETF already holds many different companies inside it, spreading your money across all of them at once',
+        'ETFs are guaranteed by the government against losses',
+        'ETF share prices never go down',
+        'An ETF only ever holds one company, so there\'s no real difference',
+      ],
+      correctIndex: 0,
+      explanation:
+        'A single stock is exposure to one company\'s fortunes. A broad-market ETF share is a proportional slice of every company it holds — often hundreds — so one company\'s bad news barely dents the whole fund.',
+      learningObjective: 'Understand why ETFs offer built-in diversification.',
+      followUpTopic: 'Market Sectors',
+    },
+    {
+      difficulty: 'hard',
+      question: 'What does a fund\'s "expense ratio" measure, and why does it matter over a long holding period?',
+      options: [
+        'The annual fee charged as a percentage of your investment — even a small difference compounds meaningfully over decades',
+        'The one-time fee charged only when you first buy the fund',
+        'The tax rate applied specifically to that fund\'s profits',
+        'The commission charged by your brokerage for trading that fund',
+      ],
+      correctIndex: 0,
+      explanation:
+        'The expense ratio is charged every year, automatically, as a slice of your investment — a fund charging 0.8% versus 0.05% doesn\'t sound dramatic in one year, but compounded over decades it can meaningfully reduce total returns.',
+      learningObjective: 'Understand why fund fees matter more than they first appear to.',
+      followUpTopic: 'Dollar-Cost Averaging',
+    },
+  ],
+  capital_gains_tax: [
+    {
+      difficulty: 'easy',
+      question: 'What is a capital gain?',
+      options: [
+        'The profit made when you sell an investment for more than you paid for it',
+        'The dividend a company pays out each quarter',
+        'The total value of your entire portfolio',
+        'A fee charged by your brokerage for holding a stock',
+      ],
+      correctIndex: 0,
+      explanation:
+        'A capital gain is simply the profit on a sale — what you sold it for, minus what you originally paid.',
+      learningObjective: 'Recognize what a capital gain is.',
+      followUpTopic: 'Dividend Yield',
+    },
+    {
+      difficulty: 'medium',
+      question: 'What generally determines whether a capital gain is taxed as "short-term" or "long-term"?',
+      options: [
+        'How long you held the investment before selling it — over or under about a year',
+        'How much profit you made in dollar terms',
+        'Whether the company pays a dividend',
+        'Which brokerage the trade was placed through',
+      ],
+      correctIndex: 0,
+      explanation:
+        'Holding period is what matters — a position sold after roughly a year or less is generally a short-term gain, taxed at higher ordinary income rates; held longer, it generally qualifies for lower long-term capital gains rates.',
+      learningObjective: 'Understand what separates short-term from long-term capital gains.',
+      followUpTopic: 'Risk Management',
+    },
+    {
+      difficulty: 'hard',
+      question: 'An investor is up nicely on a stock they\'ve held for 11 months. Purely from a tax standpoint, what\'s the tradeoff of selling now versus waiting one more month?',
+      options: [
+        'Selling now locks in the higher short-term rate; waiting a month could qualify the gain for the lower long-term rate — but the price could also move against them in the meantime',
+        'There is no tax difference between selling at 11 months and 13 months',
+        'Waiting always guarantees a bigger profit',
+        'Selling earlier always results in a lower tax bill',
+      ],
+      correctIndex: 0,
+      explanation:
+        'This is a genuine tradeoff, not a free lunch: crossing the one-year mark can meaningfully lower the tax rate on the gain, but the position is still exposed to the market in the meantime — the tax benefit has to be weighed against the risk of holding longer.',
+      learningObjective: 'Reason through the real tradeoff behind tax-motivated holding decisions.',
+      followUpTopic: 'Position Sizing',
+    },
+  ],
+  financial_statements: [
+    {
+      difficulty: 'easy',
+      question: 'What does a balance sheet show?',
+      options: [
+        'What a company owns, what it owes, and what\'s left for shareholders, as of one specific date',
+        'How much profit a company made over the last year',
+        'The day-to-day price chart of a company\'s stock',
+        'A forecast of a company\'s future revenue',
+      ],
+      correctIndex: 0,
+      explanation:
+        'A balance sheet is a snapshot, not a trend — assets (what it owns), liabilities (what it owes), and equity (what\'s left for shareholders), all as of one specific date.',
+      learningObjective: 'Recognize what a balance sheet represents.',
+      followUpTopic: 'Market Capitalization',
+    },
+    {
+      difficulty: 'medium',
+      question: 'What is the key difference between an income statement and a cash flow statement?',
+      options: [
+        'The income statement shows reported profit, which can include non-cash items; the cash flow statement tracks actual cash moving in and out',
+        'They always show identical numbers, just formatted differently',
+        'The cash flow statement only applies to companies with no debt',
+        'The income statement covers one day, while the cash flow statement covers a full year'
+      ],
+      correctIndex: 0,
+      explanation:
+        'Reported profit (net income) can include things like unpaid invoices or non-cash accounting charges. The cash flow statement strips all that away to show what cash actually came in and went out — the two often tell meaningfully different stories.',
+      learningObjective: 'Distinguish reported profit from actual cash flow.',
+      followUpTopic: 'P/E Ratio',
+    },
+    {
+      difficulty: 'hard',
+      question: 'A company reports a solid profit on its income statement but is running low on cash. What\'s a plausible explanation?',
+      options: [
+        'A large share of its "sales" are unpaid customer invoices, or it spent heavily on non-cash-expensed investments — the income statement doesn\'t track cash directly',
+        'This situation is impossible — profit and cash always match exactly',
+        'It means the company\'s financial statements are fraudulent',
+        'It means the stock is guaranteed to go up soon'
+      ],
+      correctIndex: 0,
+      explanation:
+        'Profit and cash aren\'t the same thing. A company can look profitable on paper while cash is tight — unpaid invoices, heavy investment spending, or inventory buildup can all show up as "profit" without putting cash in the bank yet, which is exactly why analysts check the cash flow statement separately.',
+      learningObjective: 'Understand why profit and cash position can diverge.',
+      followUpTopic: 'Earnings Per Share',
+    },
+  ],
+  options_basics: [
+    {
+      difficulty: 'easy',
+      question: 'What does a call option give its owner?',
+      options: [
+        'The right, but not the obligation, to buy a stock at a fixed price before a set date',
+        'The right to vote at a company\'s shareholder meeting',
+        'Guaranteed ownership of 100 shares of stock',
+        'A fixed quarterly cash payment from the company',
+      ],
+      correctIndex: 0,
+      explanation:
+        'A call option is a right, not a requirement — the buyer can choose to exercise it (buy at the fixed price) or simply let it expire if it\'s no longer favorable.',
+      learningObjective: 'Recognize what a call option represents.',
+      followUpTopic: 'Investing Psychology & Biases',
+    },
+    {
+      difficulty: 'medium',
+      question: 'Why does an option typically cost much less than buying the same number of shares outright?',
+      options: [
+        'An option only controls the shares temporarily and can expire worthless, so it\'s priced as a smaller, time-limited bet on the stock\'s movement',
+        'Options are always a scam and have no real value',
+        'Options come with a guaranteed refund if the price doesn\'t move',
+        'Because the option automatically converts into cash-equivalent shares'
+      ],
+      correctIndex: 0,
+      explanation:
+        'An option\'s price (the "premium") reflects a smaller, time-limited bet — it can expire completely worthless if the stock doesn\'t move the right way in time, which is exactly why it costs a fraction of owning the shares outright.',
+      learningObjective: 'Understand why options are priced far below the underlying shares.',
+      followUpTopic: 'Volatility',
+    },
+    {
+      difficulty: 'hard',
+      question: 'An investor buys a call option instead of the underlying stock to "control the same exposure for less money." What\'s the real tradeoff they\'re making?',
+      options: [
+        'Amplified percentage gains if the stock moves favorably, but a real chance of losing the entire premium if it doesn\'t move enough in time',
+        'There is no tradeoff — options are strictly better than owning the stock in every scenario',
+        'They give up any possibility of a loss',
+        'They automatically receive the stock\'s dividend payments'
+      ],
+      correctIndex: 0,
+      explanation:
+        'Leverage cuts both ways: the same dollar move in the stock is a much bigger percentage move on the option, which flatters gains — but if the stock doesn\'t move far enough before expiration, the option can lose all of its value, unlike a share of stock which just sits there.',
+      learningObjective: 'Reason through the real risk/reward tradeoff options leverage creates.',
+      followUpTopic: 'Risk Management',
+    },
+  ],
+  behavioral_biases: [
+    {
+      difficulty: 'easy',
+      question: 'What is loss aversion?',
+      options: [
+        'The tendency to feel the pain of a loss more strongly than the pleasure of an equal-sized gain',
+        'A strategy for avoiding all investment losses entirely',
+        'A type of stop-loss order',
+        'The tendency to only invest in low-risk assets',
+      ],
+      correctIndex: 0,
+      explanation:
+        'Loss aversion is a well-documented psychological finding: losing $100 tends to hurt more than gaining $100 feels good, even though the dollar amounts are identical.',
+      learningObjective: 'Recognize the basic definition of loss aversion.',
+      followUpTopic: 'Stop-Loss Orders',
+    },
+    {
+      difficulty: 'medium',
+      question: 'How does loss aversion commonly show up in real investing behavior?',
+      options: [
+        'Holding onto a losing stock far too long, hoping to "get back to even" before selling',
+        'Selling every stock the moment it goes up even slightly',
+        'Never investing in the stock market at all',
+        'Only buying stocks that pay a dividend',
+      ],
+      correctIndex: 0,
+      explanation:
+        'Because selling at a loss feels like making the loss "real," loss-averse investors often hold on far past when their own analysis would otherwise say to sell — hoping to avoid ever having to accept the loss.',
+      learningObjective: 'Connect loss aversion to a concrete, common investing mistake.',
+      followUpTopic: 'Position Sizing',
+    },
+    {
+      difficulty: 'hard',
+      question: 'Why do investing educators often say "the money is already lost or gained the moment the price moves, whether or not you\'ve sold"?',
+      options: [
+        'Because whether you\'ve realized a gain or loss by selling shouldn\'t change what the best decision going forward is — but loss aversion makes it feel like it should',
+        'Because unrealized gains and losses aren\'t real and can be ignored completely',
+        'Because taxes are only owed on money you haven\'t sold yet',
+        'Because a stock\'s price only matters after you sell it'
+      ],
+      correctIndex: 0,
+      explanation:
+        'Rationally, the decision to hold or sell today should depend on the stock\'s prospects going forward, not on what you originally paid. But loss aversion makes "locking in" a loss by selling feel worse than an unrealized loss of the same size — a bias that can lead to holding bad positions purely to avoid that feeling.',
+      learningObjective: 'Understand why the sunk-cost framing of a position is a bias, not a rational input.',
+      followUpTopic: 'Risk Management',
+    },
+  ],
 };
 
 export function bankQuestionsFor(topicId: string): BankQuizQuestion[] {

@@ -1,8 +1,10 @@
-import { useEffect, useId, useState } from 'react';
-import { Platform, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
+  Extrapolation,
   FadeIn,
+  interpolate,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
@@ -11,7 +13,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, ClipPath, Defs, G, Line, Path, Polygon, Rect } from 'react-native-svg';
+import Svg, { Circle, G, Line, Path, Polygon } from 'react-native-svg';
 
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { useTheme } from '@/hooks/useTheme';
@@ -27,18 +29,32 @@ type Props = {
   onPointPress?: (bar: PriceBar, index: number) => void;
 };
 
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedG = Animated.createAnimatedComponent(G);
 const REVEAL_DURATION = 700;
 
 export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }: Props) {
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
-  const rawId = useId();
-  const clipId = `price-chart-reveal-${rawId.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   const beaconPulse = useSharedValue(1);
   const beaconOpacity = useSharedValue(0);
-  const revealWidth = useSharedValue(0);
+  // 0 → 1 draw progress, not a pixel width. The reveal is driven by a plain
+  // stroke-dashoffset animation on the line itself (below) rather than an
+  // SVG <ClipPath> + animated <Rect> — the previous approach — because that
+  // combination is unreliable on React Native's New Architecture: when the
+  // clip rect's animated width update doesn't propagate to the renderer, the
+  // clip stays pinned at its initial 0 width forever and the ENTIRE chart is
+  // invisible, not just un-animated. A dashoffset on the line itself has no
+  // such failure mode — worst case it just doesn't animate, the line still
+  // shows immediately.
+  const drawProgress = useSharedValue(0);
+  // Path length is a plain per-render number (recomputed below, same as
+  // `points`/`linePath` already were), mirrored into a shared value so the
+  // two useAnimatedProps hooks above can stay unconditional — they're
+  // declared before the early-return below, so they must not close over
+  // anything only computed after it.
+  const pathLengthSV = useSharedValue(0);
 
   useEffect(() => {
     // Draws the line left-to-right on every change of `bars` — both the
@@ -47,8 +63,8 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
     // new array reference in both cases but NOT on the 15s live-quote poll,
     // so this never replays just because a price ticked.
     if (width === 0) return;
-    revealWidth.value = 0;
-    revealWidth.value = withTiming(width, { duration: REVEAL_DURATION, easing: Easing.out(Easing.cubic) });
+    drawProgress.value = 0;
+    drawProgress.value = withTiming(1, { duration: REVEAL_DURATION, easing: Easing.out(Easing.cubic) });
 
     // The pulsing beacon ring waits for the line to actually arrive at its
     // spot, then does a couple of quick pulses (~1.8s) and holds static.
@@ -65,7 +81,7 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
       REVEAL_DURATION,
       withRepeat(withSequence(withTiming(2.2, { duration: 450 }), withTiming(1, { duration: 450 })), 2, false)
     );
-  }, [bars, width, revealWidth, beaconPulse, beaconOpacity]);
+  }, [bars, width, drawProgress, beaconPulse, beaconOpacity]);
 
   const beaconStyle = useAnimatedStyle(() => {
     return {
@@ -74,12 +90,14 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
     };
   });
 
-  const revealProps = useAnimatedProps(() => ({
-    // Clamped defensively — an SVG <rect> throws on a negative width, and a
-    // stale target from a mid-flight animation racing a container resize
-    // (e.g. right after this screen first mounts, before layout settles)
-    // could otherwise briefly land below zero.
-    width: Math.max(0, revealWidth.value),
+  const lineAnimatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: pathLengthSV.value * (1 - drawProgress.value),
+  }));
+  // The endpoint dot and forecast band only make sense once the line has
+  // actually arrived there — fades in over the tail end of the draw instead
+  // of sitting at its final spot the whole time.
+  const endAnimatedProps = useAnimatedProps(() => ({
+    opacity: interpolate(drawProgress.value, [0.7, 1], [0, 1], Extrapolation.CLAMP),
   }));
 
   function onLayout(e: LayoutChangeEvent) {
@@ -106,6 +124,12 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
   const points: [number, number][] = closes.map((v, i) => [i * stepX, yFor(v)]);
   const linePath = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   const areaPath = `${linePath} L${points[points.length - 1][0].toFixed(1)},${height} L0,${height} Z`;
+
+  let pathLength = 0;
+  for (let i = 1; i < points.length; i++) {
+    pathLength += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  }
+  pathLengthSV.value = pathLength;
 
   const lineColor = trend === 'up' ? colors.success : trend === 'down' ? colors.danger : colors.accent;
   const lastPoint = points[points.length - 1];
@@ -154,28 +178,21 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
           codebase already follows elsewhere (e.g. ResultsCardModal). */}
       <Pressable feedbackCategory="selection" onPress={onPointPress ? handlePress : undefined} disabled={!onPointPress}>
         <Svg width={width} height={height}>
-          <Defs>
-            <ClipPath id={clipId}>
-              {Platform.OS === 'web' ? (
-                <Rect x={0} y={-4} width={width} height={height + 8} />
-              ) : (
-                <AnimatedRect x={0} y={-4} height={height + 8} animatedProps={revealProps} />
-              )}
-            </ClipPath>
-          </Defs>
-          <G clipPath={`url(#${clipId})`}>
-            <Path d={areaPath} fill={lineColor} fillOpacity={0.08} />
-            <Path
-              d={linePath}
-              stroke={lineColor}
-              strokeWidth={2.5}
-              fill="none"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
+          <Path d={areaPath} fill={lineColor} fillOpacity={0.08} />
+          <AnimatedPath
+            d={linePath}
+            stroke={lineColor}
+            strokeWidth={2.5}
+            fill="none"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            strokeDasharray={[pathLength, pathLength]}
+            animatedProps={lineAnimatedProps}
+          />
+          <AnimatedG animatedProps={endAnimatedProps}>
             <Circle cx={lastPoint[0]} cy={lastPoint[1]} r={4} fill={lineColor} />
             {forecastNode}
-          </G>
+          </AnimatedG>
         </Svg>
       </Pressable>
       {/* 60fps Live Pulsing Beacon Ring over latest price coordinate */}

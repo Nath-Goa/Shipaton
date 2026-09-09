@@ -3,7 +3,7 @@ import Purchases, {
   type CustomerInfo,
   type PurchasesOffering,
   type PurchasesPackage,
-  PURCHASES_ERROR_CODE,
+  PACKAGE_TYPE,
   LOG_LEVEL,
 } from 'react-native-purchases';
 
@@ -36,8 +36,17 @@ export function configurePurchases(): boolean {
   if (configured) return true;
   const apiKey = apiKeyForPlatform();
   if (!apiKey) return false;
-  if (__DEV__) Purchases.setLogLevel(LOG_LEVEL.WARN);
-  Purchases.configure({ apiKey });
+  try {
+    if (__DEV__) Purchases.setLogLevel(LOG_LEVEL.WARN);
+    Purchases.configure({ apiKey });
+  } catch {
+    // configure() throws synchronously on a malformed key (a truncated
+    // paste, a secret key used in place of a public SDK key). This is
+    // called from a useEffect in app/_layout.tsx, so an uncaught throw here
+    // takes the whole app down at launch instead of quietly falling back to
+    // demo mode. Staying unconfigured is the correct outcome either way.
+    return false;
+  }
   configured = true;
   return true;
 }
@@ -59,22 +68,6 @@ export function tierFromCustomerInfo(info: CustomerInfo): Tier {
   return 'free';
 }
 
-export async function fetchCurrentOffering(): Promise<PurchasesOffering | null> {
-  if (!configured) return null;
-  try {
-    const offerings = await Purchases.getOfferings();
-    return offerings.current;
-  } catch {
-    // A key that "looks" present but is invalid/placeholder (or the
-    // dashboard has no offerings set up yet) makes getOfferings() reject —
-    // callers treat null the same as "not configured" and fall back to the
-    // demo-mode upgrade screen instead of the whole tap silently doing
-    // nothing (an uncaught rejection here has no visible effect on a
-    // fire-and-forget onPress handler).
-    return null;
-  }
-}
-
 // Each paid tier has its own Offering in the RevenueCat dashboard
 // (identifier "pro" / "max"), each containing "monthly" / "yearly" /
 // "lifetime" packages — this is what backs the per-tier paywall in
@@ -91,26 +84,54 @@ export async function fetchOfferingForTier(tier: Exclude<Tier, 'free'>): Promise
   }
 }
 
-export type PurchaseOutcome =
-  | { ok: true; tier: Tier }
-  | { ok: false; cancelled: true }
-  | { ok: false; cancelled: false; message: string };
+// The store-localized "from" price for a tier, e.g. "$4.99/mo" — read off
+// the tier's own Offering so the plan-comparison screen shows what the user
+// will actually be charged in their region and currency, rather than the
+// hardcoded demo figures in constants/subscription.ts. Monthly is the
+// anchor because that's what the card reads as ("From X"); annual and then
+// whatever else the offering has are the fallbacks if there's no monthly
+// package. Returns null when RevenueCat can't tell us — the caller decides
+// what to show instead, and must never silently substitute a demo price.
+export async function fetchTierPrice(tier: Exclude<Tier, 'free'>): Promise<string | null> {
+  const offering = await fetchOfferingForTier(tier);
+  if (!offering) return null;
+  const pkg = offering.monthly ?? offering.annual ?? offering.availablePackages[0];
+  const priceString = pkg?.product?.priceString;
+  return priceString ? `${priceString}${periodSuffix(pkg)}` : null;
+}
 
-export async function purchasePackage(pkg: PurchasesPackage): Promise<PurchaseOutcome> {
-  try {
-    const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return { ok: true, tier: tierFromCustomerInfo(customerInfo) };
-  } catch (e: any) {
-    if (e?.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
-      return { ok: false, cancelled: true };
-    }
-    return { ok: false, cancelled: false, message: e?.message || 'Purchase failed. Try again.' };
+function periodSuffix(pkg: PurchasesPackage): string {
+  switch (pkg.packageType) {
+    case PACKAGE_TYPE.WEEKLY:
+      return '/wk';
+    case PACKAGE_TYPE.MONTHLY:
+      return '/mo';
+    case PACKAGE_TYPE.ANNUAL:
+      return '/yr';
+    default:
+      // Lifetime and the odd multi-month packages read fine bare — a price
+      // with no period is unambiguous, an invented one wouldn't be.
+      return '';
   }
+}
+
+// Whether a customer already on `current` has everything `required` unlocks.
+// Max covers Pro; nothing covers Max but Max. Used to decide whether a
+// paywall needs showing at all — see presentPaywallIfNeededForTier.
+export function tierSatisfies(current: Tier, required: Exclude<Tier, 'free'>): boolean {
+  if (required === 'pro') return current === 'pro' || current === 'max';
+  return current === 'max';
 }
 
 export async function restorePurchases(): Promise<
   { ok: true; tier: Tier } | { ok: false; message: string }
 > {
+  if (!configured) {
+    // Every other entry point guards on this; without it the native SDK
+    // throws its own "singleton instance not configured" text, which would
+    // surface verbatim in a toast.
+    return { ok: false, message: 'Restoring purchases is not available in demo mode.' };
+  }
   try {
     const customerInfo = await Purchases.restorePurchases();
     return { ok: true, tier: tierFromCustomerInfo(customerInfo) };

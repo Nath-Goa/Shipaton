@@ -1,12 +1,36 @@
 name: EAS Build (Android)
 
 # Manual trigger only (not on every push) — this repo has more than one
-# contributor, and EAS's free tier has a limited number of builds per
-# month, so builds shouldn't fire on every unrelated commit. Run it from
-# the Actions tab ("Run workflow"), from GitHub mobile, or ask Claude to
-# trigger it.
+# contributor, and EAS's cloud free tier has a limited number of builds
+# per month, so builds shouldn't fire on every unrelated commit. Run it
+# from the Actions tab ("Run workflow"), from GitHub mobile, or ask
+# Claude to trigger it.
+#
+# build_type "local" runs the actual Android compile on THIS runner
+# (ubuntu-latest ships with the Android SDK preinstalled) instead of on
+# EAS's cloud build servers — it does not touch the EAS cloud build
+# quota at all, so it still works after that quota is exhausted. Use
+# "cloud" once the monthly EAS quota has reset or a paid plan is active.
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Where to run the actual compile"
+        required: true
+        default: "local"
+        type: choice
+        options:
+          - local
+          - cloud
+      profile:
+        description: "eas.json build profile"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - preview
+          - development
 
 concurrency:
   group: eas-build-android
@@ -42,7 +66,45 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas init --non-interactive --account nathgoas-team
 
-      - name: Build Android APK on EAS
+      - name: Build Android (cloud)
+        if: ${{ inputs.build_type == 'cloud' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive --no-wait
+        run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive --no-wait
+
+      # Gradle's default JVM heap is too small for R8 (release minification)
+      # on an app pulling in this many native modules (RevenueCat, Reanimated,
+      # Sentry, etc.) — a real run died with "R8: java.lang.OutOfMemoryError:
+      # Java heap space" after 572/572 other tasks succeeded. The android/
+      # folder itself is gitignored and regenerated fresh by prebuild on every
+      # build (managed workflow), so this can't be fixed via a committed
+      # gradle.properties — set it in the runner's global Gradle properties
+      # instead, which Gradle merges in regardless of where the project
+      # folder came from. GitHub's standard ubuntu-latest runner has 16GB RAM.
+      - name: Increase Gradle/R8 JVM heap (local build only)
+        if: ${{ inputs.build_type == 'local' }}
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m
+          EOF
+
+      # Runs the real Gradle/Android compile on this runner's own Android
+      # SDK — separate compute from EAS's cloud build queue, so it works
+      # even when the EAS cloud build quota is exhausted. Still talks to
+      # EAS (EXPO_TOKEN) only to fetch/reuse this project's managed signing
+      # credentials and to bump the remote version counter (appVersionSource:
+      # "remote" in eas.json) — neither of those consumes a build credit.
+      - name: Build Android (local)
+        if: ${{ inputs.build_type == 'local' }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile ${{ inputs.profile }} --local --non-interactive --output ./build-output.aab
+
+      - name: Upload build artifact
+        if: ${{ inputs.build_type == 'local' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ inputs.profile }}-build
+          path: "Expense Tracker/build-output.aab"
+          retention-days: 30

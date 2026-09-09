@@ -14,7 +14,7 @@ type CourseState = {
   isCourseComplete: (courseId: string) => boolean;
   isCourseUnlocked: (courseId: string) => boolean;
   nextSubpartFor: (courseId: string) => SubpartType | null; // null once the course is complete
-  getCurrentStage: () => 1 | 2 | 3;
+  getCurrentStage: () => 1 | 2 | 3 | 4;
 };
 
 export const useCourseStore = create<CourseState>()(
@@ -59,7 +59,7 @@ export const useCourseStore = create<CourseState>()(
         for (const course of COURSES) {
           if (!state.isCourseComplete(course.id)) return course.stage;
         }
-        return 3;
+        return COURSES[COURSES.length - 1]?.stage ?? 3;
       },
     }),
     {

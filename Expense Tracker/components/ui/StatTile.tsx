@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { Text } from '@/components/ui/Text';
 import { radius, shadow, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -10,18 +11,32 @@ type Props = {
   sub?: string;
   dotColor?: string;
   valueColor?: string;
+  // Optional — when both are given, the value counts up/down to `value`
+  // instead of appearing statically. `format` must produce the same string
+  // as `value` once the animation lands on the real number.
+  numericValue?: number;
+  format?: (n: number) => string;
 };
 
-export function StatTile({ label, value, sub, dotColor, valueColor }: Props) {
+export function StatTile({ label, value, sub, dotColor, valueColor, numericValue, format }: Props) {
   const { colors } = useTheme();
   return (
     <View style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.border }, shadow.sm]}>
       <Text style={[styles.label, { color: colors.text3 }]} numberOfLines={1}>
         {label}
       </Text>
-      <Text style={[styles.value, { color: valueColor ?? colors.text }]} numberOfLines={1}>
-        {value}
-      </Text>
+      {numericValue !== undefined && format ? (
+        <AnimatedNumber
+          value={numericValue}
+          format={format}
+          numberOfLines={1}
+          style={[styles.value, { color: valueColor ?? colors.text }]}
+        />
+      ) : (
+        <Text style={[styles.value, { color: valueColor ?? colors.text }]} numberOfLines={1}>
+          {value}
+        </Text>
+      )}
       {sub ? (
         <View style={styles.subRow}>
           {dotColor ? <View style={[styles.dot, { backgroundColor: dotColor }]} /> : null}

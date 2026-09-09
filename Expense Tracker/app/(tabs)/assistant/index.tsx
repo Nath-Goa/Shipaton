@@ -123,7 +123,16 @@ export default function AssistantScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        // Android's window already resizes when the keyboard opens
+        // (app.json's android.softwareKeyboardLayoutMode: "resize"), so a
+        // 'height'/'padding' behavior here shrinks the layout by the
+        // keyboard height a SECOND time on top of an already-shrunk window
+        // — that double compensation is what was leaving the composer
+        // partially behind the keyboard instead of pushed cleanly above it.
+        // `undefined` makes this a no-op flex View on Android and lets the
+        // OS resize handle everything; iOS has no such OS-level resize, so
+        // it still needs the manual 'padding' behavior.
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <View style={styles.flex}>
         <FlatList

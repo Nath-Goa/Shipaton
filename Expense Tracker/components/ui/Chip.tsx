@@ -61,7 +61,9 @@ export function Chip({ label, active, onPress }: Props) {
         },
         animatedStyle,
       ]}>
-      <Text style={[styles.label, { color: active ? colors.onAccent : colors.text2 }]}>{label}</Text>
+      <Text style={[styles.label, { color: active ? colors.onAccent : colors.text2 }]} numberOfLines={1}>
+        {label}
+      </Text>
     </AnimatedPressable>
   );
 }
@@ -72,6 +74,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
+    // The pill hugs its label's *measured* width — at a larger device font
+    // size the actually-rendered text can come out wider than what got
+    // measured, and with nothing here to contain it, the overflow used to
+    // paint straight past this pill's own edge and into the next chip in
+    // the row, eating its first few letters ("Last 30 days" read as "t 30
+    // days"). overflow: 'hidden' keeps any overflow inside this chip's own
+    // rounded bounds instead of bleeding onto its neighbor; numberOfLines
+    // on the label below is what makes that overflow ellipsize cleanly
+    // rather than clip mid-word with nothing to show it was cut.
+    overflow: 'hidden',
   },
   label: {
     fontSize: 12.5,
