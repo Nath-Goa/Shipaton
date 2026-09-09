@@ -72,6 +72,23 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive --no-wait
 
+      # Gradle's default JVM heap is too small for R8 (release minification)
+      # on an app pulling in this many native modules (RevenueCat, Reanimated,
+      # Sentry, etc.) — a real run died with "R8: java.lang.OutOfMemoryError:
+      # Java heap space" after 572/572 other tasks succeeded. The android/
+      # folder itself is gitignored and regenerated fresh by prebuild on every
+      # build (managed workflow), so this can't be fixed via a committed
+      # gradle.properties — set it in the runner's global Gradle properties
+      # instead, which Gradle merges in regardless of where the project
+      # folder came from. GitHub's standard ubuntu-latest runner has 16GB RAM.
+      - name: Increase Gradle/R8 JVM heap (local build only)
+        if: ${{ inputs.build_type == 'local' }}
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m
+          EOF
+
       # Runs the real Gradle/Android compile on this runner's own Android
       # SDK — separate compute from EAS's cloud build queue, so it works
       # even when the EAS cloud build quota is exhausted. Still talks to
