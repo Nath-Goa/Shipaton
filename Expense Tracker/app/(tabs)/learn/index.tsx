@@ -30,6 +30,13 @@ import { useStreakStore } from '@/store/useStreakStore';
 import { useTriviaStore } from '@/store/useTriviaStore';
 import { todayStr } from '@/utils/date';
 
+const LEVEL_PATH_COPY = {
+  beginner: { label: 'Beginner', stage: 1 },
+  intermediate: { label: 'Intermediate', stage: 2 },
+  advanced: { label: 'Advanced', stage: 3 },
+  professional: { label: 'Professional', stage: 4 },
+} as const;
+
 function FlameIcon() {
   const scale = useSharedValue(1);
 
@@ -68,7 +75,10 @@ export default function LearnScreen() {
   const { streakDays, badges } = useStreakStore(
     useShallow((s) => ({ streakDays: s.streakDays, badges: s.badges }))
   );
-  const levelSelected = useSettingsStore((s) => s.levelSelected);
+  const { levelSelected, selectedLevel } = useSettingsStore(
+    useShallow((s) => ({ levelSelected: s.levelSelected, selectedLevel: s.selectedLevel }))
+  );
+  const selectedPath = selectedLevel ? LEVEL_PATH_COPY[selectedLevel] : null;
 
   // Quizzes and the daily challenge draw from the same unified AI quota as
   // every other AI feature (see hooks/useAiQuota) — a working personal key
@@ -129,22 +139,29 @@ export default function LearnScreen() {
           </View>
         ) : null}
 
-        {!levelSelected ? (
-          <View>
-            <Card style={styles.levelCard}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[styles.levelCardEyebrow, { color: colors.accent }]}>Personalize your path</Text>
-                <Text style={[styles.levelCardTitle, { color: colors.text }]}>What&apos;s your investing level?</Text>
-                <Text style={[styles.levelCardSub, { color: colors.text3 }]}>
-                  Beginner, intermediate, or advanced — pick anytime to personalize the curriculum.
-                </Text>
-              </View>
-              <View style={{ marginTop: spacing.sm }}>
-                <Button label="Choose level" variant="ghost" fullWidth onPress={() => router.push('/learn/level-select')} />
-              </View>
-            </Card>
-          </View>
-        ) : null}
+        <View>
+          <Card style={styles.levelCard}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.levelCardEyebrow, { color: colors.accent }]}>Personalize your path</Text>
+              <Text style={[styles.levelCardTitle, { color: colors.text }]}>
+                {selectedPath ? `${selectedPath.label} path · Stage ${selectedPath.stage}` : 'What’s your investing level?'}
+              </Text>
+              <Text style={[styles.levelCardSub, { color: colors.text3 }]}>
+                {selectedPath
+                  ? 'Your chosen stage is open below. Earlier courses remain available whenever you want a refresher.'
+                  : 'Choose Beginner, Intermediate, Advanced, or Professional to open the right starting stage.'}
+              </Text>
+            </View>
+            <View style={{ marginTop: spacing.sm }}>
+              <Button
+                label={levelSelected ? 'Change level' : 'Choose level'}
+                variant="ghost"
+                fullWidth
+                onPress={() => router.push('/learn/level-select')}
+              />
+            </View>
+          </Card>
+        </View>
 
         {/* Course Path */}
         <View>

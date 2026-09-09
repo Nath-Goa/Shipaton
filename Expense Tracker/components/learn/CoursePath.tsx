@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useShallow } from 'zustand/react/shallow';
@@ -10,6 +11,7 @@ import { STAGES, SUBPART_SEQUENCE, coursesForStage } from '@/constants/courses';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useCourseStore } from '@/store/useCourseStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 
 const RING_SIZE = 40;
 const RING_STROKE = 3.5;
@@ -39,33 +41,51 @@ function ProgressRing({ progress, color, trackColor }: { progress: number; color
   );
 }
 
-// The structured "on-ramp" through 10 courses grouped into 3 stages — sits
-// above the existing free-form Next-up/Daily-challenge/All-topics sections,
-// which are unchanged and still work for open-ended review.
+// Only one stage is mounted at once. That keeps the 104-course path
+// quick to scroll and avoids rendering a wall of locked cards on every visit.
 export function CoursePath() {
   const { colors } = useTheme();
-  const { courseProgress, isCourseUnlocked, isCourseComplete } = useCourseStore(
+  const selectedLevel = useSettingsStore((state) => state.selectedLevel);
+  const { courseProgress, isCourseUnlocked, isCourseComplete, getCurrentStage } = useCourseStore(
     useShallow((s) => ({
       courseProgress: s.courseProgress,
       isCourseUnlocked: s.isCourseUnlocked,
       isCourseComplete: s.isCourseComplete,
+      getCurrentStage: s.getCurrentStage,
     }))
   );
+  const recommendedStage = getCurrentStage();
+  const [expandedStage, setExpandedStage] = useState<1 | 2 | 3 | 4 | null>(recommendedStage);
+
+  useEffect(() => {
+    setExpandedStage(recommendedStage);
+  }, [recommendedStage, selectedLevel]);
 
   return (
     <View style={{ gap: spacing.xl }}>
       {STAGES.map((stage) => {
         const courses = coursesForStage(stage.id);
         const stageComplete = courses.every((c) => isCourseComplete(c.id));
+        const completedCount = courses.filter((course) => isCourseComplete(course.id)).length;
+        const expanded = expandedStage === stage.id;
         return (
           <View key={stage.id}>
-            <View style={styles.stageHead}>
-              <Text style={[styles.stageLabel, { color: colors.text3 }]}>
-                Stage {stage.id} · {stage.label}
-              </Text>
-              {stageComplete ? <Ionicons name="checkmark-circle" size={16} color={colors.success} /> : null}
-            </View>
-            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+            <Pressable
+              feedbackCategory="selection"
+              onPress={() => setExpandedStage((current) => current === stage.id ? null : stage.id)}
+              style={[styles.stageHead, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.stageLabel, { color: expanded ? colors.accent : colors.text3 }]}>
+                  Stage {stage.id} · {stage.label}
+                </Text>
+                <Text style={[styles.stageCount, { color: colors.text3 }]}>
+                  {completedCount}/{courses.length} courses complete
+                </Text>
+              </View>
+              {stageComplete ? <Ionicons name="checkmark-circle" size={18} color={colors.success} /> : null}
+              <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.text3} />
+            </Pressable>
+            {expanded ? <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
               {courses.map((course) => {
                 const unlocked = isCourseUnlocked(course.id);
                 const complete = isCourseComplete(course.id);
@@ -111,7 +131,7 @@ export function CoursePath() {
                   </Pressable>
                 );
               })}
-            </View>
+            </View> : null}
           </View>
         );
       })}
@@ -120,8 +140,17 @@ export function CoursePath() {
 }
 
 const styles = StyleSheet.create({
-  stageHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stageHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   stageLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  stageCount: { fontSize: 11.5, marginTop: 2 },
   node: {
     flexDirection: 'row',
     alignItems: 'center',

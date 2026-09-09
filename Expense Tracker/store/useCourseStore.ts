@@ -3,9 +3,22 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { COURSES, SUBPART_SEQUENCE, type SubpartType } from '@/constants/courses';
+import { useSettingsStore, type LearnerLevel } from '@/store/useSettingsStore';
 import { todayStr } from '@/utils/date';
 
 type CourseProgress = { subpartsDone: SubpartType[]; completedAt: string | null };
+
+const START_STAGE_BY_LEVEL: Record<LearnerLevel, 1 | 2 | 3 | 4> = {
+  beginner: 1,
+  intermediate: 2,
+  advanced: 3,
+  professional: 4,
+};
+
+function selectedStartStage(): 1 | 2 | 3 | 4 {
+  const level = useSettingsStore.getState().selectedLevel;
+  return level ? START_STAGE_BY_LEVEL[level] : 1;
+}
 
 type CourseState = {
   courseProgress: Record<string, CourseProgress>;
@@ -44,7 +57,9 @@ export const useCourseStore = create<CourseState>()(
       isCourseUnlocked: (courseId) => {
         const course = COURSES.find((c) => c.id === courseId);
         if (!course) return false;
-        if (course.order === 1) return true;
+        const startStage = selectedStartStage();
+        const startingCourse = COURSES.find((c) => c.stage === startStage);
+        if (course.order <= (startingCourse?.order ?? 1)) return true;
         const prevCourse = COURSES.find((c) => c.order === course.order - 1);
         return prevCourse ? get().isCourseComplete(prevCourse.id) : true;
       },
@@ -56,10 +71,12 @@ export const useCourseStore = create<CourseState>()(
 
       getCurrentStage: () => {
         const state = get();
-        for (const course of COURSES) {
+        const startStage = selectedStartStage();
+        const startingOrder = COURSES.find((course) => course.stage === startStage)?.order ?? 1;
+        for (const course of COURSES.filter((item) => item.order >= startingOrder)) {
           if (!state.isCourseComplete(course.id)) return course.stage;
         }
-        return COURSES[COURSES.length - 1]?.stage ?? 3;
+        return COURSES[COURSES.length - 1]?.stage ?? 4;
       },
     }),
     {

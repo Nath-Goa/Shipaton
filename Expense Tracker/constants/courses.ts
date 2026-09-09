@@ -1,5 +1,7 @@
 import type { Ionicons } from '@expo/vector-icons';
 
+import { EXPANDED_COURSE_BLUEPRINTS, type ExpandedCourseBlueprint } from '@/constants/expandedCourseBlueprints';
+
 export type SubpartType = 'lesson' | 'flashcards' | 'quiz' | 'practice' | 'mastery';
 
 export const SUBPART_SEQUENCE: SubpartType[] = ['lesson', 'flashcards', 'quiz', 'practice', 'mastery'];
@@ -16,9 +18,9 @@ export type IconName = keyof typeof Ionicons.glyphMap;
 
 export type KeyTerm = { term: string; def: string };
 
-// Only 3 of 10 courses get real auto-detection off existing app state — the
-// other 7 use a manual "Mark as done" confirm. Fragile bespoke detection for
-// every course isn't worth the risk; see the plan's scoping note.
+// A few courses get real auto-detection from existing app state. The rest use
+// a manual "Mark as done" confirmation because inventing fragile detection
+// for every learning exercise would create misleading progress.
 export type PracticeAction = 'stock-viewed' | 'trade-placed' | 'watchlist-added' | 'manual';
 
 export type Course = {
@@ -51,13 +53,13 @@ export type Course = {
 };
 
 export const STAGES: { id: 1 | 2 | 3 | 4; label: string }[] = [
-  { id: 1, label: 'Foundations' },
-  { id: 2, label: 'Building Skills' },
+  { id: 1, label: 'Beginner Foundations' },
+  { id: 2, label: 'Intermediate Skills' },
   { id: 3, label: 'Advanced Strategy' },
-  { id: 4, label: 'Practical & Real-World' },
+  { id: 4, label: 'Professional Practice' },
 ];
 
-export const COURSES: Course[] = [
+const CORE_COURSES: Course[] = [
   {
     id: 'market-basics',
     stage: 1,
@@ -735,6 +737,137 @@ export const COURSES: Course[] = [
     },
   },
 ];
+
+type VideoResource = Pick<Course['visual'], 'videoId' | 'videoTitle' | 'videoSource'>;
+
+const DEFAULT_VIDEO: VideoResource = {
+  videoId: '98qfFzqDKR8',
+  videoTitle: "What it means to buy a company's stock",
+  videoSource: 'Khan Academy',
+};
+
+// These are specific, hand-picked resources rather than search URLs. Related
+// modules can share a strong explainer, while every course still exposes a
+// direct video link that works without an API key or embedded-player package.
+const VIDEO_BY_TOPIC: Record<string, VideoResource> = {
+  pe_ratio: { videoId: 'cppxO67e6eo', videoTitle: 'Introduction to the price-to-earnings ratio', videoSource: 'Khan Academy' },
+  market_cap: DEFAULT_VIDEO,
+  dividend_yield: { videoId: 'AoPkevoNhuI', videoTitle: 'Introduction To Dividend Yields', videoSource: 'Investopedia' },
+  eps: { videoId: 'hZvjH3Az87A', videoTitle: 'Balance sheet and income statement relationship', videoSource: 'Khan Academy' },
+  moving_averages: { videoId: 'Gtue3PqDVjQ', videoTitle: 'Moving Averages', videoSource: 'Investopedia Academy' },
+  rsi_oversold: { videoId: 'Gtue3PqDVjQ', videoTitle: 'Moving Averages and Technical Analysis', videoSource: 'Investopedia Academy' },
+  volume_analysis: { videoId: 'myUKta-wicQ', videoTitle: 'How to Read Candlestick Shapes & Charts', videoSource: 'YouTube' },
+  support_resistance: { videoId: 'Gtue3PqDVjQ', videoTitle: 'Technical Analysis Foundations', videoSource: 'Investopedia Academy' },
+  candlestick_basics: { videoId: 'myUKta-wicQ', videoTitle: 'How to Read Candlestick Shapes & Charts', videoSource: 'YouTube' },
+  volatility: { videoId: 'mv5zucjq60k', videoTitle: 'Risk and reward introduction', videoSource: 'Khan Academy' },
+  market_cap_categories: DEFAULT_VIDEO,
+  sectors: { videoId: 'oBa6FIze-hw', videoTitle: 'How Stock Market Sector Rotation Works', videoSource: 'Investopedia' },
+  bull_bear_markets: { videoId: 'Gaq17inwjXg', videoTitle: 'Bull and Bear Markets Explained', videoSource: 'YouTube' },
+  diversification: { videoId: 'mv5zucjq60k', videoTitle: 'Risk and reward introduction', videoSource: 'Khan Academy' },
+  stop_loss_discipline: { videoId: 'TeHmx3H54jo', videoTitle: 'Stop Order vs Limit Order', videoSource: 'Investopedia' },
+  position_sizing: { videoId: 'mv5zucjq60k', videoTitle: 'Risk and reward introduction', videoSource: 'Khan Academy' },
+  dollar_cost_averaging: { videoId: 'DojGdOFPZyE', videoTitle: 'What Is Dollar-Cost Averaging?', videoSource: 'Fidelity Investments' },
+  risk_management: { videoId: 'mv5zucjq60k', videoTitle: 'Risk and reward introduction', videoSource: 'Khan Academy' },
+  brokerage_accounts: { videoId: 'OJ5bLy8Yegw', videoTitle: 'How to Pick a Broker: Investing for Beginners', videoSource: 'Investopedia' },
+  etfs_index_funds: { videoId: 'SFdsY9Rdh6w', videoTitle: 'Exchange traded funds (ETFs)', videoSource: 'Khan Academy' },
+  capital_gains_tax: { videoId: '0maGu_QHFjU', videoTitle: 'Capital Gains Tax 101', videoSource: 'Investopedia' },
+  financial_statements: { videoId: 'hZvjH3Az87A', videoTitle: 'Balance sheet and income statement relationship', videoSource: 'Khan Academy' },
+  options_basics: { videoId: 'f7A7PTmBNH8', videoTitle: 'Options Basics', videoSource: 'Investopedia' },
+  behavioral_biases: { videoId: 'vrCv34jWiNE', videoTitle: 'Five Financial Biases & How to Avoid Them', videoSource: 'Lighthouse Financial' },
+};
+
+const ICON_BY_STAGE: Record<Course['stage'], IconName> = {
+  1: 'leaf-outline',
+  2: 'bar-chart-outline',
+  3: 'analytics-outline',
+  4: 'briefcase-outline',
+};
+
+function startSentence(value: string): string {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function courseIdFor(blueprint: ExpandedCourseBlueprint): string {
+  const slug = blueprint.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `${slug}-module`;
+}
+
+function expandedCourseOf(blueprint: ExpandedCourseBlueprint, index: number): Course {
+  const principle = startSentence(blueprint.principle);
+  const example = startSentence(blueprint.example);
+  const video = VIDEO_BY_TOPIC[blueprint.topicId] ?? DEFAULT_VIDEO;
+
+  return {
+    id: courseIdFor(blueprint),
+    stage: blueprint.stage,
+    order: 1_000 + index,
+    title: blueprint.title,
+    icon: ICON_BY_STAGE[blueprint.stage],
+    summary: `${principle}.`,
+    topicId: blueprint.topicId,
+    lesson: {
+      paragraphs: [
+        `${blueprint.title} starts with one key idea: ${blueprint.principle}.`,
+        `${example}. This shows how the idea changes a real investing decision rather than staying an abstract definition.`,
+        `Apply it by writing down the evidence you would need before acting. Then name one assumption that could be wrong and one risk limit that would protect you if it is.`,
+      ],
+      eli5: [
+        `${principle}. Think of this as the simple rule behind ${blueprint.title.toLowerCase()}.`,
+        `${example}. That is the rule working in an everyday example.`,
+        `Before using it with money, explain the idea in your own words and decide what would prove your first guess wrong.`,
+      ],
+      keyTerms: [
+        { term: blueprint.title, def: principle },
+        { term: 'Evidence', def: `The facts or numbers that support a decision about ${blueprint.title.toLowerCase()}.` },
+        { term: 'Risk check', def: 'A condition chosen in advance that limits damage when an assumption turns out to be wrong.' },
+      ],
+    },
+    practice: {
+      instruction: `Open Markets, choose a stock, and write one sentence showing how ${blueprint.title.toLowerCase()} could affect your decision.`,
+      action: 'manual',
+      ctaLabel: 'Explore Markets',
+      ctaRoute: '/markets',
+    },
+    visual: {
+      ...video,
+      segments: [
+        { id: 'principle', label: 'Understand the principle', value: 45 },
+        { id: 'evidence', label: 'Test it with evidence', value: 35 },
+        { id: 'risk', label: 'Define the risk check', value: 20 },
+      ],
+      caption: `An illustrative learning split for ${blueprint.title.toLowerCase()}: understand the idea, test it with evidence, then define the risk before acting.`,
+    },
+  };
+}
+
+const EXPANDED_COURSES = EXPANDED_COURSE_BLUEPRINTS.map(expandedCourseOf);
+
+// Keep the original hand-authored courses at the front of each stage, then
+// append the focused modules. Re-numbering after the sort gives progression
+// one stable sequence from Beginner through Professional.
+export const COURSES: Course[] = [...CORE_COURSES, ...EXPANDED_COURSES]
+  .sort((a, b) => a.stage - b.stage || a.order - b.order)
+  .map((course, index) => ({ ...course, order: index + 1 }));
+
+export type LessonPage = {
+  title: string;
+  standard: string;
+  eli5: string;
+  keyTerm?: KeyTerm;
+};
+
+export function lessonPagesFor(course: Course): LessonPage[] {
+  const count = Math.max(course.lesson.paragraphs.length, course.lesson.eli5.length, 1);
+  return Array.from({ length: count }, (_, index) => ({
+    title: course.lesson.keyTerms[index]?.term ?? `Lesson ${index + 1}`,
+    standard: course.lesson.paragraphs[index] ?? course.lesson.paragraphs.at(-1) ?? '',
+    eli5: course.lesson.eli5[index] ?? course.lesson.eli5.at(-1) ?? '',
+    keyTerm: course.lesson.keyTerms[index],
+  }));
+}
 
 const COURSE_MAP = new Map(COURSES.map((c) => [c.id, c]));
 

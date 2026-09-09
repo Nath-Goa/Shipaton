@@ -16,6 +16,7 @@ const LEVEL_OPTIONS: LevelOption[] = [
   { value: 'beginner', label: 'Beginner', description: "New to investing, or just getting started.", icon: 'leaf-outline' },
   { value: 'intermediate', label: 'Intermediate', description: 'Know the basics, want to go deeper.', icon: 'trending-up-outline' },
   { value: 'advanced', label: 'Advanced', description: 'Comfortable with charts, ratios, and strategy.', icon: 'trophy-outline' },
+  { value: 'professional', label: 'Professional', description: 'Ready for research, portfolios, and real workflows.', icon: 'briefcase-outline' },
 ];
 
 export default function LevelSelectScreen() {
@@ -34,8 +35,8 @@ export default function LevelSelectScreen() {
         <Text style={[styles.eyebrow, { color: colors.accent }]}>Welcome to Learn</Text>
         <Text style={[styles.title, { color: colors.text }]}>What's your level?</Text>
         <Text style={[styles.subtitle, { color: colors.text2 }]}>
-          Everyone starts at Beginner, Stage 1 for now — your answer is saved to personalize the path later, but
-          course progress starts the same for everyone today.
+          Your choice opens the matching stage as your recommended starting point. Earlier stages stay available,
+          and you can change your level at any time.
         </Text>
 
         <View style={styles.cards}>

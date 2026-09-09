@@ -11,7 +11,7 @@ import { clearStoredPin, type BiometricType } from '@/services/security/appLock'
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type TutorPersona = 'coach' | 'professor' | 'casual';
 export type StudyWindow = 'morning' | 'afternoon' | 'evening' | 'night';
-export type LearnerLevel = 'beginner' | 'intermediate' | 'advanced';
+export type LearnerLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional';
 
 type SettingsState = {
   themeMode: ThemeMode;
@@ -59,9 +59,8 @@ type SettingsState = {
   // nothing adapts. Opt-in is collected during onboarding.
   predictorDataCollection: boolean;
   arenaTutorialSeen: boolean;
-  // Learn tab's first-visit "what's your level?" gate. selectedLevel is
-  // stored for future personalization but currently has no effect — every
-  // learner's course/quiz progress starts at Beginner regardless.
+  // Learn tab's starting point. Earlier stages remain available for review,
+  // while the chosen level unlocks the first course in its matching stage.
   levelSelected: boolean;
   selectedLevel: LearnerLevel | null;
   setThemeMode: (mode: ThemeMode) => void;
@@ -154,7 +153,6 @@ export const useSettingsStore = create<SettingsState>()(
       setArenaTutorialSeen: () => set({ arenaTutorialSeen: true }),
       setPreferredStudyWindow: (preferredStudyWindow) => set({ preferredStudyWindow }),
       // Every learner currently starts at Beginner regardless of the answer —
-      // see the `selectedLevel` field doc comment above.
       selectLevel: (selectedLevel) => set({ selectedLevel, levelSelected: true }),
     }),
     {
