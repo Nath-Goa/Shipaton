@@ -262,6 +262,7 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
           <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
+            <Stack.Screen name="game" options={{ headerShown: false }} />
             <Stack.Screen name="scanner" options={{ presentation: 'modal', title: 'Scan a product' }} />
             {/* fullScreenModal + headerShown:false — this deck draws its own
                 progress bar and close button (app/recap.tsx), so it needs

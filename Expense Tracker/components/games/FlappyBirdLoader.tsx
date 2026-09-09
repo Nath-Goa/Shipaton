@@ -22,7 +22,9 @@ const PIPE_SPEED = 102;
 const PIPE_SPACING = 150;
 const GAP_MARGIN = 20;
 const FIRST_PIPE_AFTER_FLAPS = 3;
-const FIRST_PIPE_X = WIDTH - PIPE_WIDTH;
+// Start beyond the right edge, including the cap's 4px overhang, so the
+// first pipe travels into view instead of popping into existence.
+const FIRST_PIPE_X = WIDTH + 4;
 
 function randomGapY() {
   'worklet';
@@ -160,7 +162,7 @@ export function FlappyBirdLoader() {
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <View style={[styles.cloud, styles.cloudOne]}><View style={styles.cloudPuff} /></View>
         <View style={[styles.cloud, styles.cloudTwo]}><View style={styles.cloudPuff} /></View>
-        <Text style={styles.score}>{started ? score : ''}</Text>
+        <Text style={styles.score}>{started && !dead ? score : ''}</Text>
         <Pipe animatedStyle={pipe1Top} top />
         <Pipe animatedStyle={pipe1Bottom} />
         <Pipe animatedStyle={pipe2Top} top />
@@ -176,12 +178,12 @@ export function FlappyBirdLoader() {
         </Animated.View>
         <View style={styles.ground}><View style={styles.groundStripe} /></View>
         {!started || dead ? (
-          <View style={styles.startPrompt}>
+          <View style={[styles.startPrompt, dead && styles.deadPrompt]}>
             <Text style={styles.startPromptTitle}>{dead ? 'Tap to fly again' : 'Tap to start'}</Text>
             {dead ? <Text style={styles.startPromptScore}>Score {score}</Text> : null}
           </View>
         ) : null}
-        <Text style={styles.hint}>{started && !dead ? 'Tap anywhere to flap' : 'The first pipes arrive after 3 flaps'}</Text>
+        {started && !dead ? <Text style={styles.hint}>Tap anywhere to flap</Text> : null}
       </View>
     </Pressable>
   );
@@ -195,6 +197,7 @@ const styles = StyleSheet.create({
   wrap: { width: WIDTH, height: HEIGHT, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, overflow: 'hidden', alignSelf: 'center', marginVertical: 8 },
   score: { position: 'absolute', top: 7, alignSelf: 'center', fontSize: 16, fontWeight: '900', color: '#FFF', zIndex: 4, textShadowColor: '#174A6277', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   startPrompt: { position: 'absolute', top: 48, left: 82, right: 20, alignItems: 'center', zIndex: 5 },
+  deadPrompt: { left: 0, right: 0 },
   startPromptTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', textShadowColor: '#174A62AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   startPromptScore: { color: '#FFFFFFDD', fontSize: 11, fontWeight: '700', marginTop: 2 },
   hint: { position: 'absolute', bottom: 15, alignSelf: 'center', color: '#FFFFFFDD', fontSize: 9, fontWeight: '800', zIndex: 5 },

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -35,18 +35,23 @@ const MODE_OPTIONS: { value: Mode; label: string }[] = [
 const DONUT_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#a855f7', '#f43f5e'];
 
 export default function LessonScreen() {
-  const { courseId } = useLocalSearchParams<{ courseId: string }>();
+  const { courseId, debugMode } = useLocalSearchParams<{ courseId: string; debugMode?: string }>();
   const { colors } = useTheme();
   const completeSubpart = useCourseStore((s) => s.completeSubpart);
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
   const upgradeToTier = useUpgradeToTier();
   const course = courseOf(courseId ?? '');
-  const [mode, setMode] = useState<Mode>('standard');
+  const initialMode = __DEV__ && MODE_OPTIONS.some((option) => option.value === debugMode) ? debugMode as Mode : 'standard';
+  const [mode, setMode] = useState<Mode>(initialMode);
 
   const [story, setStory] = useState<TopicStory | null>(null);
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (course && mode === 'story' && !story && !storyLoading && !storyError) handleSelectMode('story');
+  }, [course, mode]);
 
   if (!course) {
     return (

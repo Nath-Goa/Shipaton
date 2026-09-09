@@ -364,6 +364,14 @@ export default function SettingsScreen() {
           </Section>
         </Animated.View>
 
+        {__DEV__ ? (
+          <Animated.View entering={FadeInDown.delay(165).springify().damping(16)}>
+            <Section title="Debug" subtitle="Development previews and diagnostics.">
+              <Button label="Open debug menu" variant="ghost" onPress={() => router.push('/settings/debug')} />
+            </Section>
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={FadeInDown.delay(175).springify().damping(16)}>
           <Section title="Notifications" subtitle="Daily market reviews, learning check-ins, and study alerts.">
             <View style={{ gap: spacing.md }}>
