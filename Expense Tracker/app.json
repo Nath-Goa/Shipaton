@@ -22,7 +22,6 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
         "android.permission.POST_NOTIFICATIONS",
@@ -88,7 +87,13 @@
         }
       ],
       "expo-sharing",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
