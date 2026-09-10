@@ -16,7 +16,7 @@ import { ReviewPromptModal } from '@/components/reviews/ReviewPromptModal';
 import { AppLockGate } from '@/components/security/AppLockGate';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { NetworkStatusBanner } from '@/components/ui/NetworkStatusBanner';
-import { TIER_FEATURES } from '@/constants/subscription';
+import { TIER_FEATURES, type Tier } from '@/constants/subscription';
 import { CUSTOM_FONTS_TO_LOAD } from '@/constants/fonts';
 import { useAgeGateStage, useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
@@ -30,7 +30,12 @@ import { refreshStudyNudge, STUDY_NUDGE_ID } from '@/services/notifications/stud
 import { runStartupScan } from '@/services/predictor/startupScan';
 import { cleanupProductPhotoCache, cleanupUnreferencedReceiptFiles } from '@/services/images/storedImageFiles';
 import { initSentry } from '@/services/monitoring/sentry';
-import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
+import {
+  configurePurchases,
+  fetchCurrentTier,
+  identifyAsJudge,
+  subscribeTierChanges,
+} from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
@@ -241,18 +246,29 @@ function RootLayout() {
   // listener). A no-op on web or when no API key is configured yet — see
   // services/purchases/revenuecat.ts.
   //
-  // Skipped entirely in judge mode (TEMPORARY — constants/judgeMode.ts):
-  // RevenueCat would report 'free' for a judge who never actually bought
-  // anything, and this listener would then overwrite the tier they just
-  // unlocked — silently re-locking the app on the next launch.
+  // TEMPORARY judge handling (constants/judgeMode.ts): a judge device first
+  // identifies as the shared judge customer, so a promotional entitlement
+  // granted once in the RevenueCat dashboard arrives here as a real
+  // entitlement and flows through this same listener like any subscription.
+  // A 'free' report is ignored for judges specifically — that is what
+  // RevenueCat says when no grant exists yet, and acting on it would undo
+  // the paywall-dismiss unlock and silently re-lock the app next launch.
   useEffect(() => {
-    if (isJudge) return;
     if (!configurePurchases()) return;
     let alive = true;
-    fetchCurrentTier().then((tier) => {
-      if (alive && tier) setTier(tier);
-    });
-    const unsubscribe = subscribeTierChanges((tier) => setTier(tier));
+
+    function applyTier(next: Tier) {
+      if (isJudge && next === 'free') return;
+      setTier(next);
+    }
+
+    (async () => {
+      if (isJudge) await identifyAsJudge();
+      const current = await fetchCurrentTier();
+      if (alive && current) applyTier(current);
+    })();
+
+    const unsubscribe = subscribeTierChanges(applyTier);
     return () => {
       alive = false;
       unsubscribe();

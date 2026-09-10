@@ -35,7 +35,11 @@ import {
   getBiometricCapabilities,
   type BiometricCapabilities,
 } from '@/services/security/appLock';
-import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
+import {
+  fetchSubscriptionSince,
+  isPurchasesConfigured,
+  resetToAnonymousCustomer,
+} from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { useMistakeJournalStore } from '@/store/useMistakeJournalStore';
@@ -533,6 +537,7 @@ function PrivacyAgeSection() {
   const permissions = useAgePermissions();
   const isJudge = useIsJudgeMode();
   const setJudgeMode = useAgeStore((s) => s.setJudgeMode);
+  const setTier = useSettingsStore((s) => s.setTier);
   const aiDataConsent = useAgeStore((s) => s.aiDataConsent);
   const setAiDataConsent = useAgeStore((s) => s.setAiDataConsent);
 
@@ -547,8 +552,23 @@ function PrivacyAgeSection() {
           Every subscription is free and this account is treated as 18+, so nothing is age-restricted. This is a
           temporary option for Shipaton judges and will be removed after the hackathon.
         </Text>
+        <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+          Exiting drops back to the free plan and asks your date of birth, so the app behaves as it does for
+          everyone else.
+        </Text>
         <View style={{ marginTop: spacing.md }}>
-          <Button label="Exit judging mode" variant="ghost" onPress={() => setJudgeMode(false)} />
+          <Button
+            label="Exit judging mode"
+            variant="ghost"
+            onPress={() => {
+              // Order matters only in that all three must happen: leaving the
+              // shared judge customer is what stops a real user continuing to
+              // read its comped entitlement (constants/judgeMode.ts).
+              setJudgeMode(false);
+              setTier('free');
+              resetToAnonymousCustomer();
+            }}
+          />
         </View>
       </Card>
     );
