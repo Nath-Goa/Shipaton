@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 import { TIER_LABELS, type Tier } from '@/constants/subscription';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
-import { presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
+import { presentPaywallAsJudge, presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -22,13 +22,17 @@ export function useUpgradeToTier() {
 
   return useCallback(
     async (tier: Exclude<Tier, 'free'>) => {
-      // TEMPORARY, hackathon judging only (constants/judgeMode.ts). Granted
-      // straight away rather than routed through RevenueCat, so a judge
-      // never sees a payment sheet — and never gets charged if the store
-      // keys are live.
+      // TEMPORARY, hackathon judging only (constants/judgeMode.ts). Shows the
+      // real RevenueCat paywall — that integration is the thing being judged,
+      // so it must not be hidden — then grants the tier however they leave it.
       if (isJudge) {
-        setTier(tier);
-        showToast(`${TIER_LABELS[tier]} unlocked — free while judging.`);
+        const granted = await presentPaywallAsJudge(tier);
+        setTier(granted.tier);
+        showToast(
+          granted.viaRevenueCat
+            ? `${TIER_LABELS[granted.tier]} active via RevenueCat.`
+            : `${TIER_LABELS[granted.tier]} unlocked — free while judging.`
+        );
         return;
       }
       // Because every upgrade CTA in the app routes through here, one check

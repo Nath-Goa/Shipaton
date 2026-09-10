@@ -19,7 +19,12 @@ import {
 } from '@/constants/subscription';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
-import { PAYWALL_RESULT, presentCustomerCenter, presentPaywallForTier } from '@/services/purchases/paywallUI';
+import {
+  PAYWALL_RESULT,
+  presentCustomerCenter,
+  presentPaywallAsJudge,
+  presentPaywallForTier,
+} from '@/services/purchases/paywallUI';
 import { fetchTierPrice, isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -135,13 +140,25 @@ export default function UpgradeScreen() {
     if (!result.ok) showToast(result.message ?? 'Could not open subscription management.');
   }
 
-  // TEMPORARY (constants/judgeMode.ts) — grants the tier outright, never
-  // touching RevenueCat, so a judge is never charged even with live store
-  // keys configured.
-  function chooseAsJudge(next: Tier) {
-    setTier(next);
+  // TEMPORARY (constants/judgeMode.ts). Paid tiers open the real RevenueCat
+  // paywall first — judges are here to evaluate that integration, so it has
+  // to be visible — and the tier is granted however they leave it, charged
+  // or not. Downgrading to Free needs no paywall at all.
+  async function chooseAsJudge(next: Tier) {
+    if (next === 'free') {
+      setTier('free');
+      showToast("You're now on Free.");
+      router.back();
+      return;
+    }
+    setBusyTier(next);
+    const granted = await presentPaywallAsJudge(next);
+    setBusyTier(null);
+    setTier(granted.tier);
     showToast(
-      next === 'free' ? "You're now on Free." : `${TIER_LABELS[next]} unlocked — free while judging.`
+      granted.viaRevenueCat
+        ? `${TIER_LABELS[granted.tier]} active via RevenueCat.`
+        : `${TIER_LABELS[granted.tier]} unlocked — free while judging.`
     );
     router.back();
   }
@@ -174,7 +191,7 @@ export default function UpgradeScreen() {
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Text style={[styles.intro, { color: colors.text3 }]}>
             {isJudge
-              ? 'Judging mode — every plan is free. Tap one and it unlocks straight away on this device, with no payment and no card required.'
+              ? 'Judging mode — tapping a plan opens the real RevenueCat paywall so you can see the integration. Close it whenever you like and the plan unlocks anyway: nothing is charged and no card is needed.'
               : configured
                 ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
                 : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
@@ -219,7 +236,12 @@ export default function UpgradeScreen() {
                 ) : isCurrent ? (
                   <Button label="Current plan" variant="ghost" disabled fullWidth />
                 ) : isJudge ? (
-                  <Button label={`Unlock ${TIER_LABELS[t]} — free`} fullWidth onPress={() => chooseAsJudge(t)} />
+                  <Button
+                    label={`Open ${TIER_LABELS[t]} paywall — free`}
+                    loading={busyTier === t}
+                    fullWidth
+                    onPress={() => chooseAsJudge(t)}
+                  />
                 ) : configured ? (
                   <Button
                     label={`View ${TIER_LABELS[t]} plan`}

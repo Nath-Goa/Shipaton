@@ -73,6 +73,33 @@ export async function presentPaywallIfNeededForTier(tier: Exclude<Tier, 'free'>)
   return presentPaywallForTier(tier);
 }
 
+// TEMPORARY, hackathon judging only — see constants/judgeMode.ts.
+//
+// Judges are evaluating the RevenueCat integration, so they have to actually
+// SEE the paywall; hiding it would hide the thing being judged. This shows
+// the real one — real offering, real packages, real dashboard-designed
+// template — and then grants the tier regardless of how they leave it, so
+// closing the paywall is enough and nobody is ever charged.
+//
+// A real purchase still wins when there is one: a judge added as a Google
+// Play licence tester goes through the genuine billing flow at no cost and
+// lands on PURCHASED with a real entitlement, and that tier is what gets
+// returned. So this degrades cleanly across all three situations — real
+// purchase, paywall dismissed, and RevenueCat not configured at all (where
+// no paywall can be shown and the grant is all that happens).
+export async function presentPaywallAsJudge(
+  tier: Exclude<Tier, 'free'>
+): Promise<{ tier: Tier; viaRevenueCat: boolean; paywallShown: boolean }> {
+  const outcome = await presentPaywallForTier(tier);
+  const purchased =
+    outcome.shown && (outcome.result === PAYWALL_RESULT.PURCHASED || outcome.result === PAYWALL_RESULT.RESTORED);
+
+  if (purchased && outcome.tier) {
+    return { tier: outcome.tier, viaRevenueCat: true, paywallShown: true };
+  }
+  return { tier, viaRevenueCat: false, paywallShown: outcome.shown };
+}
+
 export async function presentCustomerCenter(): Promise<{ ok: boolean; message?: string }> {
   if (!isPurchasesConfigured()) return { ok: false, message: 'Subscription management is not available in demo mode.' };
   try {
