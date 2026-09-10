@@ -1,3 +1,4 @@
+import { ageBandFor, permissionsFor } from '@/constants/ageCompliance';
 import { getApiKey } from '@/services/ai/apiKey';
 import type { CompanyIdentification, ReceiptExtraction } from '@/services/ai/prompts';
 import * as claude from '@/services/ai/providers/claude';
@@ -5,9 +6,10 @@ import * as gemini from '@/services/ai/providers/gemini';
 import * as openai from '@/services/ai/providers/openai';
 import * as openrouter from '@/services/ai/providers/openrouter';
 import { parseJsonResponse } from '@/services/ai/providers/shared';
+import { useAgeStore } from '@/store/useAgeStore';
 import { useAiUsageStore } from '@/store/useAiUsageStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
-import type { AiProvider, AiResult, SimpleChatMessage } from '@/types/ai';
+import type { AiError, AiProvider, AiResult, SimpleChatMessage } from '@/types/ai';
 
 // Dispatches to whichever provider the user picked in Settings, using their
 // own key for that provider when they have one — every AI feature in the
@@ -131,6 +133,33 @@ async function callGeminiWithRetry<T>(
   }
 }
 
+// Age rules, applied by withResolvedKey before anything else so a blocked
+// call never reaches a provider and never spends the shared key's quota.
+// Every AI feature in the app funnels through that one function (see this
+// file's header), which is what makes a single check here enough instead of
+// one per screen — an AI feature added later inherits this without its
+// author having to know it exists. See constants/ageCompliance.ts.
+function ageRestriction(opts: { image?: boolean }): AiError | null {
+  const { birthDate, aiDataConsent } = useAgeStore.getState();
+  const permissions = permissionsFor(ageBandFor(birthDate));
+
+  if (opts.image && !permissions.aiPhotoUpload) {
+    return {
+      type: 'age_restricted',
+      message:
+        'Photo scanning is off for under-18 accounts, so no picture of yours is sent to an AI provider. You can still enter the details by hand.',
+    };
+  }
+  if (permissions.requiresAiConsent && aiDataConsent !== true) {
+    return {
+      type: 'age_restricted',
+      message:
+        'AI features are off for your account. Turn them on in Settings › Privacy & age if you want your questions sent to an AI provider.',
+    };
+  }
+  return null;
+}
+
 // Central key/model/quota resolution, shared by every public function below.
 // `call` invokes whichever method (sendChatMessage / extractReceiptFromImage)
 // the caller needs against a resolved provider client.
@@ -157,8 +186,11 @@ async function callGeminiWithRetry<T>(
 //    Usage is recorded only on a successful call, once.
 async function withResolvedKey<T>(
   call: (client: ProviderClient, apiKey: string, model: string | undefined) => Promise<AiResult<T>>,
-  opts: { applyCustomModel: boolean; raceEligible?: boolean }
+  opts: { applyCustomModel: boolean; raceEligible?: boolean; image?: boolean }
 ): Promise<AiResult<T>> {
+  const restricted = ageRestriction(opts);
+  if (restricted) return { ok: false, error: restricted };
+
   const settings = useSettingsStore.getState();
   const provider = settings.aiProvider;
   const personalKey = await getApiKey(provider);
@@ -211,7 +243,7 @@ export async function sendChatMessage(
 export async function extractReceiptFromImage(base64: string, mimeType: string): Promise<AiResult<ReceiptExtraction>> {
   return withResolvedKey<ReceiptExtraction>(
     (client, apiKey, model) => client.extractReceiptFromImage(base64, mimeType, apiKey, model),
-    { applyCustomModel: false }
+    { applyCustomModel: false, image: true }
   );
 }
 
@@ -220,7 +252,7 @@ export async function extractReceiptFromImage(base64: string, mimeType: string):
 export async function identifyCompanyFromImage(base64: string, mimeType: string): Promise<AiResult<CompanyIdentification>> {
   return withResolvedKey<CompanyIdentification>(
     (client, apiKey, model) => client.identifyCompanyFromImage(base64, mimeType, apiKey, model),
-    { applyCustomModel: false }
+    { applyCustomModel: false, image: true }
   );
 }
 

@@ -17,10 +17,12 @@ import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
+import { TEEN_RESTRICTIONS } from '@/constants/ageCompliance';
 import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS, type Tier } from '@/constants/subscription';
+import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import {
   disableAllReminders,
@@ -34,6 +36,7 @@ import {
   type BiometricCapabilities,
 } from '@/services/security/appLock';
 import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
+import { useAgeStore } from '@/store/useAgeStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { useMistakeJournalStore } from '@/store/useMistakeJournalStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
@@ -78,6 +81,7 @@ const TEXT_SCALE_SEGMENT_OPTIONS = TEXT_SCALE_OPTIONS.map((o) => ({ value: Strin
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
+  const agePermissions = useAgePermissions();
   const {
     themeMode,
     setThemeMode,
@@ -208,7 +212,10 @@ export default function SettingsScreen() {
       return;
     }
     setNotificationsEnabled(true);
-    await scheduleDailyReminder();
+    // The 8pm check-in exists to pull someone back into the app, so it is an
+    // engagement nudge rather than a reminder they asked for. A minor still
+    // gets their own bill reminders from this same toggle.
+    if (agePermissions.engagementNudges) await scheduleDailyReminder();
   }
 
   function handleToggleAppLock(next: boolean) {
@@ -304,6 +311,12 @@ export default function SettingsScreen() {
           </Section>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(25).springify().damping(16)}>
+          <Section title="Privacy & age" subtitle="What Markva does and doesn't do with your information.">
+            <PrivacyAgeSection />
+          </Section>
+        </Animated.View>
+
         <Animated.View entering={FadeInDown.delay(50).springify().damping(16)}>
           <Section title="Appearance">
             <SegmentedControl options={THEME_OPTIONS} value={themeMode} onChange={setThemeMode} />
@@ -332,19 +345,26 @@ export default function SettingsScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.text3 }]}>AI tutor tone</Text>
                 <SegmentedControl options={PERSONA_OPTIONS} value={tutorPersona} onChange={setTutorPersona} />
               </View>
-              <SmartNudgesToggle enabled={smartNudgesEnabled} onToggle={handleToggleSmartNudges} />
-              {smartNudgesEnabled ? (
-                <View>
-                  <Text style={[styles.fieldLabel, { color: colors.text3 }]}>When are you usually free to learn?</Text>
-                  <SegmentedControl
-                    options={STUDY_WINDOW_OPTIONS}
-                    value={preferredStudyWindow ?? 'evening'}
-                    onChange={(w) => {
-                      setPreferredStudyWindow(w);
-                      refreshStudyNudge({ suggestedHour: getSuggestedHour(w), enabled: true });
-                    }}
-                  />
-                </View>
+              {/* Hidden rather than disabled for a minor: app/_layout.tsx
+                  never schedules a study nudge for them, so a toggle here
+                  would be a switch that visibly does nothing. */}
+              {agePermissions.engagementNudges ? (
+                <>
+                  <SmartNudgesToggle enabled={smartNudgesEnabled} onToggle={handleToggleSmartNudges} />
+                  {smartNudgesEnabled ? (
+                    <View>
+                      <Text style={[styles.fieldLabel, { color: colors.text3 }]}>When are you usually free to learn?</Text>
+                      <SegmentedControl
+                        options={STUDY_WINDOW_OPTIONS}
+                        value={preferredStudyWindow ?? 'evening'}
+                        onChange={(w) => {
+                          setPreferredStudyWindow(w);
+                          refreshStudyNudge({ suggestedHour: getSuggestedHour(w), enabled: true });
+                        }}
+                      />
+                    </View>
+                  ) : null}
+                </>
               ) : null}
               <Button label="Personal records" variant="ghost" onPress={() => router.push('/settings/records')} />
               <Button label="Reset learning progress" variant="ghost" onPress={resetLearningProgress} />
@@ -375,7 +395,11 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(175).springify().damping(16)}>
           <Section title="Notifications" subtitle="Daily market reviews, learning check-ins, and study alerts.">
             <View style={{ gap: spacing.md }}>
-              <NotificationsToggle enabled={notificationsEnabled} onToggle={handleToggleNotifications} />
+              <NotificationsToggle
+                enabled={notificationsEnabled}
+                onToggle={handleToggleNotifications}
+                nudgesAllowed={agePermissions.engagementNudges}
+              />
               <Button
                 label={testingNotif ? 'Sending notification…' : 'Send test notification'}
                 variant="ghost"
@@ -501,14 +525,77 @@ function AchievementsRow({ badgeCount }: { badgeCount: number }) {
   );
 }
 
-function NotificationsToggle({ enabled, onToggle }: { enabled: boolean; onToggle: (next: boolean) => void }) {
+// The only place a minor can revisit the choice made in the age gate. The
+// restriction list is rendered from TEEN_RESTRICTIONS rather than retyped,
+// so this screen and the gate can never describe the rules differently.
+function PrivacyAgeSection() {
+  const { colors } = useTheme();
+  const permissions = useAgePermissions();
+  const aiDataConsent = useAgeStore((s) => s.aiDataConsent);
+  const setAiDataConsent = useAgeStore((s) => s.setAiDataConsent);
+
+  if (permissions.band === 'adult') {
+    return (
+      <Card style={styles.notifRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.notifLabel, { color: colors.text }]}>Adult account</Text>
+          <Text style={[styles.notifSub, { color: colors.text3 }]}>
+            No age restrictions apply to this account. What the app sends where is set out in full in the privacy
+            policy.
+          </Text>
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <View style={{ gap: spacing.md }}>
+      <Card style={styles.notifRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.notifLabel, { color: colors.text }]}>AI features</Text>
+          <Text style={[styles.notifSub, { color: colors.text3 }]}>
+            While this is on, what you type into the Assistant, quizzes and lesson stories is sent to an outside AI
+            company so it can answer. Turning it off stops that completely — nothing else changes.
+          </Text>
+        </View>
+        <Switch value={aiDataConsent === true} onValueChange={setAiDataConsent} trackColor={{ true: colors.accent }} />
+      </Card>
+      <Card>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>Always off while you are under 18</Text>
+        {TEEN_RESTRICTIONS.map((line) => (
+          <Text key={line} style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+            •  {line}
+          </Text>
+        ))}
+      </Card>
+    </View>
+  );
+}
+
+// The same switch means different things by age band, so it says different
+// things — a minor gets only the reminders they set up themselves, and
+// promising them an evening check-in that app/_layout.tsx will never schedule
+// would just be wrong.
+function NotificationsToggle({
+  enabled,
+  onToggle,
+  nudgesAllowed,
+}: {
+  enabled: boolean;
+  onToggle: (next: boolean) => void;
+  nudgesAllowed: boolean;
+}) {
   const { colors } = useTheme();
   return (
     <Card style={styles.notifRow}>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.notifLabel, { color: colors.text }]}>Daily reminders</Text>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>
+          {nudgesAllowed ? 'Daily reminders' : 'Bill reminders'}
+        </Text>
         <Text style={[styles.notifSub, { color: colors.text3 }]}>
-          A check-in reminder each evening, plus a nudge if your Learn streak is about to lapse.
+          {nudgesAllowed
+            ? 'A check-in reminder each evening, plus a nudge if your Learn streak is about to lapse.'
+            : 'A heads-up the day before a recurring expense is due. Streak and check-in reminders stay off while you are under 18.'}
         </Text>
       </View>
       <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: colors.accent }} />

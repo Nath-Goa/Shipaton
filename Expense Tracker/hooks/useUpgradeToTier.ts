@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback } from 'react';
 
 import type { Tier } from '@/constants/subscription';
+import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -16,9 +17,17 @@ import { useToastStore } from '@/store/useToastStore';
 export function useUpgradeToTier() {
   const setTier = useSettingsStore((s) => s.setTier);
   const showToast = useToastStore((s) => s.show);
+  const agePermissions = useAgePermissions();
 
   return useCallback(
     async (tier: Exclude<Tier, 'free'>) => {
+      // Because every upgrade CTA in the app routes through here, one check
+      // covers all of them — no paywall is ever presented to a minor, and
+      // no purchase flow starts.
+      if (!agePermissions.purchases) {
+        showToast('Subscriptions are only available on accounts aged 18 and over.');
+        return;
+      }
       const outcome = await presentPaywallIfNeededForTier(tier);
       if (!outcome.shown) {
         // Demo mode has a real destination — the plan comparison screen.
@@ -33,6 +42,6 @@ export function useUpgradeToTier() {
       // subscription bought on another device) corrects itself on the tap.
       if (outcome.tier) setTier(outcome.tier);
     },
-    [setTier, showToast]
+    [setTier, showToast, agePermissions]
   );
 }

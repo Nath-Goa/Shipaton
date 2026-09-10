@@ -78,7 +78,8 @@ Expense Tracker/                (app root — cd here for everything)
   supabase/         schema.sql — paste-and-run in the Supabase SQL Editor;
                      not applied by the app itself, no migration tooling
   components/       ui/, charts/, expenses/, portfolio/, markets/, stocks/,
-                     chat/, reviews/, security/, settings/, onboarding/, games/,
+                     chat/, reviews/, security/, settings/, games/,
+                     onboarding/ (OnboardingScreen + AgeGateScreen — §5.10),
                      navigation/ (SlidingTabs, MarketsPortfolioSwitch),
                      scanner/ (CompanyResultSheet), news/ (NewsCard),
                      recap/ (RecapCardView — the Weekly Recap deck's per-card
@@ -87,8 +88,10 @@ Expense Tracker/                (app root — cd here for everything)
                      AuthGate.tsx that DID gate the whole app was built and
                      deleted in an earlier session — §5.9's history note).
   constants/        theme, animations, subscription, categories, tickers,
-                     badges, quizTopics, quizBank, flashcardBank, courses
-  hooks/            useTheme, useQuotes, useAiQuota, useHasApiKey, useUpgradeToTier
+                     badges, quizTopics, quizBank, flashcardBank, courses,
+                     ageCompliance (age bands + what each may do — §5.10)
+  hooks/            useTheme, useQuotes, useAiQuota, useHasApiKey, useUpgradeToTier,
+                     useAgePermissions (+ useAiDataAllowed, useAgeGateStage — §5.10)
   utils/            date, money, id, confirm, portfolioMath, stats, prng
   types/            ai, chat, expense, narrative, quiz, stock, prediction, pattern
 ```
@@ -107,7 +110,9 @@ It's built on React Navigation's supported custom-navigator API — `useNavigati
 
 Details that matter if you touch it: slide duration scales with distance (300ms for a neighbour, +55ms per extra tab, capped at 560ms — well inside the 1.5s ceiling) on a Material-3 "emphasized decelerate" curve, with no spring, so there's no overshoot to read as flutter. Off-centre tabs dim and scale back very slightly so a long slide reads as passing real screens. **The tab bar is rendered by this navigator** (blur, labels, icons, and the circular active pill), and the pill is driven by the *same* shared value as the content, so indicator and screens move as one. Tab roots stay mounted once rendered; the focused tab renders immediately and the rest are warmed ~700ms after first paint, so a slide has real content to travel past without putting all six screens on the startup path.
 
-### 5.2 State — 15 Zustand stores (`store/`)
+### 5.2 State — Zustand stores (`store/`)
+
+The table below is **known stale** (it predates `usePredictorStore`, `useUsageStore`, `useTriviaStore`, `useAuthStore` and `useAgeStore`, among others) — treat it as a guide to the established shape, not an inventory. Don't spend a session refreshing it unless asked.
 
 All persisted stores use AsyncStorage via `persist`. Cross-store calls go through `useXStore.getState()` — an established pattern, not an accident.
 
@@ -189,6 +194,32 @@ History worth knowing, so the app-wide version doesn't get rebuilt the same way 
 
 **A real crash was found and fixed here, and the fix must stay**: Expo Router's web output does an initial server-side render pass (plain Node, no `window`), and Supabase's client touches session storage the moment it's constructed — with no guard, that killed the entire dev server (`ReferenceError: window is not defined`, process exit code 7), not just a caught browser error. `supabaseClient.ts` disables `persistSession`/`autoRefreshToken` and the `storage` adapter whenever `typeof window === 'undefined'`. Do not remove that guard.
 
+### 5.10 Age gating and under-18 compliance
+
+Built so the Play Console listing can declare a **13+ target audience** (13-17 *and* 18+) rather than adults-only. The whole design is one table plus one gate — resist adding scattered `if (isMinor)` checks, everything routes through the pieces below.
+
+**`constants/ageCompliance.ts` is the single source of truth**, deliberately parallel to `TIER_FEATURES` but never merged with it: `TIER_FEATURES` is what someone *paid for*, `AGE_PERMISSIONS` is what the law allows, and **no upgrade lifts an age restriction** — a 15-year-old Max subscriber still gets every teen rule. Three bands: `child` (<13), `teen` (13-17), `adult` (18+). Each band's permission object is `Object.freeze`d so `AGE_PERMISSIONS[band]` is referentially stable and can be handed straight to components without breaking rule #1. `ageFromBirthDate` compares Y/M/D components rather than touching `Date.setMonth`/`setDate` (rule #5 — a 29 February birthday is exactly the input that would expose the rollover bug). `permissionsFor(null)` **fails closed to the teen rules, not the adult ones** — the gate makes null unreachable, but a permission check that fails open is the one bug that becomes a compliance breach.
+
+**Under-13 is a hard stop, not a reduced mode.** COPPA requires verifiable parental consent before collecting anything, and a local-first app with no backend cannot obtain or verify that — so the only compliant response is not to serve them. `components/onboarding/AgeGateScreen.tsx` shows a dead-end screen with no continue path.
+
+**The gate is a neutral age screen** — it asks for a date of birth outright rather than "are you over 13?", because a yes/no question telegraphs the answer that gets you in (this is the FTC's own guidance). Nothing is pre-filled and Continue stays disabled until a date is actively chosen. `store/useAgeStore.ts` has **deliberately no "change my date of birth" action**: a user rejected by an age screen must not be able to walk back and try a more convenient answer, so a wrong entry is only fixable by reinstalling, which the blocked screen says plainly. The date of birth **never leaves the device** — not to Supabase, an AI provider, Sentry or RevenueCat — which is what makes asking an under-13 for it safe in the first place. `AgeGateScreen` renders in `app/_layout.tsx` **ahead of `OnboardingScreen`**, not as a step inside it, because onboarding has a Skip button; `useAgeGateStage()` is the one function both the layout and the screen read, so they can't disagree about how far through someone is. The age store needs its own `hasHydrated` gate alongside settings', or an already-verified user gets flashed the gate for a frame.
+
+**What a teen loses, and why each one** (`TEEN_RESTRICTIONS` is the shared copy — the gate, Settings and every blocked surface render from it rather than retyping it):
+
+| Off for 13-17 | Reason | Enforced at |
+|---|---|---|
+| Accounts (friends/families/duels) | An account stores an email + a searchable display name, and contact between strangers. Blocking it sidesteps GDPR Art. 8 parental consent entirely — EU member states set the digital-consent age anywhere from 13 to 16, so no single teen age clears every market | social `index.tsx` **and** `SocialAuthGate` (the only place sign-up can happen) |
+| AI photo upload | A receipt/product photo is the highest-sensitivity thing the app can transmit — faces, addresses, location. Manual entry covers the same ground | `services/ai/client.ts` (`image: true`), plus `scanner.tsx` and `ExpenseForm`'s `canAutoFill` so nobody is walked to the camera first |
+| In-app purchases | Strictest reading of the unfair-commercial-practice rules on marketing to minors. **One line in the table flips this** if it's ever judged too strict | `useUpgradeToTier` (every upgrade CTA funnels through it) + `settings/upgrade.tsx`, which is reachable directly |
+| Engagement nudges | UK Age Appropriate Design Code names nudge techniques that extend engagement as something to design out for under-18s | `app/_layout.tsx` — bill reminders survive because the user set those up themselves |
+| Predictor on-device learning | Privacy by default. Applied **once at gate time** via `setBirthDate`, not checked at every read, so a teen turning it back on in Settings actually sticks | `store/useAgeStore.ts` |
+
+**AI text features are a real choice, not a forced-consent wall.** Forced consent isn't valid consent, so the gate's second step explains that prompts go to a third-party AI company and offers a genuine "No, keep AI off" that changes nothing else. `aiDataConsent` is `boolean | null` — **null means "not asked yet", which is distinct from a `false` that must be honoured rather than re-prompted**. Revocable any time in Settings › Privacy & age. Enforcement is a single check in `withResolvedKey`, the one dispatch point every AI feature already funnels through (§5.3), placed **before key resolution so a blocked call never spends shared-key quota** — a new AI feature added later inherits this without its author knowing it exists. The refusal surfaces as the new `age_restricted` `AiErrorType`, which always carries its own message and deliberately offers neither "add a key" nor "upgrade", since neither lifts it.
+
+**The leaderboard is deliberately NOT age-gated**, and an earlier pass that gated it was wrong and got reverted: `services/leaderboard/leaderboard.ts`'s opponents are seeded local bots, nothing about it is transmitted or visible to another person, so restricting it would cost a feature for zero compliance benefit. Check what a feature actually transmits before adding it to the table.
+
+**Still outstanding for a real production release:** in-app account deletion (§10) is the one Play requirement this pass did not close, and it's unrelated to age — it needs a `SECURITY DEFINER` RPC since a client can't delete its own `auth.users` row.
+
 ## 6. Feature inventory, by tab
 
 - **Home** — net worth/P&L stats, free-tier upsell, watchlist, quick actions (Portfolio/Log expense/Explore markets/Ask the analyst, 2x2), a **Weekly Recap** launcher card opening `/recap` (see below)
@@ -252,12 +283,14 @@ Everything in §6 plus the additions below is built, typechecks clean, and is pu
 8. **Weekly Recap** (§5.4, `app/recap.tsx`) — a Spotify-Wrapped-style card deck replacing the old inline AI-generated text recap on Home entirely (that machinery — `useWeeklyRecapStore`, `generateWeeklyRecap`, `buildWeeklyRecapPrompt` — was deleted, not kept alongside this).
 9. **Search any real stock** (§5.4, Markets tab) — the search bar falls back to a live symbol search once the curated `TICKERS` list comes up empty, and an untracked result opens a reduced stock-detail view (live price + chart + watchlist, no trading/predictor). Replaces the old flat "Unknown symbol." for anything typed that isn't one of the 27.
 10. **Learn-tab lesson modes + daily trivia** (§5.8) — the last item from the original big feature request. ELI5/Story/Visual modes on every lesson, `expo-speech` text-to-speech (installed, needs a build to actually speak), and a free daily trivia battle vs a seeded AI opponent. This closes out that original request entirely — nothing from it remains on the todo list below.
+11. **Age gate + under-18 compliance layer** (§5.10) — a neutral date-of-birth gate ahead of onboarding, an under-13 hard stop, and an `AGE_PERMISSIONS` table that no subscription tier can override. Built specifically so the Play listing can declare a 13+ target audience. Ships immediately on push: `@react-native-community/datetimepicker` was already a dependency, so **no new native module and no EAS build needed** for this one.
 
 EAS builds run under the `nathgoas-team` account. `app.json`'s `owner: "nathgoas-team"` and `extra.eas.projectId` are NOT optional or auto-recreated — confirmed by a real build failing with "EAS project not configured" while they were absent. Both fields must stay committed; if either is ever missing, someone must re-run `eas init --account nathgoas-team` (interactive, real terminal — cannot self-configure non-interactively) and commit the resulting `app.json` diff.
 
 A second contributor (Arya) also pushes directly to `main` via their own Claude Code sessions, often running in parallel with whichever session is reading this file — commits show up authored as "Claude" or their own name. **This happened repeatedly this session**: treat any push you didn't make yourself as a real, possibly-conflicting change, not noise — `git fetch`/`git log HEAD..origin/main` before every commit, and if the same files are involved, read what changed before assuming your version should win (twice this session, the other side's design was genuinely better and got adopted instead of overwritten — see the News tab in point 2 above).
 
 **Play Store release prep** (started this session — the app is being listed as **Markva**):
+- **Target audience: 13-17 and 18+ ("mixed audience"), not adults-only.** This was a deliberate choice to match the app's actual educational pitch, and §5.10's whole age-gating layer was built to support it. Do **not** tick any under-13 bracket — that triggers the Designed for Families programme and COPPA's verifiable-parental-consent requirement, which this app cannot satisfy without a backend. Keep the Data safety form consistent with `PRIVACY.md` §6's restriction list.
 - Android package renamed to `com.nathgoa.markva` (§8). Play Console app created as a **draft**, priced **Free** — "Free vs Paid" is about an upfront install price only and has nothing to do with in-app subscriptions, which are configured separately under Monetize → Subscriptions.
 - `PRIVACY.md` (in `Expense Tracker/`) is the **source of truth** for the privacy policy, published by hand to a Google Site whose URL goes in Play Console → App content → Privacy policy. It is deliberately in the repo, against §2's "docs go to artifacts" default, because it has to be re-checked whenever the app's data handling changes — if you add a service that receives user data, or a new permission, update it in the same pass and tell the user to re-paste it. It is written to be accurate about the real data flows (local-first AsyncStorage; AI providers receive prompts/photos; Twelve Data/Yahoo receive symbols only; Supabase receives email/display name/duel percentages **only** if the user signs into the social screen; RevenueCat/Play Billing receive purchase status; Sentry receives crash diagnostics) — don't let it drift into boilerplate that overclaims or underclaims.
 - **The Data safety form must match `PRIVACY.md`.** The one known soft spot: the policy states Sentry crash reporting as active, which is only true when `EXPO_PUBLIC_SENTRY_DSN` is actually set in the EAS environment — confirm which before filling that form in, and change whichever side is wrong.
@@ -272,7 +305,7 @@ A second contributor (Arya) also pushes directly to `main` via their own Claude 
 **In progress / explicitly requested, not finished — do this first if the user doesn't specify:**
 - **Two Supabase dashboard steps for Phase 2** (§5.9) — re-run the updated `supabase/schema.sql`, and turn on Realtime replication for `duels`. Code-complete but unverified against real backend data until these happen; ask whoever has dashboard access before assuming friends/families/duels work live on a real project.
 - **Family-duel full-roster aggregate** (§5.9) — currently owner-vs-owner, not every member's own portfolio. Needs a per-member join/accept flow (each member's own device reporting its own baseline), not just a bigger `participant_ids` array.
-- **In-app "Delete account"** — **required by Google Play** for any app that allows account creation, and Markva does (§5.9's Supabase sign-up). `store/useAuthStore.ts` has `signOut` but no delete. `PRIVACY.md` §5 currently covers this with an email-request path, which satisfies the *policy* half of the requirement, but an in-app deletion control is still expected before a production release. Deleting the auth user needs a `SECURITY DEFINER` RPC or an admin call — a client can't delete its own `auth.users` row directly — so this is a `supabase/schema.sql` change plus a Settings/social-screen button, not a one-liner.
+- **In-app "Delete account"** — **required by Google Play** for any app that allows account creation, and Markva does (§5.9's Supabase sign-up, now 18+ only per §5.10 — the age gate narrows who can create one, it does not remove the requirement). `store/useAuthStore.ts` has `signOut` but no delete. `PRIVACY.md` §5 currently covers this with an email-request path, which satisfies the *policy* half of the requirement, but an in-app deletion control is still expected before a production release. Deleting the auth user needs a `SECURITY DEFINER` RPC or an admin call — a client can't delete its own `auth.users` row directly — so this is a `supabase/schema.sql` change plus a Settings/social-screen button, not a one-liner.
 - **A new EAS build**, whenever one is next requested — three separate changes are now sitting built-but-inert waiting on one: `expo-speech` (§5.8, "Read aloud" does nothing on device until then), the `com.nathgoa.markva` package rename, and the `RECORD_AUDIO` removal (§8). The rename in particular means **any build made before it is a different app to Android** — an install of the old package won't update, it sits alongside.
 
 **Older, discussed-but-not-started ideas** (lower priority than the above unless asked):

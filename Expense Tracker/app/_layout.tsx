@@ -10,6 +10,7 @@ import { useFonts } from 'expo-font';
 
 import { LimitOrderWatcher } from '@/components/markets/LimitOrderWatcher';
 import { PriceAlertWatcher } from '@/components/markets/PriceAlertWatcher';
+import { AgeGateScreen } from '@/components/onboarding/AgeGateScreen';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { ReviewPromptModal } from '@/components/reviews/ReviewPromptModal';
 import { AppLockGate } from '@/components/security/AppLockGate';
@@ -17,13 +18,20 @@ import { ToastHost } from '@/components/ui/ToastHost';
 import { NetworkStatusBanner } from '@/components/ui/NetworkStatusBanner';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { CUSTOM_FONTS_TO_LOAD } from '@/constants/fonts';
+import { useAgeGateStage, useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
-import { disableAllReminders, refreshBillReminders, refreshStreakRiskReminder } from '@/services/notifications/notifications';
+import {
+  cancelStreakRiskReminder,
+  disableAllReminders,
+  refreshBillReminders,
+  refreshStreakRiskReminder,
+} from '@/services/notifications/notifications';
 import { refreshStudyNudge, STUDY_NUDGE_ID } from '@/services/notifications/studyNudge';
 import { runStartupScan } from '@/services/predictor/startupScan';
 import { cleanupProductPhotoCache, cleanupUnreferencedReceiptFiles } from '@/services/images/storedImageFiles';
 import { initSentry } from '@/services/monitoring/sentry';
 import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
+import { useAgeStore } from '@/store/useAgeStore';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { usePredictorStore } from '@/store/usePredictorStore';
@@ -65,11 +73,20 @@ function RootLayout() {
   const processRecurringContributions = useSavingsGoalStore((s) => s.processRecurringContributions);
   const [savingsGoalHydrated, setSavingsGoalHydrated] = useState(useSavingsGoalStore.persist.hasHydrated());
   const [settingsHydrated, setSettingsHydrated] = useState(useSettingsStore.persist.hasHydrated());
+  // Gates rendering alongside settings: without it, birthDate reads null for
+  // the first frame and an already-verified user is flashed the age gate.
+  const [ageHydrated, setAgeHydrated] = useState(useAgeStore.persist.hasHydrated());
+  const agePermissions = useAgePermissions();
 
   useEffect(() => {
     if (settingsHydrated) return;
     return useSettingsStore.persist.onFinishHydration(() => setSettingsHydrated(true));
   }, [settingsHydrated]);
+
+  useEffect(() => {
+    if (ageHydrated) return;
+    return useAgeStore.persist.onFinishHydration(() => setAgeHydrated(true));
+  }, [ageHydrated]);
 
   useEffect(() => {
     if (!settingsHydrated) return;
@@ -119,9 +136,9 @@ function RootLayout() {
   }, [expenseHydrated, expenses]);
 
   useEffect(() => {
-    if ((!fontsLoaded && !fontsError) || !settingsHydrated) return;
+    if ((!fontsLoaded && !fontsError) || !settingsHydrated || !ageHydrated) return;
     SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded, fontsError, settingsHydrated]);
+  }, [fontsLoaded, fontsError, settingsHydrated, ageHydrated]);
 
   // Once per app open — builds store/useUsageStore's hour-of-day histogram
   // that the smart study-nudge suggestion (below) is derived from.
@@ -184,21 +201,37 @@ function RootLayout() {
   // know about notifications at all. Also the single place that walks back
   // a stale "enabled" flag if the user's tier no longer includes pushAlerts
   // (e.g. a subscription lapsed).
+  //
+  // Split by age band, not just by the toggle: a minor gets bill reminders
+  // (a reminder they set up themselves) but never the streak nudge, whose
+  // whole job is to pull them back into the app. Both calls cancel before
+  // they schedule, so a user who was an adult on a previous version and has
+  // since declared a minor date of birth has the streak nudge actively
+  // cleared here rather than left scheduled forever.
   useEffect(() => {
     if (!notificationsEnabled) return;
-    refreshStreakRiskReminder({ streakDays, activityDoneToday: lastActivityDate === todayStr() });
-    refreshBillReminders(upcomingRecurring);
-  }, [notificationsEnabled, streakDays, lastActivityDate, upcomingRecurring]);
+    if (agePermissions.engagementNudges) {
+      refreshStreakRiskReminder({ streakDays, activityDoneToday: lastActivityDate === todayStr() });
+    } else {
+      cancelStreakRiskReminder();
+    }
+    refreshBillReminders(agePermissions.utilityReminders ? upcomingRecurring : []);
+  }, [notificationsEnabled, streakDays, lastActivityDate, upcomingRecurring, agePermissions]);
 
   // Smart study-time nudge: independent of the pushAlerts tier gate above
   // (it's a core engagement feature, not a paid perk) and of the OS
   // permission toggle used by the other reminders — its own on/off switch
   // lives in Settings › Learning Environment. Re-evaluated once per app
   // open against whatever the usage histogram currently suggests.
+  // Passed through as `enabled` rather than early-returning, so that turning
+  // it off actively cancels a nudge scheduled by an earlier version — see
+  // refreshStudyNudge, which cancels before it checks the flag.
   useEffect(() => {
-    if (!smartNudgesEnabled) return;
-    refreshStudyNudge({ suggestedHour: getSuggestedHour(preferredStudyWindow), enabled: true });
-  }, [smartNudgesEnabled, preferredStudyWindow, getSuggestedHour]);
+    refreshStudyNudge({
+      suggestedHour: getSuggestedHour(preferredStudyWindow),
+      enabled: smartNudgesEnabled && agePermissions.engagementNudges,
+    });
+  }, [smartNudgesEnabled, preferredStudyWindow, getSuggestedHour, agePermissions]);
 
   // RevenueCat is the source of truth for entitlement state: configure once
   // at app start, adopt whatever tier the store already reports for this
@@ -222,7 +255,7 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <RootLayoutNav ready={settingsHydrated} />
+        <RootLayoutNav ready={settingsHydrated && ageHydrated} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -233,6 +266,11 @@ export default Sentry.wrap(RootLayout);
 function RootLayoutNav({ ready }: { ready: boolean }) {
   const { scheme, colors } = useTheme();
   const onboardingComplete = useSettingsStore((s) => s.onboardingComplete);
+  const ageGateStage = useAgeGateStage();
+  // Nothing behind the gate runs until it is answered — including for an
+  // existing install upgrading into this version, whose onboardingComplete
+  // is already true.
+  const pastAgeGate = ageGateStage === 'complete';
   const badgeCount = useStreakStore((s) => s.badges.length);
   const portfolios = usePortfolioStore((s) => s.portfolios);
   const tradeCount = useMemo(
@@ -265,17 +303,17 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
   // inside degrades to "no news", never to a broken start. Held until
   // onboarding is done so a first-run user isn't fetching news mid-setup.
   useEffect(() => {
-    if (!ready || !onboardingComplete || !predictorHydrated) return;
+    if (!ready || !pastAgeGate || !onboardingComplete || !predictorHydrated) return;
     runStartupScan().catch(() => undefined);
-  }, [ready, onboardingComplete, predictorHydrated]);
+  }, [ready, pastAgeGate, onboardingComplete, predictorHydrated]);
 
   // Ask once, only after the person has actually done something — a badge
   // earned (Learn/Markets) or a few trades (Portfolio) — rather than
   // nagging on first open.
   useEffect(() => {
-    if (!ready || !onboardingComplete || !reviewStoreHydrated || hasPrompted) return;
+    if (!ready || !pastAgeGate || !onboardingComplete || !reviewStoreHydrated || hasPrompted) return;
     if (badgeCount >= 1 || tradeCount >= REVIEW_PROMPT_MIN_TRADES) setReviewModalVisible(true);
-  }, [ready, onboardingComplete, reviewStoreHydrated, hasPrompted, badgeCount, tradeCount]);
+  }, [ready, pastAgeGate, onboardingComplete, reviewStoreHydrated, hasPrompted, badgeCount, tradeCount]);
 
   if (!ready) {
     return (
@@ -287,7 +325,9 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {onboardingComplete ? (
+      {!pastAgeGate ? (
+        <AgeGateScreen />
+      ) : onboardingComplete ? (
         <AppLockGate>
           <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg }, gestureEnabled: true, fullScreenGestureEnabled: true, animation: 'slide_from_right' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -305,7 +345,7 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
       ) : (
         <OnboardingScreen />
       )}
-      {onboardingComplete ? (
+      {pastAgeGate && onboardingComplete ? (
         <>
           <PriceAlertWatcher />
           <LimitOrderWatcher />

@@ -1,6 +1,6 @@
 # Markva — Privacy Policy
 
-_Last updated: 9 September 2026_
+_Last updated: 10 September 2026_
 
 Markva is an educational personal-finance app that combines simulated ("paper") stock trading with an expense tracker. All trading in Markva is simulated. The app does not connect to a real brokerage or a real bank account, does not execute real trades, and never handles real money or real investments.
 
@@ -16,6 +16,7 @@ Most of what you do in Markva never leaves your phone. The following is stored l
 - Your simulated portfolios, trades, watchlist and simulated cash balance
 - Learning progress: quiz and flashcard results, streaks and badges
 - App settings, including theme, notification preferences, and any AI provider API key you choose to enter
+- The date of birth you enter when you first open the app, which is used only to decide which of the protections in section 6 apply to you
 - Receipt and product photos you capture or select, and the details read from them
 - Price-predictor learning data, if you turn that option on during onboarding
 
@@ -35,7 +36,7 @@ When you view a stock, the app requests price history and quotes for that ticker
 The News tab and related features request headlines for ticker symbols. Only the symbol is sent.
 
 **Optional account for Friends, Families and Duels** (Supabase)
-Markva does not require an account. Every feature except Friends, Families and Duels works fully without signing in. If you choose to create an account for those features, we store your email address, a display name you choose, your friend and family relationships, and — for a duel — the percentage change in your simulated portfolio value. Your password is handled by Supabase and is never visible to us. We never store or transmit real financial information, because the app does not have any.
+Markva does not require an account. Every feature except Friends, Families and Duels works fully without signing in, and accounts are only available to users aged 18 and over (see section 6). If you choose to create an account for those features, we store your email address, a display name you choose, your friend and family relationships, and — for a duel — the percentage change in your simulated portfolio value. Your password is handled by Supabase and is never visible to us. We never store or transmit real financial information, because the app does not have any.
 
 **Subscriptions** (RevenueCat and Google Play Billing)
 If you buy a subscription, your purchase and subscription status is processed by Google Play Billing and RevenueCat so the app knows which features to unlock. Payment card details are handled entirely by Google and are never seen by Markva.
@@ -68,9 +69,23 @@ You can revoke any of these in your device settings; the related feature will si
 
 **Account deletion** — if you created an account for Friends, Families or Duels and want it deleted, email nthn.dev7@gmail.com from the address on the account. We will delete the account, your profile, your friend and family relationships, and your duel records within 30 days of the request.
 
-## 6. Children
+## 6. Age, and how Markva treats under-18s
 
-Markva is not directed at children under 13, and we do not knowingly collect personal information from them.
+Markva is intended for people aged 13 and over. When you first open the app it asks for your date of birth. That date is stored on your phone and nowhere else — it is never uploaded, never sent to any of the services in section 2, and never attached to anything you do in the app.
+
+**Under 13.** Markva is not for you yet, and the app will say so rather than letting you continue. We do not knowingly collect personal information from anyone under 13. Because Markva has no server of its own, it has no way to ask a parent for permission and verify it, so declining to serve under-13s is the only honest option available to us.
+
+**13 to 17.** You get the whole app as a learning tool — paper trading, every lesson and quiz, charts, budgets, savings goals and streaks — with the following switched off. These are not paid features being withheld; no subscription unlocks them, and they stay off until you turn 18:
+
+- **No account.** Friends, families and duels are the only part of Markva that needs an account, and an account means storing an email address and a display name that other people can search for. Markva does not create accounts for under-18s, so none of your information reaches Supabase at all.
+- **No photo scanning.** Receipt and product scanning work by sending your photo to an outside AI company. A photo can carry far more than you intended — faces, an address, a location — so this stays off. You can still attach a receipt photo to an expense; it simply stays on your phone.
+- **No in-app subscriptions.** Markva does not sell subscriptions to under-18 accounts.
+- **No engagement reminders.** Streak nudges, evening check-ins and study-time reminders are all off. Reminders you set up yourself, like a bill due tomorrow, still work.
+- **On-device prediction learning starts off.** You can turn it on in Settings if you want to; it is never on by default.
+
+**AI features are your choice, and only yours.** The Assistant, quiz generation, lesson stories and headline explanations work by sending what you type to an outside AI company. Under 18, these stay off until you explicitly turn them on, and you can turn them back off at any time in **Settings › Privacy & age**. Saying no costs you nothing else in the app.
+
+If you are 18 or over, none of the restrictions above apply and the rest of this policy describes what happens to your information.
 
 ## 7. Security
 

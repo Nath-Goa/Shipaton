@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -19,6 +19,7 @@ import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
+import { useAgePermissions, useAiDataAllowed } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
 import { useSettingsStore, type StudyWindow, type ThemeMode } from '@/store/useSettingsStore';
@@ -129,13 +130,30 @@ export function OnboardingScreen() {
   const setPreferredStudyWindow = useSettingsStore((s) => s.setPreferredStudyWindow);
   const predictorDataCollection = useSettingsStore((s) => s.predictorDataCollection);
   const setPredictorDataCollection = useSettingsStore((s) => s.setPredictorDataCollection);
+  const agePermissions = useAgePermissions();
+  const aiAllowed = useAiDataAllowed();
 
-  const total = STEP_ORDER.length;
+  // Two steps are dropped rather than shown-and-disabled for a minor: the
+  // predictor question, whose answer is already forced off by the age gate
+  // (store/useAgeStore.ts), and the AI key setup, which is pointless for
+  // someone whose AI features are off. Both remain reachable in Settings, so
+  // nothing is lost — they just aren't pitched during setup.
+  const steps = useMemo(
+    () =>
+      STEP_ORDER.filter((step) => {
+        if (step === 'predictorData') return agePermissions.behavioralLearning;
+        if (step === 'aiKey') return aiAllowed;
+        return true;
+      }),
+    [agePermissions, aiAllowed]
+  );
+
+  const total = steps.length;
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
   const progress = useSharedValue((1 / total) * 100);
 
-  const stepId = STEP_ORDER[stepIndex];
+  const stepId = steps[stepIndex];
 
   const goTo = useCallback(
     (nextIndex: number, dir: 'forward' | 'backward') => {

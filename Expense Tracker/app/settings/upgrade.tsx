@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -16,6 +17,7 @@ import {
   TIER_PRICE,
   type Tier,
 } from '@/constants/subscription';
+import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { PAYWALL_RESULT, presentCustomerCenter, presentPaywallForTier } from '@/services/purchases/paywallUI';
 import { fetchTierPrice, isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
@@ -28,6 +30,7 @@ export default function UpgradeScreen() {
   const { colors } = useTheme();
   const { tier, setTier } = useSettingsStore();
   const showToast = useToastStore((s) => s.show);
+  const agePermissions = useAgePermissions();
   const configured = isPurchasesConfigured();
 
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
@@ -125,6 +128,22 @@ export default function UpgradeScreen() {
     setTier(next);
     showToast(`You're now on ${TIER_LABELS[next]}. (Demo mode — no charge.)`);
     router.back();
+  }
+
+  // This screen is reachable directly from Settings, not only through
+  // useUpgradeToTier, so it needs the same rule applied independently. No
+  // prices are shown either — a plan list a minor cannot buy is just an
+  // advert aimed at them.
+  if (!agePermissions.purchases) {
+    return (
+      <Screen edges={['left', 'right', 'bottom']}>
+        <EmptyState
+          icon="🔒"
+          title="Subscriptions are 18+"
+          message="Markva does not sell subscriptions to under-18 accounts. Everything on the free plan stays available, including unlimited paper trading, all lessons and quizzes, budgets and savings goals."
+        />
+      </Screen>
+    );
   }
 
   return (

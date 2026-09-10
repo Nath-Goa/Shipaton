@@ -19,6 +19,10 @@ export function describeAiError(error: AiError): string {
       return "Couldn't reach the AI provider. Check your connection.";
     case 'quota_exceeded':
       return "You've used today's free AI actions for your plan. Add your own API key for unlimited use, or upgrade for more.";
+    case 'age_restricted':
+      // Always set at the point of refusal in services/ai/client.ts, which
+      // knows which rule was hit; the fallback is only here for exhaustiveness.
+      return error.message || 'This feature is not available on your account.';
     default:
       return error.message || 'Something went wrong.';
   }

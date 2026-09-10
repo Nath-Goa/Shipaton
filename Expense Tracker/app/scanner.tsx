@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { TICKERS } from '@/constants/tickers';
+import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { identifyCompanyFromImage } from '@/services/ai/client';
@@ -42,6 +43,7 @@ export default function ScannerScreen() {
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
+  const agePermissions = useAgePermissions();
   const upgradeToTier = useUpgradeToTier();
 
   const [photo, setPhoto] = useState<CapturedProductPhoto | null>(null);
@@ -91,6 +93,22 @@ export default function ScannerScreen() {
     setPhoto(null);
     setCandidates(null);
     setError(null);
+  }
+
+  // Checked ahead of the tier gate: an upgrade prompt would be the wrong
+  // answer here, since paying does not lift this one. The AI client refuses
+  // the call anyway (services/ai/client.ts), this just stops a minor being
+  // walked all the way to the camera before finding that out.
+  if (!agePermissions.aiPhotoUpload) {
+    return (
+      <Screen edges={['left', 'right', 'bottom']}>
+        <EmptyState
+          icon="🔒"
+          title="Photo scanning is off for under-18s"
+          message="Scanning works by sending your photo to an outside AI company, so Markva keeps it switched off for under-18 accounts. You can still look up any company by name from the Markets tab."
+        />
+      </Screen>
+    );
   }
 
   if (!features.productScanner) {

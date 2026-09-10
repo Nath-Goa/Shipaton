@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -20,6 +21,7 @@ export function SocialAuthGate() {
   const signIn = useAuthStore((s) => s.signIn);
   const signUp = useAuthStore((s) => s.signUp);
   const requestPasswordReset = useAuthStore((s) => s.requestPasswordReset);
+  const agePermissions = useAgePermissions();
 
   const [step, setStep] = useState<Step>('sign-in');
   const [email, setEmail] = useState('');
@@ -37,6 +39,22 @@ export function SocialAuthGate() {
       return;
     }
     onOk();
+  }
+
+  // The last line of defence on account creation. The social index screen
+  // blocks minors before they ever reach this component, but this is the only
+  // place in the app where a sign-up can actually happen, so the rule is
+  // enforced here too rather than trusting every future caller to remember.
+  if (!agePermissions.socialAccounts) {
+    return (
+      <View style={styles.content}>
+        <Text style={[styles.title, { color: colors.text }]}>Accounts are 18+</Text>
+        <Text style={[styles.body, { color: colors.text2 }]}>
+          Markva only creates accounts for adults, because an account stores your email address and makes you
+          findable by other people. Nothing else in the app needs one.
+        </Text>
+      </View>
+    );
   }
 
   const title = step === 'sign-in' ? 'Sign in for social' : step === 'sign-up' ? 'Create an account' : 'Reset password';
