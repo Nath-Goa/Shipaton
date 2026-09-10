@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } 
 import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useToastStore } from '@/store/useToastStore';
 
 // Toggles a symbol's presence in usePortfolioStore's watchlist — the one
 // star control shared by every screen that lets you save a stock to watch
@@ -13,12 +14,17 @@ import { useTheme } from '@/hooks/useTheme';
 // drift between call sites.
 export function StarButton({ symbol, watched, onToggle }: { symbol: string; watched: boolean; onToggle: () => void }) {
   const { colors } = useTheme();
+  const showToast = useToastStore((state) => state.show);
   const scale = useSharedValue(1);
 
   function handlePress() {
     triggerFeedback('selection');
     scale.value = withSequence(withSpring(1.35, springs.bouncy), withSpring(1, springs.snappy));
     onToggle();
+    showToast(watched ? `${symbol} removed from watchlist.` : `${symbol} added to watchlist.`, {
+      actionLabel: 'Undo',
+      onAction: onToggle,
+    });
   }
 
   const animatedStyle = useAnimatedStyle(() => ({

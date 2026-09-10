@@ -37,6 +37,7 @@ import { detectPatterns, explainChartPoint } from '@/services/ai/learn';
 import { computeDirectionCall, computeForecastBand, computeSentiment } from '@/services/market/signals';
 import { getFullHistory, getHistory, getQuote } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
+import { useQolStore } from '@/store/useQolStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStockViewStore } from '@/store/useStockViewStore';
 import { useStreakStore } from '@/store/useStreakStore';
@@ -64,6 +65,8 @@ export default function StockDetailScreen() {
   const recordStockView = useStockViewStore((s) => s.recordView);
   const wouldExceedLimit = useStockViewStore((s) => s.wouldExceedLimit);
   const recordPatternDetectionViewed = useStreakStore((s) => s.recordPatternDetectionViewed);
+  const recordRecentStock = useQolStore((s) => s.recordStock);
+  const setLastActivity = useQolStore((s) => s.setLastActivity);
 
   const [range, setRange] = useState<Range>('3M');
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -87,8 +90,10 @@ export default function StockDetailScreen() {
   useEffect(() => {
     if (blocked || !symbol) return;
     const { lookupCount } = recordStockView(symbol);
+    recordRecentStock(symbol);
+    setLastActivity({ label: `Continue with ${symbol}`, href: `/markets/${symbol}`, icon: 'stats-chart-outline' });
     setShowAd(features.adsEnabled && lookupCount % 3 === 0);
-  }, [symbol, blocked, features.adsEnabled, recordStockView]);
+  }, [symbol, blocked, features.adsEnabled, recordStockView, recordRecentStock, setLastActivity]);
 
   // One fetch per visit, not a continuous poll — this screen unmounts and
   // remounts fresh on every push/pop (CLAUDE.md §5.1), so a plain focus

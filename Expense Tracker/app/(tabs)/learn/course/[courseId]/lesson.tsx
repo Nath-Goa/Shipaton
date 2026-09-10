@@ -22,6 +22,7 @@ import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { generateTopicStory } from '@/services/ai/learn';
 import { useCourseStore } from '@/store/useCourseStore';
+import { useQolStore } from '@/store/useQolStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import type { TopicStory } from '@/types/narrative';
 
@@ -39,6 +40,7 @@ export default function LessonScreen() {
   const { courseId, debugMode } = useLocalSearchParams<{ courseId: string; debugMode?: string }>();
   const { colors } = useTheme();
   const completeSubpart = useCourseStore((s) => s.completeSubpart);
+  const setLastActivity = useQolStore((s) => s.setLastActivity);
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
   const upgradeToTier = useUpgradeToTier();
@@ -56,6 +58,10 @@ export default function LessonScreen() {
   useEffect(() => {
     if (course && mode === 'story' && !story && !storyLoading && !storyError) handleSelectMode('story');
   }, [course, mode]);
+
+  useEffect(() => {
+    if (course) setLastActivity({ label: `Continue ${course.title}`, href: `/learn/course/${course.id}/lesson`, icon: 'school-outline' });
+  }, [course, setLastActivity]);
 
   if (!course) {
     return (

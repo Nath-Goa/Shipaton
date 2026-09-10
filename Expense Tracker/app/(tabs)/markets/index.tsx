@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -15,6 +15,7 @@ import { StarButton } from '@/components/stocks/StarButton';
 import { StockListItem } from '@/components/stocks/StockListItem';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
+import { SkeletonList } from '@/components/ui/SkeletonList';
 import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
@@ -214,8 +215,8 @@ export default function MarketsScreen() {
           ListEmptyComponent={
             liveSearching ? (
               <View style={styles.liveSearchCenter}>
-                <ActivityIndicator color={colors.text3} />
                 <Text style={{ color: colors.text3, marginTop: spacing.sm }}>Searching the wider market…</Text>
+                <SkeletonList rows={3} />
               </View>
             ) : liveResults.length > 0 ? (
               <View>
@@ -254,6 +255,8 @@ export default function MarketsScreen() {
                       name={item.name}
                       quote={quotes.get(item.symbol)}
                       onPress={() => router.push(`/markets/${item.symbol}`)}
+                      onSwipeLeft={() => toggleWatchlist(item.symbol)}
+                      onSwipeRight={() => router.push(`/markets/${item.symbol}`)}
                     />
                   </View>
                   <StarButton symbol={item.symbol} watched={watched} onToggle={() => toggleWatchlist(item.symbol)} />

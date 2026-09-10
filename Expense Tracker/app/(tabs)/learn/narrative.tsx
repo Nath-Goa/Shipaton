@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { FlappyBirdLoader } from '@/components/games/FlappyBirdLoader';
+import { LoadingGame } from '@/components/games/LoadingGame';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -156,7 +156,7 @@ export default function NarrativeScreen() {
           <View style={styles.loadingWrap}>
             <ActivityIndicator color={colors.accent} />
             <Text style={{ color: colors.text3, marginTop: spacing.md }}>Setting the scene…</Text>
-            <FlappyBirdLoader />
+            <LoadingGame />
           </View>
         ) : error ? (
           <EmptyState

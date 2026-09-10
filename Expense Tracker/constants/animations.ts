@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
 import { playSound, type SoundCategory } from '@/services/sound/soundEffects';
+import { useQolStore } from '@/store/useQolStore';
 
 export type { SoundCategory };
 
@@ -46,7 +47,7 @@ export const springs = {
  * Haptics helper that safely executes without throwing on web or unsupported devices.
  */
 export function triggerHaptic(type: 'light' | 'medium' | 'heavy' | 'selection' | 'success' | 'warning' | 'error' = 'light') {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web' || !useQolStore.getState().hapticsEnabled) return;
   try {
     switch (type) {
       case 'light':
@@ -93,5 +94,5 @@ const CATEGORY_HAPTIC: Record<SoundCategory, Parameters<typeof triggerHaptic>[0]
  */
 export function triggerFeedback(category: SoundCategory) {
   triggerHaptic(CATEGORY_HAPTIC[category]);
-  playSound(category);
+  if (useQolStore.getState().soundsEnabled) playSound(category);
 }

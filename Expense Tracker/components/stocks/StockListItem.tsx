@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -20,16 +22,19 @@ type Props = {
   name: string;
   quote?: Quote;
   onPress?: () => void;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function StockListItem({ symbol, name, quote, onPress }: Props) {
+export function StockListItem({ symbol, name, quote, onPress, onSwipeLeft, onSwipeRight }: Props) {
   const { colors } = useTheme();
   const up = (quote?.changePct ?? 0) >= 0;
   const changeColor = up ? colors.success : colors.danger;
 
   const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
   const flashOpacity = useSharedValue(0);
   const prevPriceRef = useRef(quote?.price);
 
@@ -54,7 +59,7 @@ export function StockListItem({ symbol, name, quote, onPress }: Props) {
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ scale: scale.value }],
+      transform: [{ translateX: translateX.value }, { scale: scale.value }],
     };
   });
 
@@ -64,7 +69,20 @@ export function StockListItem({ symbol, name, quote, onPress }: Props) {
     };
   });
 
+  const swipe = Gesture.Pan()
+    .activeOffsetX([-24, 24])
+    .failOffsetY([-14, 14])
+    .onUpdate((event) => {
+      translateX.value = Math.max(-70, Math.min(70, event.translationX));
+    })
+    .onEnd((event) => {
+      if (event.translationX < -62 && onSwipeLeft) runOnJS(onSwipeLeft)();
+      if (event.translationX > 62 && onSwipeRight) runOnJS(onSwipeRight)();
+      translateX.value = withSpring(0, springs.snappy);
+    });
+
   return (
+    <GestureDetector gesture={swipe}>
     <AnimatedPressable
       onPress={onPress}
       onPressIn={handlePressIn}
@@ -102,6 +120,7 @@ export function StockListItem({ symbol, name, quote, onPress }: Props) {
         <Text style={[styles.change, { color: changeColor }]}>{signedPct(quote?.changePct ?? 0)}</Text>
       </View>
     </AnimatedPressable>
+    </GestureDetector>
   );
 }
 

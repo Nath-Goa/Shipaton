@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { withLayoutContext } from 'expo-router';
+import { router, withLayoutContext, type Href } from 'expo-router';
 import {
   CommonActions,
   createNavigatorFactory,
@@ -20,13 +21,16 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
+import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useQolStore } from '@/store/useQolStore';
 
 // A tab navigator that slides horizontally between tabs instead of cutting
 // between them. Every tab lives in one row that is `tabCount` screens wide,
@@ -88,6 +92,91 @@ const SWIPE_FAIL_OFFSET_Y = 18;
 const SWIPE_INTENT_THRESHOLD = 75;
 const SWIPE_VELOCITY_WEIGHT = 0.12;
 
+type QuickAction = { label: string; icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; href: Href };
+
+const TAB_QUICK_ACTIONS: Record<string, QuickAction[]> = {
+  index: [
+    { label: 'Open portfolio', icon: 'pie-chart-outline', href: '/markets/portfolio' },
+    { label: 'Log an expense', icon: 'receipt-outline', href: '/expenses/add' },
+    { label: 'Investor toolkit', icon: 'calculator-outline', href: '/toolkit' },
+  ],
+  learn: [
+    { label: 'Resume learning', icon: 'play-outline', href: '/learn' },
+    { label: 'Study flashcards', icon: 'albums-outline', href: '/learn/flashcards' },
+    { label: 'Start focus session', icon: 'timer-outline', href: '/learn/focus-session' },
+  ],
+  markets: [
+    { label: 'Browse markets', icon: 'stats-chart-outline', href: '/markets' },
+    { label: 'Open portfolio', icon: 'pie-chart-outline', href: '/markets/portfolio' },
+    { label: 'Practice a trade', icon: 'flask-outline', href: '/markets/practice' },
+  ],
+  news: [
+    { label: 'Latest market news', icon: 'newspaper-outline', href: '/news' },
+    { label: 'Explore markets', icon: 'stats-chart-outline', href: '/markets' },
+    { label: 'Ask the analyst', icon: 'sparkles-outline', href: '/assistant' },
+  ],
+  expenses: [
+    { label: 'Quick-add expense', icon: 'add-circle-outline', href: '/expenses/add' },
+    { label: 'Review budgets', icon: 'speedometer-outline', href: '/expenses/budgets' },
+    { label: 'Savings goals', icon: 'flag-outline', href: '/expenses/goals' },
+  ],
+  assistant: [
+    { label: 'New general question', icon: 'chatbubble-outline', href: '/assistant' },
+    { label: 'Ask about AAPL', icon: 'logo-apple', href: '/assistant?symbol=AAPL' },
+    { label: 'Assistant settings', icon: 'settings-outline', href: '/settings' },
+  ],
+};
+
+function QuickMenuItem({
+  action,
+  itemIndex,
+  progress,
+  originLeft,
+  originWidth,
+  targetLeft,
+  targetWidth,
+  onChoose,
+}: {
+  action: QuickAction;
+  itemIndex: number;
+  progress: SharedValue<number>;
+  originLeft: number;
+  originWidth: number;
+  targetLeft: number;
+  targetWidth: number;
+  onChoose: (href: Href) => void;
+}) {
+  const { colors } = useTheme();
+  const animatedStyle = useAnimatedStyle(() => {
+    const expansion = interpolate(progress.value, [0, 0.35, 1], [0, 0, 1], Extrapolation.CLAMP);
+    const reveal = itemIndex === 0 ? 1 : interpolate(progress.value, [0.35, 0.58 + itemIndex * 0.08, 1], [0, 0, 1], Extrapolation.CLAMP);
+    return {
+      opacity: reveal,
+      width: interpolate(expansion, [0, 1], [originWidth, targetWidth]),
+      transform: [
+        { translateX: interpolate(expansion, [0, 1], [originLeft, targetLeft]) },
+        { translateY: interpolate(reveal, [0, 1], [0, -itemIndex * 58]) },
+        { scale: interpolate(reveal, [0, 1], [0.94, 1]) },
+      ],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.quickItemWrap, animatedStyle]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onChoose(action.href)}
+        style={[styles.quickItem, { backgroundColor: colors.surface, borderColor: itemIndex === 0 ? colors.accent : colors.border }]}>
+        <View style={[styles.quickIcon, { backgroundColor: colors.accentSoft }]}>
+          <Ionicons name={action.icon} size={19} color={colors.accent} />
+        </View>
+        <Text style={[styles.quickLabel, { color: colors.text }]} numberOfLines={1}>{action.label}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.text3} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function TabPage({
   index,
   progress,
@@ -140,6 +229,7 @@ function SlidingTabNavigator({
   });
 
   const { colors, scheme } = useTheme();
+  const reducedMotion = useQolStore((state) => state.reducedMotion);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -147,7 +237,11 @@ function SlidingTabNavigator({
   const index = state.index;
 
   const progress = useSharedValue(index);
+  const quickMenuProgress = useSharedValue(0);
   const previousIndexRef = useRef(index);
+  const longPressHandledRef = useRef<number | null>(null);
+  const lastTabTapRef = useRef<{ index: number; at: number } | null>(null);
+  const [quickMenuIndex, setQuickMenuIndex] = useState<number | null>(null);
   // `routes` gets a new identity on every navigation, so effects below read
   // it through a ref rather than depending on it — otherwise each tab switch
   // would restart the warm-up timer and it might never fire.
@@ -187,10 +281,10 @@ function SlidingTabNavigator({
     });
 
     progress.value = withTiming(index, {
-      duration: Math.min(BASE_DURATION_MS + PER_EXTRA_TAB_MS * (distance - 1), MAX_DURATION_MS),
+      duration: reducedMotion ? 90 : Math.min(BASE_DURATION_MS + PER_EXTRA_TAB_MS * (distance - 1), MAX_DURATION_MS),
       easing: SLIDE_EASING,
     });
-  }, [index, progress]);
+  }, [index, progress, reducedMotion]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -227,6 +321,33 @@ function SlidingTabNavigator({
       target: stateKeyRef.current,
     });
   };
+
+  function openQuickMenu(tabIndex: number) {
+    longPressHandledRef.current = tabIndex;
+    setQuickMenuIndex(tabIndex);
+    quickMenuProgress.value = 0;
+    if (reducedMotion) {
+      quickMenuProgress.value = 1;
+      triggerFeedback('selection');
+      return;
+    }
+    quickMenuProgress.value = withSequence(
+      withTiming(0.35, { duration: 80, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 135, easing: SLIDE_EASING })
+    );
+    triggerFeedback('selection');
+  }
+
+  function closeQuickMenu() {
+    quickMenuProgress.value = withTiming(0, { duration: 90 });
+    setQuickMenuIndex(null);
+  }
+
+  function chooseQuickAction(href: Href) {
+    triggerFeedback('navigation');
+    setQuickMenuIndex(null);
+    router.push(href);
+  }
 
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-SWIPE_ACTIVE_OFFSET, SWIPE_ACTIVE_OFFSET])
@@ -287,8 +408,17 @@ function SlidingTabNavigator({
                 aria-selected={focused}
                 accessibilityLabel={options.title ?? route.name}
                 style={styles.tabButton}
+                delayLongPress={280}
+                onLongPress={() => openQuickMenu(i)}
                 onPress={() => {
+                  if (longPressHandledRef.current === i) {
+                    longPressHandledRef.current = null;
+                    return;
+                  }
                   triggerFeedback('navigation');
+                  const now = Date.now();
+                  const doubleTap = focused && lastTabTapRef.current?.index === i && now - lastTabTapRef.current.at < 330;
+                  lastTabTapRef.current = { index: i, at: now };
                   const event = navigation.emit({
                     type: 'tabPress',
                     target: route.key,
@@ -299,6 +429,15 @@ function SlidingTabNavigator({
                       ...CommonActions.navigate(route.name, route.params),
                       target: state.key,
                     });
+                  } else if (doubleTap && !event.defaultPrevented) {
+                    // A second press re-navigates to the tab root. Nested
+                    // stacks handle this like a scroll-to-top/pop-to-root
+                    // shortcut, matching native tab-bar conventions.
+                    navigation.dispatch({
+                      ...CommonActions.navigate(route.name),
+                      target: state.key,
+                    });
+                    useQolStore.getState().reselectTab(route.name === 'index' ? 'home' : route.name);
                   }
                 }}>
                 {options.tabBarIcon?.({ focused, color, size: ICON_SIZE })}
@@ -309,6 +448,31 @@ function SlidingTabNavigator({
             );
           })}
         </View>
+
+        {quickMenuIndex !== null ? (
+          <View style={styles.quickOverlay}>
+            <BlurView intensity={55} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <Pressable accessibilityLabel="Close tab shortcuts" style={StyleSheet.absoluteFill} onPress={closeQuickMenu} />
+            <View pointerEvents="box-none" style={[styles.quickItemsLayer, { bottom: TAB_BAR_HEIGHT + insets.bottom + 8 }]}>
+              {(TAB_QUICK_ACTIONS[routes[quickMenuIndex]?.name ?? ''] ?? []).map((action, actionIndex) => {
+                const targetWidth = Math.min(width - spacing.lg * 2, 310);
+                return (
+                  <QuickMenuItem
+                    key={action.label}
+                    action={action}
+                    itemIndex={actionIndex}
+                    progress={quickMenuProgress}
+                    originLeft={quickMenuIndex * tabWidth + PILL_HORIZONTAL_MARGIN}
+                    originWidth={pillWidth}
+                    targetLeft={(width - targetWidth) / 2}
+                    targetWidth={targetWidth}
+                    onChoose={chooseQuickAction}
+                  />
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
       </View>
     </NavigationContent>
   );
@@ -327,6 +491,21 @@ const styles = StyleSheet.create({
     left: 0,
     borderRadius: PILL_RADIUS,
   },
+  quickOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50 },
+  quickItemsLayer: { position: 'absolute', left: 0, right: 0, height: 170 },
+  quickItemWrap: { position: 'absolute', left: 0, bottom: 0, height: 50 },
+  quickItem: {
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  quickIcon: { width: 32, height: 32, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  quickLabel: { flex: 1, fontSize: 13.5, fontWeight: '700' },
 });
 
 const createSlidingTabNavigator = createNavigatorFactory(SlidingTabNavigator);

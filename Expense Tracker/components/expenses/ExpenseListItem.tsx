@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -19,15 +21,18 @@ type Props = {
   expense: Expense;
   onPress?: () => void;
   onLongPress?: () => void;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
+export function ExpenseListItem({ expense, onPress, onLongPress, onSwipeLeft, onSwipeRight }: Props) {
   const { colors } = useTheme();
   const cat = categoryOf(expense.category);
   const categoryLabel = expense.category === 'other' && expense.customCategoryLabel ? expense.customCategoryLabel : cat.label;
   const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.98, springs.snappy);
@@ -40,11 +45,24 @@ export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ scale: scale.value }],
+      transform: [{ translateX: translateX.value }, { scale: scale.value }],
     };
   });
 
+  const swipe = Gesture.Pan()
+    .activeOffsetX([-24, 24])
+    .failOffsetY([-14, 14])
+    .onUpdate((event) => {
+      translateX.value = Math.max(-82, Math.min(82, event.translationX));
+    })
+    .onEnd((event) => {
+      if (event.translationX < -70 && onSwipeLeft) runOnJS(onSwipeLeft)();
+      if (event.translationX > 70 && onSwipeRight) runOnJS(onSwipeRight)();
+      translateX.value = withSpring(0, springs.snappy);
+    });
+
   return (
+    <GestureDetector gesture={swipe}>
     <AnimatedPressable
       onPress={onPress}
       onPressIn={handlePressIn}
@@ -78,6 +96,7 @@ export function ExpenseListItem({ expense, onPress, onLongPress }: Props) {
       </View>
       <Text style={[styles.amount, { color: colors.text }]}>{money(expense.amount)}</Text>
     </AnimatedPressable>
+    </GestureDetector>
   );
 }
 

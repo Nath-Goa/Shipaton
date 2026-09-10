@@ -23,6 +23,7 @@ import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { spacing } from '@/constants/theme';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useTheme } from '@/hooks/useTheme';
+import { useRememberedScroll } from '@/hooks/useRememberedScroll';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -79,6 +80,7 @@ export default function LearnScreen() {
     useShallow((s) => ({ levelSelected: s.levelSelected, selectedLevel: s.selectedLevel }))
   );
   const selectedPath = selectedLevel ? LEVEL_PATH_COPY[selectedLevel] : null;
+  const rememberedScroll = useRememberedScroll('learn');
 
   // Quizzes and the daily challenge draw from the same unified AI quota as
   // every other AI feature (see hooks/useAiQuota) — a working personal key
@@ -111,7 +113,7 @@ export default function LearnScreen() {
   return (
     <Screen>
       <TopBar title="Learn" subtitle="Quizzes, patterns, and daily challenges" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={rememberedScroll.ref} onMomentumScrollEnd={rememberedScroll.onMomentumScrollEnd} contentContainerStyle={styles.content}>
         {/* Animated Streak Card */}
         <View>
           <Card style={styles.streakCard}>

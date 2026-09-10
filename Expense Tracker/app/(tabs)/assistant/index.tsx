@@ -8,7 +8,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
-import { FlappyBirdLoader } from '@/components/games/FlappyBirdLoader';
+import { LoadingGame } from '@/components/games/LoadingGame';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -155,7 +155,7 @@ export default function AssistantScreen() {
           ListFooterComponent={loading ? (
             <>
               <TypingIndicator />
-              <FlappyBirdLoader />
+              <LoadingGame />
             </>
           ) : null}
         />

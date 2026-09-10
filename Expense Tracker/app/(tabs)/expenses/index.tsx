@@ -434,6 +434,8 @@ export default function ExpensesScreen() {
                 expense={item.expense}
                 onPress={() => router.push(`/expenses/${item.expense.id}`)}
                 onLongPress={() => onLongPressExpense(item.expense)}
+                onSwipeLeft={() => onLongPressExpense(item.expense)}
+                onSwipeRight={() => router.push(`/expenses/${item.expense.id}`)}
               />
             </Animated.View>
           )

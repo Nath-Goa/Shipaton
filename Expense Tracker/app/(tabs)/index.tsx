@@ -24,10 +24,12 @@ import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
+import { useRememberedScroll } from '@/hooks/useRememberedScroll';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { computeDirectionCall } from '@/services/market/signals';
 import { getFullHistory } from '@/services/marketData/marketData';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
+import { useQolStore } from '@/store/useQolStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { money, signedMoney, signedPct } from '@/utils/money';
 import { summarizePortfolio } from '@/utils/portfolioMath';
@@ -41,6 +43,10 @@ export default function HomeScreen() {
   const watchlist = usePortfolioStore((s) => s.watchlist);
   const tier = useSettingsStore((s) => s.tier);
   const upgradeToTier = useUpgradeToTier();
+  const hideBalances = useQolStore((s) => s.hideBalances);
+  const setHideBalances = useQolStore((s) => s.setHideBalances);
+  const recentStocks = useQolStore((s) => s.recentStocks);
+  const lastActivity = useQolStore((s) => s.lastActivity);
 
   const trackedSymbols = useMemo(
     () => Array.from(new Set([...Object.keys(holdings), ...watchlist])),
@@ -49,6 +55,7 @@ export default function HomeScreen() {
   const { quotes, refresh } = useQuotes(trackedSymbols);
 
   const summary = useMemo(() => summarizePortfolio(cash, holdings, quotes), [cash, holdings, quotes]);
+  const rememberedScroll = useRememberedScroll('home');
 
   return (
     <Screen>
@@ -58,34 +65,65 @@ export default function HomeScreen() {
         right={<IconButton name="settings-outline" onPress={() => router.push('/settings')} />}
       />
       <ScrollView
+        ref={rememberedScroll.ref}
+        onMomentumScrollEnd={rememberedScroll.onMomentumScrollEnd}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.accent} />}>
+        <Pressable onPress={() => setHideBalances(!hideBalances)} accessibilityLabel={hideBalances ? 'Show balances' : 'Hide balances'}>
         <View style={styles.statsRow}>
           <StatTile
             label="Net worth"
-            value={money(summary.netWorth)}
-            numericValue={summary.netWorth}
-            format={money}
-            sub={`Cash: ${money(cash)}`}
+            value={hideBalances ? '••••••' : money(summary.netWorth)}
+            numericValue={hideBalances ? undefined : summary.netWorth}
+            format={hideBalances ? undefined : money}
+            sub={hideBalances ? 'Tap to reveal' : `Cash: ${money(cash)}`}
           />
           <StatTile
             label="Today's P&L"
-            value={signedMoney(summary.todayPnl)}
-            numericValue={summary.todayPnl}
-            format={signedMoney}
-            sub={signedPct(summary.todayPnlPct)}
+            value={hideBalances ? '••••••' : signedMoney(summary.todayPnl)}
+            numericValue={hideBalances ? undefined : summary.todayPnl}
+            format={hideBalances ? undefined : signedMoney}
+            sub={hideBalances ? 'Hidden' : signedPct(summary.todayPnlPct)}
             valueColor={summary.todayPnl >= 0 ? colors.success : colors.danger}
           />
           <StatTile
             label="All-time P&L"
-            value={signedMoney(summary.allTimePnl)}
-            numericValue={summary.allTimePnl}
-            format={signedMoney}
-            sub={signedPct(summary.allTimePnlPct)}
+            value={hideBalances ? '••••••' : signedMoney(summary.allTimePnl)}
+            numericValue={hideBalances ? undefined : summary.allTimePnl}
+            format={hideBalances ? undefined : signedMoney}
+            sub={hideBalances ? 'Hidden' : signedPct(summary.allTimePnlPct)}
             valueColor={summary.allTimePnl >= 0 ? colors.success : colors.danger}
           />
           <StatTile label="Positions" value={String(summary.positionsCount)} sub={`Plan: ${TIER_LABELS[tier]}`} />
         </View>
+        </Pressable>
+
+        {lastActivity ? (
+          <Pressable onPress={() => router.push(lastActivity.href as any)}>
+            <Card style={[styles.resumeCard, { borderColor: colors.accent }]}>
+              <Ionicons name={lastActivity.icon as keyof typeof Ionicons.glyphMap} size={19} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.resumeEyebrow, { color: colors.accent }]}>Resume</Text>
+                <Text style={[styles.resumeLabel, { color: colors.text }]} numberOfLines={1}>{lastActivity.label}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color={colors.text3} />
+            </Card>
+          </Pressable>
+        ) : null}
+
+        {recentStocks.length ? (
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>Recently viewed</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
+              {recentStocks.map((symbol) => (
+                <Pressable key={symbol} onPress={() => router.push(`/markets/${symbol}`)} style={[styles.recentChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.recentSymbol, { color: colors.text }]}>{symbol}</Text>
+                  <Text style={[styles.recentName, { color: colors.text3 }]} numberOfLines={1}>{tickerOf(symbol)?.name ?? symbol}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
 
         {tier === 'free' ? (
           <View>
@@ -152,6 +190,7 @@ export default function HomeScreen() {
             <QuickAction icon="stats-chart-outline" label="Explore markets" onPress={() => router.push('/markets')} />
             <QuickAction icon="sparkles-outline" label="Ask the analyst" onPress={() => router.push('/assistant')} />
             <QuickAction icon="calculator-outline" label="Investor toolkit" onPress={() => router.push('/toolkit')} />
+            <QuickAction icon="search-outline" label="Quick search" onPress={() => router.push('/search')} />
           </View>
         </View>
 
@@ -227,6 +266,13 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingTop: 0, gap: spacing.xl, paddingBottom: spacing.xxl },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   upsell: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
+  resumeCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
+  resumeEyebrow: { fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  resumeLabel: { fontSize: 13.5, fontWeight: '700', marginTop: 1 },
+  recentRow: { gap: spacing.sm, paddingRight: spacing.xl },
+  recentChip: { width: 132, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: spacing.md },
+  recentSymbol: { fontSize: 13.5, fontWeight: '800' },
+  recentName: { fontSize: 10.5, marginTop: 2 },
   upsellTitle: { fontSize: 14.5, fontWeight: '700' },
   upsellBody: { fontSize: 12.5, marginTop: 2 },
   sectionHead: {

@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { useQolStore } from '@/store/useQolStore';
 
 type Variant = 'primary' | 'ghost' | 'danger';
 
@@ -35,6 +36,7 @@ export function Button({
   haptic = true,
 }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useQolStore((state) => state.reducedMotion);
   const scale = useSharedValue(1);
 
   const bg =
@@ -46,9 +48,9 @@ export function Button({
 
   const handlePressIn = useCallback(() => {
     if (disabled || loading) return;
-    scale.value = withSpring(0.96, springs.snappy);
+    scale.value = reducedMotion ? 1 : withSpring(0.96, springs.snappy);
     if (haptic) triggerFeedback(feedbackCategory);
-  }, [disabled, loading, haptic, feedbackCategory, scale]);
+  }, [disabled, loading, haptic, feedbackCategory, scale, reducedMotion]);
 
   const handlePressOut = useCallback(() => {
     scale.value = withSpring(1, springs.snappy);

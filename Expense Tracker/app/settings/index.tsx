@@ -458,6 +458,12 @@ export default function SettingsScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(235).springify().damping(16)}>
+          <Section title="Quality of Life" subtitle="Privacy, motion, feedback, and loading-game preferences.">
+            <Button label="Customize app behavior" variant="ghost" fullWidth onPress={() => router.push('/settings/quality-of-life')} />
+          </Section>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(240).springify().damping(16)}>
           <Section title="Investor Toolkit" subtitle="Twenty quick calculators for investing, trading, and planning.">
             <Button label="Open all 20 tools" variant="ghost" fullWidth onPress={() => router.push('/toolkit')} />
           </Section>

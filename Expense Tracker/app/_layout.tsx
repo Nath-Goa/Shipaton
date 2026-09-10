@@ -14,6 +14,7 @@ import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { ReviewPromptModal } from '@/components/reviews/ReviewPromptModal';
 import { AppLockGate } from '@/components/security/AppLockGate';
 import { ToastHost } from '@/components/ui/ToastHost';
+import { NetworkStatusBanner } from '@/components/ui/NetworkStatusBanner';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { CUSTOM_FONTS_TO_LOAD } from '@/constants/fonts';
 import { useTheme } from '@/hooks/useTheme';
@@ -288,11 +289,12 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       {onboardingComplete ? (
         <AppLockGate>
-          <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
+          <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg }, gestureEnabled: true, fullScreenGestureEnabled: true, animation: 'slide_from_right' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
             <Stack.Screen name="game" options={{ headerShown: false }} />
             <Stack.Screen name="toolkit" options={{ presentation: 'modal', title: 'Investor Toolkit' }} />
+            <Stack.Screen name="search" options={{ presentation: 'modal', title: 'Quick Search' }} />
             <Stack.Screen name="scanner" options={{ presentation: 'modal', title: 'Scan a product' }} />
             {/* fullScreenModal + headerShown:false — this deck draws its own
                 progress bar and close button (app/recap.tsx), so it needs
@@ -310,6 +312,7 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
         </>
       ) : null}
       <ToastHost />
+      <NetworkStatusBanner />
       <ReviewPromptModal visible={reviewModalVisible} onClose={() => setReviewModalVisible(false)} />
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
