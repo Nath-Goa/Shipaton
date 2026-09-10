@@ -9,6 +9,8 @@
 // with no backend has no way to obtain or verify that — so the only
 // compliant response to a self-declared under-13 is not to serve them.
 
+import { JUDGE_MODE_ENABLED } from '@/constants/judgeMode';
+
 export type AgeBand = 'child' | 'teen' | 'adult';
 
 export const MINIMUM_AGE = 13;
@@ -119,6 +121,19 @@ export function ageBandFor(birthDate: string | null, now: Date = new Date()): Ag
 // open is the one failure mode that turns a bug into a compliance breach.
 export function permissionsFor(band: AgeBand | null): AgePermissions {
   return AGE_PERMISSIONS[band ?? 'teen'];
+}
+
+// TEMPORARY, hackathon judging only — see constants/judgeMode.ts. A judge is
+// treated as an adult rather than being asked for a date of birth. Every
+// band decision in the app resolves through this one function precisely so
+// the bypass cannot end up half-applied: miss a call site and a judge would
+// hit teen restrictions on one screen and not another.
+export function bandForState(
+  state: { birthDate: string | null; judgeMode: boolean | null },
+  now: Date = new Date()
+): AgeBand | null {
+  if (JUDGE_MODE_ENABLED && state.judgeMode) return 'adult';
+  return ageBandFor(state.birthDate, now);
 }
 
 // What a minor is told, in one place, so the age gate, Settings and every

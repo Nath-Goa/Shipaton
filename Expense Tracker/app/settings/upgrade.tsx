@@ -17,7 +17,7 @@ import {
   TIER_PRICE,
   type Tier,
 } from '@/constants/subscription';
-import { useAgePermissions } from '@/hooks/useAgePermissions';
+import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { PAYWALL_RESULT, presentCustomerCenter, presentPaywallForTier } from '@/services/purchases/paywallUI';
 import { fetchTierPrice, isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
@@ -31,6 +31,7 @@ export default function UpgradeScreen() {
   const { tier, setTier } = useSettingsStore();
   const showToast = useToastStore((s) => s.show);
   const agePermissions = useAgePermissions();
+  const isJudge = useIsJudgeMode();
   const configured = isPurchasesConfigured();
 
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
@@ -57,6 +58,9 @@ export default function UpgradeScreen() {
 
   function priceLabel(t: Tier): string {
     if (t === 'free') return TIER_PRICE.free;
+    // TEMPORARY (constants/judgeMode.ts) — showing a judge a price they will
+    // never be asked for would just be confusing.
+    if (isJudge) return 'Free while judging';
     if (!configured) return `From ${TIER_PRICE[t]}`;
     const live = livePrice[t];
     return live ? `From ${live}` : 'See pricing →';
@@ -66,6 +70,13 @@ export default function UpgradeScreen() {
   // "monthly" / "yearly" / "lifetime" packages) — pricing, layout, and the
   // whole purchase flow are handled natively from there.
   async function handleChoose(t: Exclude<Tier, 'free'>) {
+    // TEMPORARY, hackathon judging only (constants/judgeMode.ts). This
+    // screen is reachable directly from Settings, not only via
+    // useUpgradeToTier, so the grant is repeated here rather than assumed.
+    if (isJudge) {
+      chooseAsJudge(t);
+      return;
+    }
     setBusyTier(t);
     const outcome = await presentPaywallForTier(t);
     setBusyTier(null);
@@ -124,6 +135,17 @@ export default function UpgradeScreen() {
     if (!result.ok) showToast(result.message ?? 'Could not open subscription management.');
   }
 
+  // TEMPORARY (constants/judgeMode.ts) — grants the tier outright, never
+  // touching RevenueCat, so a judge is never charged even with live store
+  // keys configured.
+  function chooseAsJudge(next: Tier) {
+    setTier(next);
+    showToast(
+      next === 'free' ? "You're now on Free." : `${TIER_LABELS[next]} unlocked — free while judging.`
+    );
+    router.back();
+  }
+
   function chooseDemo(next: Tier) {
     setTier(next);
     showToast(`You're now on ${TIER_LABELS[next]}. (Demo mode — no charge.)`);
@@ -151,9 +173,11 @@ export default function UpgradeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Text style={[styles.intro, { color: colors.text3 }]}>
-            {configured
-              ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
-              : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
+            {isJudge
+              ? 'Judging mode — every plan is free. Tap one and it unlocks straight away on this device, with no payment and no card required.'
+              : configured
+                ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
+                : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
           </Text>
         </Animated.View>
 
@@ -178,9 +202,15 @@ export default function UpgradeScreen() {
                   ))}
                 </View>
 
+                {/* The judge branches are TEMPORARY — constants/judgeMode.ts.
+                    They sit ahead of the `configured` checks so a judge gets
+                    the same one-tap unlock whether or not RevenueCat has live
+                    keys, and never reaches a real payment sheet. */}
                 {t === 'free' ? (
                   isCurrent ? (
                     <Button label="Current plan" variant="ghost" disabled fullWidth />
+                  ) : isJudge ? (
+                    <Button label="Switch to Free" variant="ghost" fullWidth onPress={() => chooseAsJudge(t)} />
                   ) : configured ? (
                     <Button label="Manage subscription" variant="ghost" loading={openingCenter} fullWidth onPress={handleManage} />
                   ) : (
@@ -188,6 +218,8 @@ export default function UpgradeScreen() {
                   )
                 ) : isCurrent ? (
                   <Button label="Current plan" variant="ghost" disabled fullWidth />
+                ) : isJudge ? (
+                  <Button label={`Unlock ${TIER_LABELS[t]} — free`} fullWidth onPress={() => chooseAsJudge(t)} />
                 ) : configured ? (
                   <Button
                     label={`View ${TIER_LABELS[t]} plan`}

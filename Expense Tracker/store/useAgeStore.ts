@@ -26,8 +26,17 @@ type AgeState = {
    * that must be honoured rather than re-prompted.
    */
   aiDataConsent: boolean | null;
+  /**
+   * TEMPORARY, hackathon judging only — see constants/judgeMode.ts. Null
+   * means the "Are you a judge?" prompt hasn't been answered yet; true
+   * treats the account as 18+ and makes subscriptions free. Setting it back
+   * to false is what Settings' "Exit judge mode" does, which drops straight
+   * into the real age gate since birthDate is still null.
+   */
+  judgeMode: boolean | null;
   setBirthDate: (birthDate: string) => void;
   setAiDataConsent: (granted: boolean) => void;
+  setJudgeMode: (isJudge: boolean) => void;
 };
 
 export const useAgeStore = create<AgeState>()(
@@ -36,6 +45,7 @@ export const useAgeStore = create<AgeState>()(
       birthDate: null,
       verifiedAt: null,
       aiDataConsent: null,
+      judgeMode: null,
       setBirthDate: (birthDate) => {
         set({ birthDate, verifiedAt: Date.now() });
         // Privacy by default: on-device behavioural training starts off for a
@@ -49,6 +59,7 @@ export const useAgeStore = create<AgeState>()(
         }
       },
       setAiDataConsent: (aiDataConsent) => set({ aiDataConsent }),
+      setJudgeMode: (judgeMode) => set({ judgeMode }),
     }),
     {
       name: 'age-store',

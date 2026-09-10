@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useCallback } from 'react';
 
-import type { Tier } from '@/constants/subscription';
-import { useAgePermissions } from '@/hooks/useAgePermissions';
+import { TIER_LABELS, type Tier } from '@/constants/subscription';
+import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -18,9 +18,19 @@ export function useUpgradeToTier() {
   const setTier = useSettingsStore((s) => s.setTier);
   const showToast = useToastStore((s) => s.show);
   const agePermissions = useAgePermissions();
+  const isJudge = useIsJudgeMode();
 
   return useCallback(
     async (tier: Exclude<Tier, 'free'>) => {
+      // TEMPORARY, hackathon judging only (constants/judgeMode.ts). Granted
+      // straight away rather than routed through RevenueCat, so a judge
+      // never sees a payment sheet — and never gets charged if the store
+      // keys are live.
+      if (isJudge) {
+        setTier(tier);
+        showToast(`${TIER_LABELS[tier]} unlocked — free while judging.`);
+        return;
+      }
       // Because every upgrade CTA in the app routes through here, one check
       // covers all of them — no paywall is ever presented to a minor, and
       // no purchase flow starts.
@@ -42,6 +52,6 @@ export function useUpgradeToTier() {
       // subscription bought on another device) corrects itself on the tap.
       if (outcome.tier) setTier(outcome.tier);
     },
-    [setTier, showToast, agePermissions]
+    [setTier, showToast, agePermissions, isJudge]
   );
 }

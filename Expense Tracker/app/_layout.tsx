@@ -18,7 +18,7 @@ import { ToastHost } from '@/components/ui/ToastHost';
 import { NetworkStatusBanner } from '@/components/ui/NetworkStatusBanner';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { CUSTOM_FONTS_TO_LOAD } from '@/constants/fonts';
-import { useAgeGateStage, useAgePermissions } from '@/hooks/useAgePermissions';
+import { useAgeGateStage, useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import {
   cancelStreakRiskReminder,
@@ -77,6 +77,7 @@ function RootLayout() {
   // the first frame and an already-verified user is flashed the age gate.
   const [ageHydrated, setAgeHydrated] = useState(useAgeStore.persist.hasHydrated());
   const agePermissions = useAgePermissions();
+  const isJudge = useIsJudgeMode();
 
   useEffect(() => {
     if (settingsHydrated) return;
@@ -239,7 +240,13 @@ function RootLayout() {
   // purchase, restore, renewal, or expiration all flow through this same
   // listener). A no-op on web or when no API key is configured yet — see
   // services/purchases/revenuecat.ts.
+  //
+  // Skipped entirely in judge mode (TEMPORARY — constants/judgeMode.ts):
+  // RevenueCat would report 'free' for a judge who never actually bought
+  // anything, and this listener would then overwrite the tier they just
+  // unlocked — silently re-locking the app on the next launch.
   useEffect(() => {
+    if (isJudge) return;
     if (!configurePurchases()) return;
     let alive = true;
     fetchCurrentTier().then((tier) => {
@@ -250,7 +257,7 @@ function RootLayout() {
       alive = false;
       unsubscribe();
     };
-  }, [setTier]);
+  }, [setTier, isJudge]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

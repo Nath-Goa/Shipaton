@@ -1,4 +1,4 @@
-import { ageBandFor, permissionsFor } from '@/constants/ageCompliance';
+import { bandForState, permissionsFor } from '@/constants/ageCompliance';
 import { getApiKey } from '@/services/ai/apiKey';
 import type { CompanyIdentification, ReceiptExtraction } from '@/services/ai/prompts';
 import * as claude from '@/services/ai/providers/claude';
@@ -140,8 +140,8 @@ async function callGeminiWithRetry<T>(
 // one per screen — an AI feature added later inherits this without its
 // author having to know it exists. See constants/ageCompliance.ts.
 function ageRestriction(opts: { image?: boolean }): AiError | null {
-  const { birthDate, aiDataConsent } = useAgeStore.getState();
-  const permissions = permissionsFor(ageBandFor(birthDate));
+  const { birthDate, judgeMode, aiDataConsent } = useAgeStore.getState();
+  const permissions = permissionsFor(bandForState({ birthDate, judgeMode }));
 
   if (opts.image && !permissions.aiPhotoUpload) {
     return {

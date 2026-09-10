@@ -22,7 +22,7 @@ import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS, type Tier } from '@/constants/subscription';
-import { useAgePermissions } from '@/hooks/useAgePermissions';
+import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import {
   disableAllReminders,
@@ -531,8 +531,28 @@ function AchievementsRow({ badgeCount }: { badgeCount: number }) {
 function PrivacyAgeSection() {
   const { colors } = useTheme();
   const permissions = useAgePermissions();
+  const isJudge = useIsJudgeMode();
+  const setJudgeMode = useAgeStore((s) => s.setJudgeMode);
   const aiDataConsent = useAgeStore((s) => s.aiDataConsent);
   const setAiDataConsent = useAgeStore((s) => s.setAiDataConsent);
+
+  // TEMPORARY, hackathon judging only — constants/judgeMode.ts. Exiting drops
+  // straight into the real age gate, which is also how to get back to the
+  // normal flow on a device that already answered "yes".
+  if (isJudge) {
+    return (
+      <Card>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>Judging mode is on</Text>
+        <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+          Every subscription is free and this account is treated as 18+, so nothing is age-restricted. This is a
+          temporary option for Shipaton judges and will be removed after the hackathon.
+        </Text>
+        <View style={{ marginTop: spacing.md }}>
+          <Button label="Exit judging mode" variant="ghost" onPress={() => setJudgeMode(false)} />
+        </View>
+      </Card>
+    );
+  }
 
   if (permissions.band === 'adult') {
     return (

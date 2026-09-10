@@ -89,7 +89,8 @@ Expense Tracker/                (app root — cd here for everything)
                      deleted in an earlier session — §5.9's history note).
   constants/        theme, animations, subscription, categories, tickers,
                      badges, quizTopics, quizBank, flashcardBank, courses,
-                     ageCompliance (age bands + what each may do — §5.10)
+                     ageCompliance (age bands + what each may do — §5.10),
+                     judgeMode (TEMPORARY hackathon bypass — §5.11)
   hooks/            useTheme, useQuotes, useAiQuota, useHasApiKey, useUpgradeToTier,
                      useAgePermissions (+ useAiDataAllowed, useAgeGateStage — §5.10)
   utils/            date, money, id, confirm, portfolioMath, stats, prng
@@ -220,6 +221,20 @@ Built so the Play Console listing can declare a **13+ target audience** (13-17 *
 
 **Still outstanding for a real production release:** in-app account deletion (§10) is the one Play requirement this pass did not close, and it's unrelated to age — it needs a `SECURITY DEFINER` RPC since a client can't delete its own `auth.users` row.
 
+### 5.11 Judge mode — TEMPORARY, delete after the hackathon
+
+A fresh install's **very first screen** is "Are you a judge?", ahead of the age gate. Yes → the account is treated as 18+ (no date-of-birth question) and **every subscribe button grants the tier outright**, so a Shipaton judge can review every paid feature without paying or answering personal questions. No → the normal flow, entirely unchanged.
+
+**`constants/judgeMode.ts` is the whole switch.** `JUDGE_MODE_ENABLED = false` is a complete, one-line disable: the prompt stops appearing, `useAgeGateStage` falls straight through to the age gate, and every branch goes dead. To delete it properly afterwards, remove that file and follow the compiler errors — it's referenced in exactly five places (`useAgeGateStage`, `bandForState`, `useUpgradeToTier`, `settings/upgrade.tsx`, and the RevenueCat sync in `app/_layout.tsx`), plus `JudgeModeStep` in `AgeGateScreen` and the Settings branch. Every judge-mode branch in the codebase carries a `TEMPORARY` comment pointing back at that file, so they're greppable. **Flipping the flag off applies to existing judges too** — their stored "yes" stops being honoured and they land on the age gate next launch, which is the intended end state but means don't flip it mid-event.
+
+Three things that are easy to get wrong here, all already handled:
+
+- **`bandForState` is why judge mode isn't half-applied.** A judge has `birthDate: null`, and `permissionsFor(null)` deliberately fails closed to the *teen* rules (§5.10) — so without a single shared resolver, a judge would have sailed past the gate and then hit teen restrictions on the AI client, which reads the store directly via `getState()` rather than the hook. Every band decision now goes through `bandForState({ birthDate, judgeMode })`. If you add a new place that resolves a band, use it.
+- **The RevenueCat listener in `app/_layout.tsx` is skipped for judges.** It would otherwise fetch `'free'` for someone who never actually bought anything and overwrite the tier they just unlocked — silently re-locking the app on the next launch. This only bites once real store keys are configured, which is exactly when it would matter most.
+- **The purchase grant is implemented twice on purpose**, in `useUpgradeToTier` (every in-app upgrade CTA) and in `settings/upgrade.tsx` (reachable directly from Settings), for the same reason the age rules are — neither path can be assumed to route through the other. `settings/upgrade.tsx` also swaps its prices for "Free while judging" and its intro copy, since showing a judge a price they'll never be asked for is just confusing.
+
+Exitable per-device from **Settings › Privacy & age → "Exit judging mode"**, which drops straight into the real age gate — that's how to test the normal path on a device that already answered yes.
+
 ## 6. Feature inventory, by tab
 
 - **Home** — net worth/P&L stats, free-tier upsell, watchlist, quick actions (Portfolio/Log expense/Explore markets/Ask the analyst, 2x2), a **Weekly Recap** launcher card opening `/recap` (see below)
@@ -284,6 +299,7 @@ Everything in §6 plus the additions below is built, typechecks clean, and is pu
 9. **Search any real stock** (§5.4, Markets tab) — the search bar falls back to a live symbol search once the curated `TICKERS` list comes up empty, and an untracked result opens a reduced stock-detail view (live price + chart + watchlist, no trading/predictor). Replaces the old flat "Unknown symbol." for anything typed that isn't one of the 27.
 10. **Learn-tab lesson modes + daily trivia** (§5.8) — the last item from the original big feature request. ELI5/Story/Visual modes on every lesson, `expo-speech` text-to-speech (installed, needs a build to actually speak), and a free daily trivia battle vs a seeded AI opponent. This closes out that original request entirely — nothing from it remains on the todo list below.
 11. **Age gate + under-18 compliance layer** (§5.10) — a neutral date-of-birth gate ahead of onboarding, an under-13 hard stop, and an `AGE_PERMISSIONS` table that no subscription tier can override. Built specifically so the Play listing can declare a 13+ target audience. Ships immediately on push: `@react-native-community/datetimepicker` was already a dependency, so **no new native module and no EAS build needed** for this one.
+12. **Judge mode** (§5.11) — **TEMPORARY, remove after the hackathon.** "Are you a judge?" as the first screen of a fresh install; yes unlocks every subscription for free and skips the age question. One-line disable via `JUDGE_MODE_ENABLED` in `constants/judgeMode.ts`.
 
 EAS builds run under the `nathgoas-team` account. `app.json`'s `owner: "nathgoas-team"` and `extra.eas.projectId` are NOT optional or auto-recreated — confirmed by a real build failing with "EAS project not configured" while they were absent. Both fields must stay committed; if either is ever missing, someone must re-run `eas init --account nathgoas-team` (interactive, real terminal — cannot self-configure non-interactively) and commit the resulting `app.json` diff.
 
@@ -303,6 +319,7 @@ A second contributor (Arya) also pushes directly to `main` via their own Claude 
 ## 10. Suggested next steps
 
 **In progress / explicitly requested, not finished — do this first if the user doesn't specify:**
+- **Remove judge mode once the hackathon has been judged** (§5.11) — set `JUDGE_MODE_ENABLED = false` in `constants/judgeMode.ts` for an immediate disable, then delete the file and follow the compiler errors for a full removal. **This must not ship to a public Play release as-is**: it hands out every paid tier for free and bypasses the age gate to anyone who taps "Yes, I'm a judge".
 - **Two Supabase dashboard steps for Phase 2** (§5.9) — re-run the updated `supabase/schema.sql`, and turn on Realtime replication for `duels`. Code-complete but unverified against real backend data until these happen; ask whoever has dashboard access before assuming friends/families/duels work live on a real project.
 - **Family-duel full-roster aggregate** (§5.9) — currently owner-vs-owner, not every member's own portfolio. Needs a per-member join/accept flow (each member's own device reporting its own baseline), not just a bigger `participant_ids` array.
 - **In-app "Delete account"** — **required by Google Play** for any app that allows account creation, and Markva does (§5.9's Supabase sign-up, now 18+ only per §5.10 — the age gate narrows who can create one, it does not remove the requirement). `store/useAuthStore.ts` has `signOut` but no delete. `PRIVACY.md` §5 currently covers this with an email-request path, which satisfies the *policy* half of the requirement, but an in-app deletion control is still expected before a production release. Deleting the auth user needs a `SECURITY DEFINER` RPC or an admin call — a client can't delete its own `auth.users` row directly — so this is a `supabase/schema.sql` change plus a Settings/social-screen button, not a one-liner.

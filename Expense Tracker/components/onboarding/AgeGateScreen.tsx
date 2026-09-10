@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { MINIMUM_AGE, TEEN_RESTRICTIONS } from '@/constants/ageCompliance';
+import { JUDGE_MODE_PROMISE } from '@/constants/judgeMode';
 import { radius, spacing } from '@/constants/theme';
 import { useAgeGateStage } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
@@ -28,9 +29,52 @@ import { formatShortDate, parseDateLocal, toDateStr } from '@/utils/date';
 export function AgeGateScreen() {
   const stage = useAgeGateStage();
 
+  if (stage === 'judge-check') return <JudgeModeStep />;
   if (stage === 'blocked') return <BlockedStep />;
   if (stage === 'ai-consent') return <AiConsentStep />;
   return <BirthDateStep />;
+}
+
+// TEMPORARY — Shipaton hackathon judging only, see constants/judgeMode.ts for
+// what this is and how to remove it. Shown before the age gate because
+// answering yes is what makes the age question unnecessary.
+function JudgeModeStep() {
+  const { colors } = useTheme();
+  const setJudgeMode = useAgeStore((s) => s.setJudgeMode);
+
+  return (
+    <GateShell>
+      <IconBadge name="ribbon-outline" tone={colors.accent} />
+      <Text style={[styles.eyebrow, { color: colors.accent }]}>Shipaton</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Are you a judge?</Text>
+      <Text style={[styles.body, { color: colors.text2 }]}>
+        Markva is a RevenueCat Shipaton entry. If you are judging it, this unlocks everything so you can review the
+        whole app without paying for anything or answering personal questions.
+      </Text>
+
+      <View style={styles.list}>
+        {JUDGE_MODE_PROMISE.map((line) => (
+          <View key={line} style={styles.listRow}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.accent} style={styles.listIcon} />
+            <Text style={[styles.listText, { color: colors.text2 }]}>{line}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.note, { backgroundColor: colors.surface2 }]}>
+        <Ionicons name="information-circle-outline" size={18} color={colors.text3} />
+        <Text style={[styles.noteText, { color: colors.text2 }]}>
+          This is a temporary judging option and will be removed once the hackathon is over. If you are not a judge,
+          tap below and the app will set up normally.
+        </Text>
+      </View>
+
+      <View style={styles.actions}>
+        <Button label="Yes, I'm a judge" fullWidth onPress={() => setJudgeMode(true)} />
+        <Button label="No, I'm a regular user" variant="ghost" fullWidth onPress={() => setJudgeMode(false)} />
+      </View>
+    </GateShell>
+  );
 }
 
 function GateShell({ children }: { children: React.ReactNode }) {
