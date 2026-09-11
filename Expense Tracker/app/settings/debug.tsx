@@ -8,6 +8,7 @@ import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import type { Tier } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import { useExpenseStore } from '@/store/useExpenseStore';
@@ -161,12 +162,12 @@ function DebugRow({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingBottom: spacing.xl * 2, gap: spacing.md },
-  sectionTitle: { fontSize: 15, fontWeight: '700', marginTop: spacing.sm },
+  sectionTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700', marginTop: spacing.sm },
   cardContent: { gap: spacing.md },
   linkGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   linkButton: { width: '48%', flexGrow: 1 },
-  note: { fontSize: 12, lineHeight: 16 },
+  note: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  label: { fontSize: 12, fontWeight: '600' },
-  value: { flexShrink: 1, fontSize: 13, fontWeight: '700', textAlign: 'right', textTransform: 'capitalize' },
+  label: { fontSize: 12, letterSpacing: trackingFor(12), fontWeight: '600' },
+  value: { flexShrink: 1, fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '700', textAlign: 'right', textTransform: 'capitalize' },
 });

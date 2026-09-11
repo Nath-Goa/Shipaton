@@ -22,6 +22,7 @@ import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS, type Tier } from '@/constants/subscription';
+import { trackingFor } from '@/constants/typography';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import {
@@ -775,20 +776,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  headerTitleText: { fontSize: 17, fontWeight: '600' },
-  sectionTitle: { fontSize: 15, fontWeight: '700' },
-  sectionSubtitle: { fontSize: 12.5, marginTop: 2 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: spacing.sm },
+  headerTitleText: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '600' },
+  sectionTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  sectionSubtitle: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 2 },
+  fieldLabel: { fontSize: 12, letterSpacing: trackingFor(12), fontWeight: '600', marginBottom: spacing.sm },
   planRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   planLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  planValue: { fontSize: 16, fontWeight: '700', marginTop: 2 },
+  planValue: { fontSize: 16, letterSpacing: trackingFor(16), fontWeight: '700', marginTop: 2 },
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  notifLabel: { fontSize: 14, fontWeight: '700' },
-  notifSub: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  notifLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
+  notifSub: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, marginTop: 2 },
   modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.sm },
-  modalTitle: { fontSize: 19, fontWeight: '700' },
-  modalSubtitle: { fontSize: 13, marginBottom: spacing.sm },
+  modalTitle: { fontSize: 19, letterSpacing: trackingFor(19), fontWeight: '700' },
+  modalSubtitle: { fontSize: 13, letterSpacing: trackingFor(13), marginBottom: spacing.sm },
   modalFeatures: { gap: 6, marginVertical: spacing.md },
-  modalFeature: { fontSize: 13.5 },
+  modalFeature: { fontSize: 13.5, letterSpacing: trackingFor(13.5) },
 });

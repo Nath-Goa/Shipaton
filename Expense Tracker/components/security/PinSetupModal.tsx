@@ -16,6 +16,8 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import {
   getBiometricCapabilities,
@@ -35,6 +37,7 @@ type Step = 'enter' | 'confirm' | 'biometric';
 
 export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = false }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const setAppLockEnabled = useSettingsStore((s) => s.setAppLockEnabled);
   const setPinConfig = useSettingsStore((s) => s.setPinConfig);
   const setUseBiometrics = useSettingsStore((s) => s.setUseBiometrics);
@@ -63,14 +66,18 @@ export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = fal
 
   const triggerShake = useCallback(() => {
     triggerFeedback('error');
-    shakeTranslate.value = withSequence(
-      withTiming(-12, { duration: 60 }),
-      withSpring(12, springs.snappy),
-      withSpring(-8, springs.snappy),
-      withSpring(8, springs.snappy),
-      withSpring(0, springs.snappy)
-    );
-  }, [shakeTranslate]);
+    // A shake is exactly the oscillating motion §14 wants gated — the red
+    // dots/error text already carry the "wrong" signal on their own.
+    if (!reducedMotion) {
+      shakeTranslate.value = withSequence(
+        withTiming(-12, { duration: 60 }),
+        withSpring(12, springs.snappy),
+        withSpring(-8, springs.snappy),
+        withSpring(8, springs.snappy),
+        withSpring(0, springs.snappy)
+      );
+    }
+  }, [shakeTranslate, reducedMotion]);
 
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeTranslate.value }],
@@ -78,7 +85,6 @@ export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = fal
 
   const handleKeyPress = useCallback(
     (num: string) => {
-      triggerFeedback('selection');
       setErrorMsg(null);
 
       if (step === 'enter') {
@@ -132,7 +138,6 @@ export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = fal
   );
 
   const handleDelete = useCallback(() => {
-    triggerFeedback('secondary');
     setErrorMsg(null);
     if (step === 'enter') {
       setFirstPin((p) => p.slice(0, -1));
@@ -143,7 +148,11 @@ export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = fal
 
   const handleFinishWithBiometrics = useCallback(
     async (enableBiometric: boolean) => {
-      triggerFeedback('primary');
+      // No triggerFeedback call here — the two Buttons below already fire
+      // their own category-matched press feedback on touch-down (primary
+      // for "Use ... + PIN", secondary for the ghost "Use PIN Only"); an
+      // unconditional 'primary' here duplicated the former and mismatched
+      // the latter.
       const saved = await saveStoredPin(firstPin);
       if (saved) {
         setPinConfig({ pinLength, hasConfiguredPin: true });
@@ -272,6 +281,7 @@ export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = fal
                             <Pressable
                               key={colIdx}
                               hitSlop={10}
+                              onPressIn={() => triggerFeedback('secondary')}
                               onPress={handleDelete}
                               disabled={currentDigits.length === 0}
                               style={({ pressed }) => [
@@ -286,6 +296,7 @@ export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = fal
                           <Pressable
                             key={colIdx}
                             hitSlop={6}
+                            onPressIn={() => triggerFeedback('selection')}
                             onPress={() => handleKeyPress(btn)}
                             style={({ pressed }) => [
                               styles.keyBtn,
@@ -324,8 +335,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   header: { alignItems: 'center', gap: 6 },
-  stepTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  stepSubtitle: { fontSize: 13.5, lineHeight: 18, textAlign: 'center', maxWidth: 300 },
+  stepTitle: { fontSize: 20, letterSpacing: trackingFor(20), fontWeight: '700', textAlign: 'center' },
+  stepSubtitle: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 18, textAlign: 'center', maxWidth: 300 },
   lengthPicker: { width: 180, alignSelf: 'center', marginVertical: spacing.xs },
   dotsRow: {
     flexDirection: 'row',
@@ -339,7 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
   },
-  errorText: { fontSize: 13, textAlign: 'center', fontWeight: '600' },
+  errorText: { fontSize: 13, letterSpacing: trackingFor(13), textAlign: 'center', fontWeight: '600' },
   keypad: { gap: 10, marginTop: spacing.sm, maxWidth: 300, alignSelf: 'center', width: '100%' },
   keypadRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 14 },
   keyBtn: {
@@ -351,7 +362,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   keyEmpty: { flex: 1, height: 54 },
-  keyText: { fontSize: 22, fontWeight: '600' },
+  keyText: { fontSize: 22, letterSpacing: trackingFor(22), fontWeight: '600' },
   footerRow: { alignItems: 'center', marginTop: spacing.xs },
   biometricStep: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.md },
   iconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },

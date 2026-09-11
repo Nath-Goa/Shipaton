@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import {
   getAllQuotes,
@@ -138,8 +139,8 @@ export function MarketDataStatusCard() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
-  label: { fontSize: 12, fontWeight: '600' },
-  value: { fontSize: 13, fontWeight: '700', flexShrink: 1, textAlign: 'right' },
-  errorText: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  label: { fontSize: 12, letterSpacing: trackingFor(12), fontWeight: '600' },
+  value: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '700', flexShrink: 1, textAlign: 'right' },
+  errorText: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, marginTop: 2 },
   predictorBlock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md, marginTop: spacing.sm, gap: spacing.sm },
 });

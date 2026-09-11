@@ -7,8 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { MINIMUM_AGE, TEEN_RESTRICTIONS } from '@/constants/ageCompliance';
+import { triggerFeedback } from '@/constants/animations';
 import { JUDGE_MODE_PROMISE } from '@/constants/judgeMode';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useAgeGateStage } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { useAgeStore } from '@/store/useAgeStore';
@@ -123,6 +125,7 @@ function BirthDateStep() {
       </Text>
 
       <Pressable
+        onPressIn={() => triggerFeedback('selection')}
         onPress={() => setShowPicker((v) => !v)}
         style={[styles.dateField, { borderColor: picked ? colors.accent : colors.border, backgroundColor: colors.surface2 }]}>
         <Ionicons name="calendar" size={18} color={picked ? colors.accent : colors.text3} />
@@ -231,8 +234,8 @@ const styles = StyleSheet.create({
   iconBadge: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: spacing.lg },
   title: { fontSize: 26, fontWeight: '700', marginTop: spacing.sm, letterSpacing: -0.4 },
-  subheading: { fontSize: 16, fontWeight: '700', marginTop: spacing.xl },
-  body: { fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
+  subheading: { fontSize: 16, letterSpacing: trackingFor(16), fontWeight: '700', marginTop: spacing.xl },
+  body: { fontSize: 14, letterSpacing: trackingFor(14), lineHeight: 20, marginTop: spacing.sm },
   dateField: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,11 +246,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginTop: spacing.xl,
   },
-  dateFieldLabel: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  dateFieldLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600', flexShrink: 1 },
   list: { marginTop: spacing.lg, gap: spacing.sm },
   listRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   listIcon: { marginTop: 2 },
-  listText: { fontSize: 13.5, lineHeight: 19, flex: 1 },
+  listText: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 19, flex: 1 },
   note: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -255,6 +258,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     marginTop: spacing.xl,
   },
-  noteText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
+  noteText: { flex: 1, fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 18 },
   actions: { marginTop: spacing.xl, gap: spacing.sm },
 });

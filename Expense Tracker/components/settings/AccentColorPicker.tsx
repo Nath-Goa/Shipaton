@@ -26,11 +26,6 @@ type Props = {
 export function AccentColorPicker({ value, onChange }: Props) {
   const { colors } = useTheme();
 
-  function handleSelect(color: AccentColor) {
-    if (color !== value) triggerFeedback('selection');
-    onChange(color);
-  }
-
   return (
     <View style={styles.row}>
       {ACCENT_COLORS.map((color) => {
@@ -40,7 +35,10 @@ export function AccentColorPicker({ value, onChange }: Props) {
             key={color}
             accessibilityLabel={ACCENT_LABELS[color]}
             hitSlop={6}
-            onPress={() => handleSelect(color)}
+            onPressIn={() => {
+              if (color !== value) triggerFeedback('selection');
+            }}
+            onPress={() => onChange(color)}
             style={[
               styles.swatch,
               { backgroundColor: SWATCH_HEX[color] },

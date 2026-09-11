@@ -14,6 +14,8 @@ import Animated, {
 import { Text } from '@/components/ui/Text';
 import type { Palette } from '@/constants/theme';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import type { RecapCard, RecapTone } from '@/services/recap/weeklyRecap';
 
@@ -45,6 +47,7 @@ export function toneColors(colors: Palette, tone: RecapTone) {
 
 export function RecapCardView({ card, isActive }: { card: RecapCard; isActive: boolean }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const tone = toneColors(colors, card.tone);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
@@ -58,15 +61,20 @@ export function RecapCardView({ card, isActive }: { card: RecapCard; isActive: b
   // including swiping back to one already seen.
   useEffect(() => {
     if (isActive) {
-      opacity.value = withTiming(1, { duration: 260 });
-      scale.value = withDelay(40, withSpring(1, { damping: 14, stiffness: 140 }));
+      opacity.value = withTiming(1, { duration: reducedMotion ? 150 : 260 });
+      scale.value = reducedMotion ? 1 : withDelay(40, withSpring(1, { damping: 14, stiffness: 140 }));
       orbit.value = 0;
-      orbit.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
+      // A slow (9s/cycle) infinite loop is exactly the self-sustaining
+      // motion §14 flags — skip it entirely under reduced motion rather
+      // than just shortening it.
+      if (!reducedMotion) {
+        orbit.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
+      }
     } else {
       opacity.value = 0;
       scale.value = 0.92;
     }
-  }, [isActive, opacity, scale]);
+  }, [isActive, opacity, scale, orbit, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -120,6 +128,6 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 13, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase', opacity: 0.88 },
   title: { fontSize: 32, fontWeight: '900', letterSpacing: -1, textAlign: 'center', lineHeight: 37, marginTop: spacing.sm },
   stat: { fontSize: 60, lineHeight: 68, fontWeight: '900', letterSpacing: -2.4, marginTop: spacing.md },
-  statSub: { fontSize: 14.5, fontWeight: '600', textAlign: 'center', opacity: 0.9, marginTop: spacing.sm },
-  body: { fontSize: 16, lineHeight: 23, textAlign: 'center', opacity: 0.95, marginTop: spacing.md },
+  statSub: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '600', textAlign: 'center', opacity: 0.9, marginTop: spacing.sm },
+  body: { fontSize: 16, letterSpacing: trackingFor(16), lineHeight: 23, textAlign: 'center', opacity: 0.95, marginTop: spacing.md },
 });

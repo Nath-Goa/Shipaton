@@ -9,6 +9,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
+import { trackingFor } from '@/constants/typography';
 import { TICKERS } from '@/constants/tickers';
 import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
@@ -169,12 +170,12 @@ export default function ScannerScreen() {
 const styles = StyleSheet.create({
   startWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, gap: spacing.md },
   iconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  startTitle: { fontSize: 20, fontWeight: '700' },
-  startBody: { fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  startTitle: { fontSize: 20, letterSpacing: trackingFor(20), fontWeight: '700' },
+  startBody: { fontSize: 14, letterSpacing: trackingFor(14), lineHeight: 20, textAlign: 'center' },
   startActions: { width: '100%', gap: spacing.sm, marginTop: spacing.lg },
   previewWrap: { flex: 1 },
   previewImage: { width: '100%', height: 260 },
   center: { alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxl, gap: spacing.md, paddingHorizontal: spacing.xl },
-  loadingText: { fontSize: 13.5 },
-  errorText: { fontSize: 13.5, textAlign: 'center' },
+  loadingText: { fontSize: 13.5, letterSpacing: trackingFor(13.5) },
+  errorText: { fontSize: 13.5, letterSpacing: trackingFor(13.5), textAlign: 'center' },
 });

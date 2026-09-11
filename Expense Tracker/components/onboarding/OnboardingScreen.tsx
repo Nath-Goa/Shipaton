@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
+  FadeIn,
   FadeInDown,
   FadeInLeft,
   FadeInRight,
@@ -19,7 +20,9 @@ import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useAgePermissions, useAiDataAllowed } from '@/hooks/useAgePermissions';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { isLiveMarketDataConfigured } from '@/services/marketData/marketData';
 import { useSettingsStore, type StudyWindow, type ThemeMode } from '@/store/useSettingsStore';
@@ -121,6 +124,7 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 
 export function OnboardingScreen() {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const completeOnboarding = useSettingsStore((s) => s.completeOnboarding);
   const themeMode = useSettingsStore((s) => s.themeMode);
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
@@ -175,18 +179,22 @@ export function OnboardingScreen() {
 
   const handleBack = useCallback(() => {
     if (stepIndex === 0) return;
-    triggerFeedback('navigation');
     goTo(stepIndex - 1, 'backward');
   }, [stepIndex, goTo]);
 
   const handleSkip = useCallback(() => {
-    triggerFeedback('secondary');
     completeOnboarding();
   }, [completeOnboarding]);
 
   const progressStyle = useAnimatedStyle(() => ({ width: `${progress.value}%` }));
 
-  const entering = direction === 'forward' ? FadeInRight.duration(280) : FadeInLeft.duration(280);
+  // A slide telegraphs direction, which is exactly what §14 wants replaced
+  // with a plain cross-fade under reduced motion.
+  const entering = reducedMotion
+    ? FadeIn.duration(150)
+    : direction === 'forward'
+      ? FadeInRight.duration(280)
+      : FadeInLeft.duration(280);
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -194,12 +202,13 @@ export function OnboardingScreen() {
         <View style={styles.headerTopRow}>
           <Pressable
             hitSlop={10}
+            onPressIn={() => triggerFeedback('navigation')}
             onPress={handleBack}
             disabled={stepIndex === 0}
             style={{ opacity: stepIndex === 0 ? 0 : 1 }}>
             <Ionicons name="chevron-back" size={22} color={colors.text2} />
           </Pressable>
-          <Pressable hitSlop={10} onPress={handleSkip}>
+          <Pressable hitSlop={10} onPressIn={() => triggerFeedback('secondary')} onPress={handleSkip}>
             <Text style={[styles.skipLabel, { color: colors.text3 }]}>Skip</Text>
           </Pressable>
         </View>
@@ -240,10 +249,8 @@ export function OnboardingScreen() {
               return (
                 <Pressable
                   key={choice.value}
-                  onPress={() => {
-                    triggerFeedback('selection');
-                    setPreferredStudyWindow(choice.value);
-                  }}
+                  onPressIn={() => triggerFeedback('selection')}
+                  onPress={() => setPreferredStudyWindow(choice.value)}
                   style={[
                     styles.studyWindowCard,
                     { borderColor: active ? colors.accent : colors.border, backgroundColor: colors.surface },
@@ -289,10 +296,8 @@ export function OnboardingScreen() {
               return (
                 <Pressable
                   key={String(choice.value)}
-                  onPress={() => {
-                    triggerFeedback('selection');
-                    setPredictorDataCollection(choice.value);
-                  }}
+                  onPressIn={() => triggerFeedback('selection')}
+                  onPress={() => setPredictorDataCollection(choice.value)}
                   style={[
                     styles.predictorChoice,
                     { borderColor: active ? colors.accent : colors.border, backgroundColor: colors.surface },
@@ -400,15 +405,15 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  skipLabel: { fontSize: 14, fontWeight: '600' },
+  skipLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600' },
   progressTrack: { height: 4, borderRadius: 2, marginTop: spacing.md, overflow: 'hidden' },
   progressFill: { height: 4, borderRadius: 2 },
-  stepsLeftLabel: { fontSize: 11.5, fontWeight: '600', marginTop: spacing.sm },
+  stepsLeftLabel: { fontSize: 11.5, letterSpacing: trackingFor(11.5), fontWeight: '600', marginTop: spacing.sm },
   content: { padding: spacing.xl },
   iconBadge: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
   title: { fontSize: 26, fontWeight: '700', marginTop: spacing.sm, letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
+  subtitle: { fontSize: 14, letterSpacing: trackingFor(14), lineHeight: 20, marginTop: spacing.sm },
   studyWindowGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xl },
   studyWindowCard: {
     flexBasis: '47%',
@@ -419,7 +424,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  studyWindowLabel: { fontSize: 13.5, fontWeight: '700' },
+  studyWindowLabel: { fontSize: 13.5, letterSpacing: trackingFor(13.5), fontWeight: '700' },
   predictorWarning: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -427,7 +432,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     marginTop: spacing.lg,
   },
-  predictorWarningText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
+  predictorWarningText: { flex: 1, fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 18 },
   predictorChoices: { gap: spacing.sm, marginTop: spacing.lg },
   predictorChoice: {
     flexDirection: 'row',
@@ -437,10 +442,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.sm,
   },
-  predictorChoiceLabel: { fontSize: 14, fontWeight: '700' },
-  predictorChoiceHint: { fontSize: 12, marginTop: 2 },
+  predictorChoiceLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
+  predictorChoiceHint: { fontSize: 12, letterSpacing: trackingFor(12), marginTop: 2 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
-  bulletText: { fontSize: 13.5, lineHeight: 18, flex: 1 },
+  bulletText: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 18, flex: 1 },
   actions: { marginTop: spacing.xl, gap: spacing.sm },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md },
   stockRow: {
@@ -450,8 +455,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  stockSymbol: { fontSize: 14, fontWeight: '700', width: 56 },
-  stockName: { fontSize: 13, flex: 1 },
-  stockSector: { fontSize: 11.5 },
+  stockSymbol: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700', width: 56 },
+  stockName: { fontSize: 13, letterSpacing: trackingFor(13), flex: 1 },
+  stockSector: { fontSize: 11.5, letterSpacing: trackingFor(11.5) },
   footer: { padding: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth },
 });

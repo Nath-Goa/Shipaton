@@ -10,6 +10,7 @@ import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import {
   TIER_FEATURE_COPY,
   TIER_HEADLINE,
@@ -332,14 +333,14 @@ export default function UpgradeScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  intro: { fontSize: 12, textAlign: 'center', lineHeight: 16 },
+  intro: { fontSize: 12, letterSpacing: trackingFor(12), textAlign: 'center', lineHeight: 16 },
   card: { gap: 4 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tierName: { fontSize: 18, fontWeight: '700' },
-  price: { fontSize: 22, fontWeight: '700', marginTop: 2 },
-  headline: { fontSize: 13, marginTop: 4, marginBottom: spacing.md },
+  tierName: { fontSize: 18, letterSpacing: trackingFor(18), fontWeight: '700' },
+  price: { fontSize: 22, letterSpacing: trackingFor(22), fontWeight: '700', marginTop: 2 },
+  headline: { fontSize: 13, letterSpacing: trackingFor(13), marginTop: 4, marginBottom: spacing.md },
   features: { gap: 6, marginBottom: spacing.lg },
-  feature: { fontSize: 13 },
+  feature: { fontSize: 13, letterSpacing: trackingFor(13) },
   fallbackCard: { gap: spacing.sm },
-  accessSource: { fontSize: 12, textAlign: 'center' },
+  accessSource: { fontSize: 12, letterSpacing: trackingFor(12), textAlign: 'center' },
 });

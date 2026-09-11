@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -142,15 +143,16 @@ export function SocialAuthGate() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.md },
-  title: { fontSize: 20, fontWeight: '700' },
-  body: { fontSize: 13.5, lineHeight: 19 },
+  title: { fontSize: 20, letterSpacing: trackingFor(20), fontWeight: '700' },
+  body: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 19 },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: 11,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
-  error: { fontSize: 12.5, fontWeight: '600' },
-  link: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: spacing.sm },
+  error: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
+  link: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600', textAlign: 'center', marginTop: spacing.sm },
 });

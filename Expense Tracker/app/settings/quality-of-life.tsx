@@ -7,6 +7,7 @@ import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useQolStore, type LoadingGame } from '@/store/useQolStore';
 
@@ -59,9 +60,9 @@ function ToggleCard({ label, description, value, onChange }: { label: string; de
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
-  intro: { fontSize: 13, lineHeight: 18, marginBottom: spacing.xs },
+  intro: { fontSize: 13, letterSpacing: trackingFor(13), lineHeight: 18, marginBottom: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  label: { fontSize: 14, fontWeight: '700' },
-  description: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  label: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
+  description: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, marginTop: 2 },
 });
 

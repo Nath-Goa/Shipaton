@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { generateTradeReflection } from '@/services/ai/learn';
 import { useMistakeJournalStore } from '@/store/useMistakeJournalStore';
@@ -65,9 +66,9 @@ export function TradeReflectionsCard() {
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 15.5, fontWeight: '700' },
-  headline: { fontSize: 14, fontWeight: '700' },
-  subtext: { fontSize: 12.5, marginTop: 4, lineHeight: 17 },
-  reflection: { fontSize: 13, lineHeight: 18, marginTop: spacing.sm },
+  sectionTitle: { fontSize: 15.5, letterSpacing: trackingFor(15.5), fontWeight: '700' },
+  headline: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
+  subtext: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 4, lineHeight: 17 },
+  reflection: { fontSize: 13, letterSpacing: trackingFor(13), lineHeight: 18, marginTop: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
 });

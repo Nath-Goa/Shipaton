@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
 import { FONT_DESCRIPTIONS, FONT_FAMILY_BOLD, FONT_LABELS, FONT_OPTIONS, type FontOption } from '@/constants/fonts';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 type Props = {
@@ -17,11 +18,6 @@ type Props = {
 export function FontPicker({ value, onChange }: Props) {
   const { colors } = useTheme();
 
-  function handleSelect(font: FontOption) {
-    if (font !== value) triggerFeedback('selection');
-    onChange(font);
-  }
-
   return (
     <View style={styles.grid}>
       {FONT_OPTIONS.map((font) => {
@@ -29,7 +25,10 @@ export function FontPicker({ value, onChange }: Props) {
         return (
           <Pressable
             key={font}
-            onPress={() => handleSelect(font)}
+            onPressIn={() => {
+              if (font !== value) triggerFeedback('selection');
+            }}
+            onPress={() => onChange(font)}
             style={[
               styles.card,
               { backgroundColor: colors.surface2, borderColor: active ? colors.accent : colors.border },
@@ -60,7 +59,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontSize: 20 },
-  cardLabel: { fontSize: 13.5, fontWeight: '700', marginTop: 4 },
-  cardDescription: { fontSize: 11, lineHeight: 14, marginTop: 2 },
+  cardTitle: { fontSize: 20, letterSpacing: trackingFor(20) },
+  cardLabel: { fontSize: 13.5, letterSpacing: trackingFor(13.5), fontWeight: '700', marginTop: 4 },
+  cardDescription: { fontSize: 11, letterSpacing: trackingFor(11), lineHeight: 14, marginTop: 2 },
 });
