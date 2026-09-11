@@ -22,8 +22,10 @@ import { badgeInfo } from '@/constants/badges';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { hasSharedFallback, sendChatMessage } from '@/services/ai/client';
@@ -228,6 +230,7 @@ function HistoryModal({
   onClear: (key: ThreadKey) => void;
 }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
 
   const rows = useMemo(() => {
     const keys = new Set<ThreadKey>(['general', ...Object.keys(threads)]);
@@ -248,7 +251,7 @@ function HistoryModal({
             first tap or two while it's still settling, so the dismiss-on-tap
             area is a separate absolute-fill Pressable instead. */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View entering={FadeInDown.springify().damping(18)}>
+        <Animated.View entering={reducedMotion ? FadeIn.duration(150) : FadeInDown.springify().damping(18)}>
           <Pressable
             feedbackEnabled={false}
             style={[styles.modalSheet, { backgroundColor: colors.surface }]}
@@ -290,12 +293,12 @@ const styles = StyleSheet.create({
   messages: { padding: spacing.xl, paddingTop: spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, padding: spacing.md, gap: 6 },
   gate: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
-  gateText: { fontSize: 12.5, textAlign: 'center' },
-  sharedHint: { fontSize: 11, textAlign: 'center', paddingHorizontal: spacing.sm, paddingBottom: 2 },
-  quota: { fontSize: 11.5, textAlign: 'right', paddingHorizontal: spacing.sm },
+  gateText: { fontSize: 12.5, letterSpacing: trackingFor(12.5), textAlign: 'center' },
+  sharedHint: { fontSize: 11, letterSpacing: trackingFor(11), textAlign: 'center', paddingHorizontal: spacing.sm, paddingBottom: 2 },
+  quota: { fontSize: 11.5, letterSpacing: trackingFor(11.5), textAlign: 'right', paddingHorizontal: spacing.sm },
   modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.md },
-  modalTitle: { fontSize: 19, fontWeight: '700' },
+  modalTitle: { fontSize: 19, letterSpacing: trackingFor(19), fontWeight: '700' },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,7 +308,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  historyLabel: { fontSize: 14, fontWeight: '700' },
-  historyPreview: { fontSize: 12.5, marginTop: 2 },
-  historyTime: { fontSize: 11 },
+  historyLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
+  historyPreview: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 2 },
+  historyTime: { fontSize: 11, letterSpacing: trackingFor(11) },
 });

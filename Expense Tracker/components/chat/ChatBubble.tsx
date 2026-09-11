@@ -1,18 +1,21 @@
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import type { ChatMessage } from '@/types/chat';
 
 export function ChatBubble({ message }: { message: ChatMessage }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const isUser = message.role === 'user';
 
   return (
     <Animated.View
-      entering={FadeInUp.springify().damping(16).mass(0.8)}
+      entering={reducedMotion ? FadeIn.duration(150) : FadeInUp.springify().damping(16).mass(0.8)}
       style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
       <View
         style={[
@@ -48,5 +51,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
   },
-  text: { fontSize: 14.5, lineHeight: 20 },
+  text: { fontSize: 14.5, letterSpacing: trackingFor(14.5), lineHeight: 20 },
 });
