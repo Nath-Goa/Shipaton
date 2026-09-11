@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 export function NetworkStatusBanner() {
@@ -37,7 +38,7 @@ export function NetworkStatusBanner() {
 
 const styles = StyleSheet.create({
   banner: { position: 'absolute', left: spacing.md, right: spacing.md, zIndex: 1000, minHeight: 38, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md },
-  text: { color: '#fff', fontSize: 11.5, fontWeight: '700', flex: 1 },
-  retry: { color: '#fff', fontSize: 11.5, fontWeight: '900', marginLeft: spacing.md },
+  text: { color: '#fff', fontSize: 11.5, letterSpacing: trackingFor(11.5), fontWeight: '700', flex: 1 },
+  retry: { color: '#fff', fontSize: 11.5, letterSpacing: trackingFor(11.5), fontWeight: '900', marginLeft: spacing.md },
 });
 

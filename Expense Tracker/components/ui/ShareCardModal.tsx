@@ -8,6 +8,8 @@ import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import { Button } from '@/components/ui/Button';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -25,6 +27,7 @@ type Props = {
 // ResultsCardModal / RecordsCardModal / CourseCertificateModal.
 export function ShareCardModal({ visible, onClose, shareDialogTitle, children }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const showToast = useToastStore((s) => s.show);
   const cardRef = useRef<ViewShotRef>(null);
   const [sharing, setSharing] = useState(false);
@@ -55,7 +58,7 @@ export function ShareCardModal({ visible, onClose, shareDialogTitle, children }:
             first tap or two while it's still settling, so the dismiss-on-tap
             area is a separate absolute-fill Pressable instead. */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.wrap}>
+        <Animated.View entering={reducedMotion ? FadeIn.duration(150) : FadeInDown.springify().damping(18)} style={styles.wrap}>
           <Pressable feedbackEnabled={false} onPress={(e: any) => e.stopPropagation()}>
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={[styles.card, { backgroundColor: colors.surface }]}>
               {children}
@@ -74,7 +77,7 @@ export function ShareCardModal({ visible, onClose, shareDialogTitle, children }:
 
 // Shared by every card's own content — export so callers don't redeclare it.
 export const shareCardStyles = StyleSheet.create({
-  disclaimer: { fontSize: 10, marginTop: spacing.lg, textAlign: 'center' },
+  disclaimer: { fontSize: 10, letterSpacing: trackingFor(10), marginTop: spacing.lg, textAlign: 'center' },
 });
 
 const styles = StyleSheet.create({

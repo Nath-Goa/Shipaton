@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -49,6 +50,6 @@ export function UpgradeBanner({ title, body }: Props) {
 
 const styles = StyleSheet.create({
   upsell: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
-  title: { fontSize: 14.5, fontWeight: '700' },
-  body: { fontSize: 12.5, marginTop: 2 },
+  title: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '700' },
+  body: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 2 },
 });

@@ -11,6 +11,8 @@ import Animated, {
 
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from './Button';
 
@@ -34,11 +36,14 @@ export function EmptyState({
   onSecondaryAction,
 }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const translateY = useSharedValue(0);
 
   useEffect(() => {
     // A single float up-down (1.4s total) rather than an endless loop —
     // decorative animations here are capped at ~2s and then hold static.
+    // Skipped entirely under reduced motion.
+    if (reducedMotion) return;
     translateY.value = withRepeat(
       withSequence(
         withTiming(-5, { duration: 700 }),
@@ -47,7 +52,7 @@ export function EmptyState({
       1,
       true
     );
-  }, [translateY]);
+  }, [translateY, reducedMotion]);
 
   const floatStyle = useAnimatedStyle(() => {
     return {
@@ -95,7 +100,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  icon: { fontSize: 26 },
-  title: { fontSize: 15, fontWeight: '600', textAlign: 'center', maxWidth: 280, flexShrink: 1 },
-  message: { fontSize: 13, textAlign: 'center', maxWidth: 280, lineHeight: 18 },
+  icon: { fontSize: 26, letterSpacing: trackingFor(26) },
+  title: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '600', textAlign: 'center', maxWidth: 280, flexShrink: 1 },
+  message: { fontSize: 13, letterSpacing: trackingFor(13), textAlign: 'center', maxWidth: 280, lineHeight: 18 },
 });
