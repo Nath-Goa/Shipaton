@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Linking, StyleSheet, View, useWindowDimensions, type ViewToken } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -6,9 +7,11 @@ import Animated, {
   Extrapolation,
   interpolate,
   runOnJS,
+  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { PriceChart } from '@/components/charts/PriceChart';
@@ -16,7 +19,9 @@ import { PillBadge } from '@/components/ui/PillBadge';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Text } from '@/components/ui/Text';
 import { springs } from '@/constants/animations';
+import { material } from '@/constants/materials';
 import { radius, spacing } from '@/constants/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { explainHeadlineCached, getCachedHeadlineExplanation } from '@/services/ai/learn';
 import { getHistory, getQuote } from '@/services/marketData/marketData';
@@ -24,6 +29,8 @@ import { fetchHeadlines } from '@/services/news/newsFeed';
 import { money, signedPct } from '@/utils/money';
 import { nearestSnapPoint, projectMomentum, rubberband } from '@/utils/motion';
 import type { NewsItem } from '@/types/prediction';
+
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 // Opens as a small collapsed "blob" (just the top guess, peeking up from the
 // bottom) — drag it up to expand into full candidate cards, swipe
@@ -141,7 +148,8 @@ function CandidateOverview({ symbol, active }: { symbol: string; active: boolean
 }
 
 export function CompanyResultSheet({ photoUri, candidates, onDismiss }: Props) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
+  const reducedMotion = useReducedMotion();
   const { height: windowHeight, width } = useWindowDimensions();
   const expandedHeight = Math.round(windowHeight * EXPANDED_HEIGHT_FRACTION);
   const dragRange = expandedHeight - COLLAPSED_HEIGHT;
@@ -158,6 +166,23 @@ export function CompanyResultSheet({ photoUri, candidates, onDismiss }: Props) {
   const rubberExtra = useSharedValue(0);
   const [dragging, setDragging] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // "Materialize" the sheet's glass surface in on mount — blur intensity and
+  // scale animate together (§12: "materialize, don't just fade") rather than
+  // the surface just opacity-fading in like a flat-color view would.
+  const mountProgress = useSharedValue(0);
+  useEffect(() => {
+    mountProgress.value = reducedMotion ? withTiming(1, { duration: 150 }) : withSpring(1, springs.gentle);
+    // Deliberately mount-only — re-running this if reducedMotion changes
+    // while the sheet is already open would replay the entrance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const blurAnimatedProps = useAnimatedProps(() => ({
+    intensity: interpolate(mountProgress.value, [0, 1], [0, material.panel.intensity]),
+  }));
+  const materializeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(mountProgress.value, [0, 1], [0.96, 1]) }],
+  }));
 
   // Stable references (FlatList warns/ignores a changing identity) — see the
   // same pattern in app/(tabs)/news/index.tsx.
@@ -204,8 +229,21 @@ export function CompanyResultSheet({ photoUri, candidates, onDismiss }: Props) {
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
-      <Animated.View
-        style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }, sheetStyle]}>
+      <Animated.View style={[styles.sheet, { borderColor: colors.border }, sheetStyle, materializeStyle]}>
+        {/* A non-blocking panel per §12 — no scrim behind it (see `overlay`
+            above, already correctly scrim-less), but its own surface is a
+            blur material rather than opaque: unlike the tab bar, this blurs
+            over an unpredictable camera-photo backdrop, so a plain blur
+            alone isn't a safe legibility guarantee — the tint layer beneath
+            (colors.surface at material.panel.tintOpacity) composites on top
+            of it, closer to iOS's .regularMaterial than .ultraThinMaterial. */}
+        <AnimatedBlurView
+          pointerEvents="none"
+          tint={scheme === 'dark' ? 'dark' : 'light'}
+          animatedProps={blurAnimatedProps}
+          style={StyleSheet.absoluteFill}
+        />
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface, opacity: material.panel.tintOpacity }]} />
         <GestureDetector gesture={pan}>
           <View style={styles.handleArea}>
             <View style={[styles.grabber, { backgroundColor: colors.border }]} />
