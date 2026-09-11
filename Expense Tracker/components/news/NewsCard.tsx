@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { explainHeadlineCached, getCachedHeadlineExplanation } from '@/services/ai/learn';
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
-  time: { fontSize: 12, fontWeight: '600' },
+  time: { fontSize: 12, fontWeight: '600', letterSpacing: trackingFor(12) },
   middleBlock: { flex: 1, justifyContent: 'center', gap: spacing.lg },
   headlineCard: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -149,12 +150,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headline: { fontSize: 27, fontWeight: '700', lineHeight: 35 },
+  headline: { fontSize: 27, fontWeight: '700', lineHeight: 35, letterSpacing: trackingFor(27) },
   explainBox: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: spacing.md, gap: 4 },
   explainLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   explainLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  explainText: { fontSize: 14, lineHeight: 20 },
-  errorText: { fontSize: 12.5 },
+  explainText: { fontSize: 14, lineHeight: 20, letterSpacing: trackingFor(14) },
+  errorText: { fontSize: 12.5, letterSpacing: trackingFor(12.5) },
   actions: { flexDirection: 'row', gap: spacing.sm },
-  hint: { textAlign: 'center', fontSize: 11.5, marginTop: spacing.lg },
+  hint: { textAlign: 'center', fontSize: 11.5, marginTop: spacing.lg, letterSpacing: trackingFor(11.5) },
 });
