@@ -13,6 +13,7 @@ import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { categoryOf } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import type { Expense } from '@/types/expense';
 import { gestureIntent, rubberband } from '@/utils/motion';
@@ -135,11 +136,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: { fontSize: 17 },
+  iconText: { fontSize: 17, letterSpacing: trackingFor(17) },
   photo: { width: 38, height: 38, borderRadius: radius.sm },
   main: { flex: 1, minWidth: 0 },
   descRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  desc: { fontSize: 14.5, fontWeight: '500', flexShrink: 1 },
-  meta: { fontSize: 12.5, marginTop: 1 },
-  amount: { fontSize: 15, fontWeight: '600' },
+  desc: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '500', flexShrink: 1 },
+  meta: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 1 },
+  amount: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '600' },
 });

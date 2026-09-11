@@ -11,6 +11,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
@@ -292,6 +293,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 11,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   dateInput: { justifyContent: 'center' },
   row2: { flexDirection: 'row', gap: spacing.md },
@@ -304,8 +306,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     gap: 6,
   },
-  photoBtnText: { fontSize: 12.5, fontWeight: '600' },
+  photoBtnText: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
   photoRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   photoPreview: { width: 84, height: 84, borderRadius: radius.sm },
-  error: { fontSize: 13, fontWeight: '600' },
+  error: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
 });

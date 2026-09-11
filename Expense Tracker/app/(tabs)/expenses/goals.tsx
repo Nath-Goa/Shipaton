@@ -15,6 +15,7 @@ import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { MAX_SAVINGS_GOALS, type SavingsGoal, useSavingsGoalStore } from '@/store/useSavingsGoalStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -318,18 +319,18 @@ export default function GoalsScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  intro: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
-  cardTitle: { fontSize: 15, fontWeight: '700' },
-  roundUpSub: { fontSize: 12, lineHeight: 16 },
+  intro: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, textAlign: 'center' },
+  cardTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  roundUpSub: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16 },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   headLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  icon: { fontSize: 24 },
-  name: { fontSize: 15, fontWeight: '700' },
-  sub: { fontSize: 12.5, marginTop: 2 },
-  doneText: { fontSize: 12.5, fontWeight: '600' },
+  icon: { fontSize: 24, letterSpacing: trackingFor(24) },
+  name: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  sub: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 2 },
+  doneText: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
   autoSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md },
   autoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
-  autoText: { fontSize: 12.5, fontWeight: '600', flexShrink: 1 },
+  autoText: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600', flexShrink: 1 },
   contribRow: { flexDirection: 'row', gap: spacing.sm },
   contribInput: {
     flex: 1,
@@ -338,6 +339,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   formInput: {
@@ -346,6 +348,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   createRow: { flexDirection: 'row', gap: spacing.md },
