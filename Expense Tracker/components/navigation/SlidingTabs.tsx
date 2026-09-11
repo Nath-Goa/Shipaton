@@ -30,6 +30,7 @@ import Animated, {
 
 import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
+import { material } from '@/constants/materials';
 import { spacing } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
@@ -466,7 +467,7 @@ function SlidingTabNavigator({
 
         <View style={[styles.tabBar, { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
           <BlurView
-            intensity={70}
+            intensity={material.chrome.intensity}
             tint={scheme === 'dark' ? 'dark' : 'light'}
             style={[StyleSheet.absoluteFill, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}
           />
@@ -543,7 +544,7 @@ function SlidingTabNavigator({
 
         {quickMenuIndex !== null ? (
           <View style={styles.quickOverlay}>
-            <BlurView intensity={55} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <BlurView intensity={material.overlay.intensity} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
             <Pressable accessibilityLabel="Close tab shortcuts" style={StyleSheet.absoluteFill} onPress={closeQuickMenu} />
             <View pointerEvents="box-none" style={[styles.quickItemsLayer, { bottom: TAB_BAR_HEIGHT + insets.bottom + 8 }]}>
               {(TAB_QUICK_ACTIONS[routes[quickMenuIndex]?.name ?? ''] ?? []).map((action, actionIndex) => {
