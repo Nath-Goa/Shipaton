@@ -20,8 +20,10 @@ import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { TIER_LABELS } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useRememberedScroll } from '@/hooks/useRememberedScroll';
@@ -229,15 +231,16 @@ function QuickAction({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.94, springs.snappy);
+    scale.value = reducedMotion ? 1 : withSpring(0.94, springs.tap);
     triggerFeedback('navigation');
-  }, [scale]);
+  }, [scale, reducedMotion]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -272,9 +275,9 @@ const styles = StyleSheet.create({
   recentRow: { gap: spacing.sm, paddingRight: spacing.xl },
   recentChip: { width: 132, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: spacing.md },
   recentSymbol: { fontSize: 13.5, fontWeight: '800' },
-  recentName: { fontSize: 10.5, marginTop: 2 },
+  recentName: { fontSize: 10.5, marginTop: 2, letterSpacing: trackingFor(10.5) },
   upsellTitle: { fontSize: 14.5, fontWeight: '700' },
-  upsellBody: { fontSize: 12.5, marginTop: 2 },
+  upsellBody: { fontSize: 12.5, marginTop: 2, letterSpacing: trackingFor(12.5) },
   sectionHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -300,9 +303,9 @@ const styles = StyleSheet.create({
   // this Text's width — flexShrink (+ the numberOfLines={2} at the call
   // site) lets a label that no longer fits at a larger font scale wrap
   // instead of getting clipped mid-word with no "…".
-  actionLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', flexShrink: 1 },
+  actionLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', flexShrink: 1, letterSpacing: trackingFor(12) },
   recapLauncher: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
   recapIconWrap: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   recapTitle: { fontSize: 14.5, fontWeight: '700' },
-  recapBody: { fontSize: 12.5, marginTop: 2, lineHeight: 17 },
+  recapBody: { fontSize: 12.5, marginTop: 2, lineHeight: 17, letterSpacing: trackingFor(12.5) },
 });

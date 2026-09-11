@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { getAllQuotes } from '@/services/marketData/marketData';
 import { signedPct } from '@/utils/money';
@@ -20,6 +22,7 @@ const MIN_INTERESTING_MOVE_PCT = 3;
 
 export function MarketSpotlightCard() {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
 
   const spotlight = useMemo(() => {
     const quotes = getAllQuotes();
@@ -32,7 +35,12 @@ export function MarketSpotlightCard() {
   const up = spotlight.changePct >= 0;
 
   return (
-    <Animated.View entering={FadeInDown.delay(100).springify().damping(16)}>
+    <Animated.View
+      entering={
+        // §14: reduced motion drops elastic/spring entrances for a short
+        // opacity cross-fade instead of a slide+spring.
+        reducedMotion ? FadeIn.duration(150) : FadeInDown.delay(100).springify().damping(16)
+      }>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Market spotlight</Text>
       <Card style={{ marginTop: spacing.md }}>
         <View style={styles.row}>
@@ -64,5 +72,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   emoji: { fontSize: 24 },
   headline: { fontSize: 14, fontWeight: '700' },
-  subtext: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  subtext: { fontSize: 12, marginTop: 2, lineHeight: 16, letterSpacing: trackingFor(12) },
 });
