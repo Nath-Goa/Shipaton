@@ -10,7 +10,7 @@ import { useStreakStore } from '@/store/useStreakStore';
 import { useToastStore } from '@/store/useToastStore';
 import type { RecurringFrequency } from '@/types/expense';
 import { addDaysStr, addMonthsStr, todayStr } from '@/utils/date';
-import { money } from '@/utils/money';
+import { money, roundCents } from '@/utils/money';
 import { uid } from '@/utils/id';
 
 function nextOccurrence(dateStr: string, freq: RecurringFrequency): string {
@@ -148,7 +148,7 @@ export const usePortfolioStore = create<PortfolioState>()(
 
       buy: (symbol, qty, price) => {
         if (qty <= 0) return { ok: false, message: 'Enter a quantity greater than 0.' };
-        const cost = qty * price;
+        const cost = roundCents(qty * price);
         const { portfolios, activePortfolioId } = get();
         const active = portfolios[activePortfolioId];
         if (cost > active.cash) return { ok: false, message: "That's more than your available cash." };
@@ -185,17 +185,16 @@ export const usePortfolioStore = create<PortfolioState>()(
         const existing = active.holdings[symbol];
         if (!existing || existing.qty < qty) return { ok: false, message: "You don't own that many shares." };
 
-        const proceeds = qty * price;
+        const proceeds = roundCents(qty * price);
         const remainingQty = existing.qty - qty;
         const nextHoldings = { ...active.holdings };
-        const nextDividendCursor = active.dividendCursor;
         let dividendCursorChanged = false;
         if (remainingQty <= 0) {
           delete nextHoldings[symbol];
           // Fully closing a position clears its dividend cursor too — a
           // later re-buy should accrue from then, not resume a stale cursor
           // and pay for a stretch when this portfolio held nothing.
-          if (symbol in nextDividendCursor) dividendCursorChanged = true;
+          if (symbol in active.dividendCursor) dividendCursorChanged = true;
         } else {
           nextHoldings[symbol] = { ...existing, qty: remainingQty };
         }
@@ -400,7 +399,7 @@ export const usePortfolioStore = create<PortfolioState>()(
             // moved since the order was placed.
             let badgeEarned: string | undefined;
             if (order.side === 'buy') {
-              const cost = order.qty * price;
+              const cost = roundCents(order.qty * price);
               if (cost > cash) {
                 cancellations.push(order.symbol);
                 changed = true;
@@ -430,7 +429,7 @@ export const usePortfolioStore = create<PortfolioState>()(
                 changed = true;
                 continue;
               }
-              const proceeds = order.qty * price;
+              const proceeds = roundCents(order.qty * price);
               const remainingQty = existing.qty - order.qty;
               if (remainingQty <= 0) {
                 delete holdings[order.symbol];

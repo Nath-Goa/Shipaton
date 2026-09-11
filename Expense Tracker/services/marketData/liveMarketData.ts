@@ -353,6 +353,10 @@ export function resetMarketCache(): void {
   quoteCache.clear();
   failureStreak.clear();
   retryAfter.clear();
+  // Any symbol currently serving the mock fallback needs its own cache
+  // (and live-tick timers) cleared too, or a regenerate would silently do
+  // nothing for it — see mock.resetMarketCache().
+  mock.resetMarketCache();
 }
 
 export type MarketDataStatus = {

@@ -1,6 +1,7 @@
 import { supabase } from '@/services/social/supabaseClient';
 import type { Profile } from '@/services/social/friends';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useToastStore } from '@/store/useToastStore';
 
 // A family's id doubles as its invite code — sharing it is how someone
 // joins (see supabase/schema.sql's family_members insert policy: any
@@ -21,6 +22,14 @@ function errorMessage(e: unknown): string {
     return (e as { message: string }).message;
   }
   return 'Something went wrong. Please try again.';
+}
+
+// A read that fails must never look identical to "you're not in a family" —
+// that's indistinguishable from real data on screen. Surfaced as a toast
+// (cross-store getState() call, same pattern used throughout this codebase)
+// rather than changing getMyFamily's return shape.
+function notifyLoadError(): void {
+  useToastStore.getState().show("Couldn't load — check your connection.");
 }
 
 export async function createFamily(name: string): Promise<Result & { id?: string }> {
@@ -64,15 +73,37 @@ export async function getMyFamily(): Promise<{ family: Family; members: Profile[
   const me = currentUserId();
   if (!me) return null;
 
-  const { data: membership } = await supabase.from('family_members').select('family_id').eq('user_id', me).limit(1).maybeSingle();
+  const { data: membership, error: membershipError } = await supabase
+    .from('family_members')
+    .select('family_id')
+    .eq('user_id', me)
+    .limit(1)
+    .maybeSingle();
+  if (membershipError) {
+    notifyLoadError();
+    return null;
+  }
   if (!membership) return null;
 
-  const { data: familyRow } = await supabase.from('families').select('id, name, owner_id').eq('id', membership.family_id).single();
+  const { data: familyRow, error: familyError } = await supabase
+    .from('families')
+    .select('id, name, owner_id')
+    .eq('id', membership.family_id)
+    .single();
+  if (familyError) notifyLoadError();
   if (!familyRow) return null;
 
-  const { data: memberRows } = await supabase.from('family_members').select('user_id').eq('family_id', membership.family_id);
+  const { data: memberRows, error: memberRowsError } = await supabase
+    .from('family_members')
+    .select('user_id')
+    .eq('family_id', membership.family_id);
+  if (memberRowsError) notifyLoadError();
   const memberIds = (memberRows ?? []).map((r) => r.user_id);
-  const { data: profileRows } = await supabase.from('profiles').select('id, display_name').in('id', memberIds.length ? memberIds : ['']);
+  const { data: profileRows, error: profileRowsError } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .in('id', memberIds.length ? memberIds : ['']);
+  if (profileRowsError) notifyLoadError();
 
   return {
     family: { id: familyRow.id, name: familyRow.name, ownerId: familyRow.owner_id },

@@ -2,6 +2,7 @@ import { getQuote } from '@/services/marketData/marketData';
 import { supabase } from '@/services/social/supabaseClient';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useToastStore } from '@/store/useToastStore';
 
 // A duel scores each participant's EXISTING active portfolio — the same one
 // they already trade in the Portfolio tab — by % net-worth change from a
@@ -40,6 +41,15 @@ function errorMessage(e: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
+// A read that fails must never look identical to "you genuinely have none" —
+// that's indistinguishable from real data to whoever's looking at the
+// screen. Surfaced as a toast (cross-store getState() call, same pattern
+// used throughout this codebase) rather than changing these functions'
+// return shape, so every existing caller keeps working unchanged.
+function notifyLoadError(): void {
+  useToastStore.getState().show("Couldn't load — check your connection.");
+}
+
 /** Same computation as ManagePortfoliosScreen's netWorthOf — the active portfolio, priced synchronously from cache. */
 export function computeMyNetWorth(): number {
   const { portfolios, activePortfolioId } = usePortfolioStore.getState();
@@ -67,12 +77,14 @@ function fromRow(row: Record<string, unknown>): Duel {
 
 export async function listDuels(): Promise<Duel[]> {
   // RLS already scopes this to duels the caller is a participant in.
-  const { data } = await supabase.from('duels').select('*').order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('duels').select('*').order('created_at', { ascending: false });
+  if (error) notifyLoadError();
   return (data ?? []).map(fromRow);
 }
 
 export async function getDuel(duelId: string): Promise<Duel | null> {
-  const { data } = await supabase.from('duels').select('*').eq('id', duelId).maybeSingle();
+  const { data, error } = await supabase.from('duels').select('*').eq('id', duelId).maybeSingle();
+  if (error) notifyLoadError();
   return data ? fromRow(data) : null;
 }
 

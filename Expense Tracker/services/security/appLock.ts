@@ -96,13 +96,44 @@ export async function getStoredPin(): Promise<string | null> {
   }
 }
 
+// In-memory brute-force guard — verifyPin was previously a bare comparison,
+// letting all 10,000 4-digit PINs be tried instantly against an unlocked
+// phone. Resets on app restart (acceptable: the point is slowing down a
+// live guessing attempt while the phone is in someone's hands, not
+// surviving a process restart).
+const MAX_PIN_ATTEMPTS = 5;
+const PIN_LOCKOUT_MS = 30_000;
+let failedPinAttempts = 0;
+let pinLockedUntil = 0;
+
+/**
+ * Milliseconds remaining in the current lockout, or 0 if not locked out.
+ */
+export function getPinLockoutRemainingMs(): number {
+  return Math.max(0, pinLockedUntil - Date.now());
+}
+
 /**
  * Verifies if the candidate PIN matches the stored PIN.
  */
 export async function verifyPin(candidate: string): Promise<boolean> {
+  if (Date.now() < pinLockedUntil) return false;
+
   const stored = await getStoredPin();
   if (!stored) return false;
-  return stored === candidate.trim();
+  const matches = stored === candidate.trim();
+
+  if (matches) {
+    failedPinAttempts = 0;
+    pinLockedUntil = 0;
+  } else {
+    failedPinAttempts += 1;
+    if (failedPinAttempts >= MAX_PIN_ATTEMPTS) {
+      pinLockedUntil = Date.now() + PIN_LOCKOUT_MS;
+      failedPinAttempts = 0;
+    }
+  }
+  return matches;
 }
 
 /**

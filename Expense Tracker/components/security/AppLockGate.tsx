@@ -17,6 +17,7 @@ import { useTheme } from '@/hooks/useTheme';
 import {
   authenticateWithBiometrics,
   getBiometricCapabilities,
+  getPinLockoutRemainingMs,
   verifyPin,
   type BiometricCapabilities,
 } from '@/services/security/appLock';
@@ -131,7 +132,10 @@ export function AppLockGate({ children }: { children: ReactNode }) {
             setEnteredPin('');
           } else {
             triggerShake();
-            setErrorMsg('Incorrect PIN');
+            const lockoutMs = getPinLockoutRemainingMs();
+            setErrorMsg(
+              lockoutMs > 0 ? `Too many attempts. Try again in ${Math.ceil(lockoutMs / 1000)}s.` : 'Incorrect PIN'
+            );
             setTimeout(() => {
               setEnteredPin('');
             }, 300);

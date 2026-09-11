@@ -46,17 +46,13 @@ export function PinSetupModal({ visible, onClose, onSuccess, isChangingPin = fal
   const [confirmPin, setConfirmPin] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [biometrics, setBiometrics] = useState<BiometricCapabilities | null>(null);
-  const [biometricsPref, setBiometricsPref] = useState(true);
 
   const shakeTranslate = useSharedValue(0);
 
   // Check device biometrics when modal opens
   useEffect(() => {
     if (visible) {
-      getBiometricCapabilities().then((caps) => {
-        setBiometrics(caps);
-        setBiometricsPref(caps.isEnrolled);
-      });
+      getBiometricCapabilities().then(setBiometrics);
       // Reset state
       setStep('enter');
       setFirstPin('');

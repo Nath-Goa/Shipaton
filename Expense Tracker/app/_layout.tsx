@@ -17,6 +17,7 @@ import { AppLockGate } from '@/components/security/AppLockGate';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { NetworkStatusBanner } from '@/components/ui/NetworkStatusBanner';
 import { TIER_FEATURES, type Tier } from '@/constants/subscription';
+import { APP_VARIANT } from '@/constants/build';
 import { CUSTOM_FONTS_TO_LOAD } from '@/constants/fonts';
 import { useAgeGateStage, useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
@@ -253,6 +254,13 @@ function RootLayout() {
   // free preview on launch simply because no purchase was made.
   useEffect(() => {
     if (isJudge) setTier(judgeAccessTier ?? 'free');
+    // On a judge build, once the user isn't in judge mode (never opted in,
+    // or explicitly exited via Settings › Privacy & age), RevenueCat must
+    // never drive tier — Purchases stays configured against the Test Store
+    // key for the process lifetime, and a still-active simulated
+    // entitlement would otherwise silently re-apply a paid tier moments
+    // after "Exit judging mode" set it back to Free.
+    if (APP_VARIANT === 'judge' && !isJudge) return;
     if (!configurePurchases()) return;
     let alive = true;
 
