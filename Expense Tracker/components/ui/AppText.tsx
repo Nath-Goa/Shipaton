@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { StyleProp, TextProps, TextStyle } from 'react-native';
 
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 import { Text } from './Text';
@@ -29,6 +30,11 @@ type Props = TextProps & {
 export function AppText({ variant = 'body', color, style, children, ...rest }: Props) {
   const { colors } = useTheme();
   const base = VARIANT_BASE[variant];
+  // Calibration check (see constants/typography.ts): trackingFor(11.5,
+  // {uppercase:true}) === 0.5, exactly the value `label` hardcoded before
+  // this was formula-driven — the other 4 variants previously had no
+  // tracking at all.
+  const letterSpacing = trackingFor(base.fontSize, { uppercase: variant === 'label' });
 
   return (
     <Text
@@ -39,8 +45,9 @@ export function AppText({ variant = 'body', color, style, children, ...rest }: P
           lineHeight: base.lineHeight,
           fontWeight: base.bold ? '700' : '400',
           color: color ?? colors.text,
+          letterSpacing,
         },
-        variant === 'label' && { textTransform: 'uppercase', letterSpacing: 0.5 },
+        variant === 'label' && { textTransform: 'uppercase' },
         style,
       ]}>
       {children}
