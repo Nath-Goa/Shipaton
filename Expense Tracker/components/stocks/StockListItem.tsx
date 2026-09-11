@@ -56,12 +56,12 @@ export function StockListItem({ symbol, name, quote, onPress, onSwipeLeft, onSwi
   }, [quote?.price, flashOpacity]);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.98, springs.snappy);
+    scale.value = withSpring(0.98, springs.tap);
     triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {

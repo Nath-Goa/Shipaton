@@ -42,12 +42,12 @@ export function ExpenseListItem({ expense, onPress, onLongPress, onSwipeLeft, on
   const translateX = useSharedValue(0);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.98, springs.snappy);
+    scale.value = withSpring(0.98, springs.tap);
     triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
