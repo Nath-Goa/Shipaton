@@ -19,18 +19,22 @@ import Animated, {
   Easing,
   Extrapolation,
   interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
+  withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
-import { triggerFeedback } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useQolStore } from '@/store/useQolStore';
+import { projectedSnapIndex, rubberband } from '@/utils/motion';
 
 // A tab navigator that slides horizontally between tabs instead of cutting
 // between them. Every tab lives in one row that is `tabCount` screens wide,
@@ -89,8 +93,9 @@ const WARMUP_DELAY_MS = 700;
 
 const SWIPE_ACTIVE_OFFSET = 32;
 const SWIPE_FAIL_OFFSET_Y = 18;
-const SWIPE_INTENT_THRESHOLD = 75;
-const SWIPE_VELOCITY_WEIGHT = 0.12;
+// Rubber-band "give" past the first/last tab, in progress-units (dimension=1
+// since progress is already a fractional tab-index, not pixels).
+const RUBBERBAND_CONSTANT = 0.55;
 
 type QuickAction = { label: string; icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; href: Href };
 
@@ -229,7 +234,7 @@ function SlidingTabNavigator({
   });
 
   const { colors, scheme } = useTheme();
-  const reducedMotion = useQolStore((state) => state.reducedMotion);
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -237,10 +242,18 @@ function SlidingTabNavigator({
   const index = state.index;
 
   const progress = useSharedValue(index);
+  const gestureStartProgress = useSharedValue(index);
   const quickMenuProgress = useSharedValue(0);
   const previousIndexRef = useRef(index);
   const longPressHandledRef = useRef<number | null>(null);
   const lastTabTapRef = useRef<{ index: number; at: number } | null>(null);
+  // Set right before a gesture-driven navigation.dispatch, consumed once by
+  // the index-driven effect below so it doesn't re-animate `progress` with a
+  // fresh withTiming over the gesture's own spring, which already carried it
+  // to `index` with the release velocity — a competing timing animation
+  // there would hard-cut that velocity, exactly the "brick wall" the
+  // apple-design skill warns against (§3).
+  const gestureCommitTargetRef = useRef<number | null>(null);
   const [quickMenuIndex, setQuickMenuIndex] = useState<number | null>(null);
   // `routes` gets a new identity on every navigation, so effects below read
   // it through a ref rather than depending on it — otherwise each tab switch
@@ -280,6 +293,14 @@ function SlidingTabNavigator({
       return added ? next : prev;
     });
 
+    if (gestureCommitTargetRef.current === index) {
+      // The swipe gesture already put `progress` here itself (see
+      // swipeGesture.onEnd below) — this index change is just React
+      // Navigation catching up, not a tap that needs its own animation.
+      gestureCommitTargetRef.current = null;
+      return;
+    }
+
     progress.value = withTiming(index, {
       duration: reducedMotion ? 90 : Math.min(BASE_DURATION_MS + PER_EXTRA_TAB_MS * (distance - 1), MAX_DURATION_MS),
       easing: SLIDE_EASING,
@@ -310,17 +331,44 @@ function SlidingTabNavigator({
     transform: [{ translateX: progress.value * tabWidth + PILL_HORIZONTAL_MARGIN }],
   }));
 
-  const navigateToAdjacentTab = (direction: -1 | 1) => {
-    const nextIndex = indexRef.current + direction;
-    const route = routesRef.current[nextIndex];
+  // Called from the swipe gesture's onEnd (via runOnJS — navigation.dispatch
+  // and these refs are JS-thread only, unsafe to read from a UI-thread
+  // worklet, which is why the worklet always calls this unconditionally with
+  // its target and the "already here?" check happens in here instead).
+  function navigateByGesture(target: number) {
+    if (target === indexRef.current) return;
+    const route = routesRef.current[target];
     if (!route) return;
-
+    gestureCommitTargetRef.current = target;
     triggerFeedback('navigation');
     navigation.dispatch({
       ...CommonActions.navigate(route.name, route.params),
       target: stateKeyRef.current,
     });
-  };
+  }
+
+  // A continuous drag physically can't travel further than the immediate
+  // neighbour tabs (tab width == screen width), so only those two ever need
+  // to be revealed mid-gesture — eagerly mounting them on touch-down closes
+  // the gap where a drag starting within the first WARMUP_DELAY_MS could
+  // otherwise reveal a still-unmounted tab as blank space. Takes no argument
+  // (reads indexRef.current itself) since it's invoked via runOnJS from a
+  // worklet, where reading a plain ref isn't safe — see navigateByGesture.
+  function prewarmNeighbors() {
+    const i = indexRef.current;
+    setRenderedKeys((prev) => {
+      const all = routesRef.current;
+      let next: Set<string> | null = null;
+      for (const ni of [i - 1, i + 1]) {
+        const key = all[ni]?.key;
+        if (key && !prev.has(key)) {
+          if (!next) next = new Set(prev);
+          next.add(key);
+        }
+      }
+      return next ?? prev;
+    });
+  }
 
   function openQuickMenu(tabIndex: number) {
     longPressHandledRef.current = tabIndex;
@@ -349,15 +397,59 @@ function SlidingTabNavigator({
     router.push(href);
   }
 
+  // routes.length is effectively fixed for the app's lifetime and `routes`
+  // is a fresh value every render anyway (swipeGesture below isn't
+  // memoized), so capturing it directly here — rather than via routesRef —
+  // is safe to close over inside the worklets below: refs are JS-thread-only
+  // and unsafe to dereference from a UI-thread worklet, but a plain primitive
+  // captured at gesture-creation time is exactly how rowStyle/pillStyle above
+  // already close over `width`/`tabWidth`/`pillWidth`.
+  const maxIndex = routes.length - 1;
+
+  // 1:1 finger-tracked, rubber-banded at the first/last tab, momentum-
+  // projected on release with real velocity handoff into the settle spring
+  // — see .claude/skills/apple-design §§1-2, 6, 9. Deliberately NOT
+  // `.runOnJS(true)` on the whole gesture (unlike before): onUpdate needs to
+  // run as a UI-thread worklet every frame for smooth 1:1 tracking, so only
+  // the JS-only bits (navigation.dispatch, the setRenderedKeys call inside
+  // prewarmNeighbors) explicitly hop over via runOnJS — and those two
+  // functions read indexRef/routesRef themselves rather than the worklets
+  // passing ref values in as arguments, since a ref read has to happen on
+  // the JS thread to be safe.
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-SWIPE_ACTIVE_OFFSET, SWIPE_ACTIVE_OFFSET])
     .failOffsetY([-SWIPE_FAIL_OFFSET_Y, SWIPE_FAIL_OFFSET_Y])
-    .onEnd(({ translationX, velocityX }) => {
-      const intent = translationX + velocityX * SWIPE_VELOCITY_WEIGHT;
-      if (Math.abs(intent) < SWIPE_INTENT_THRESHOLD) return;
-      navigateToAdjacentTab(intent < 0 ? 1 : -1);
+    .enabled(quickMenuIndex === null)
+    .onBegin(() => {
+      // Read the live/presentation value, not `index` — correctly handles
+      // grabbing the row again while a previous slide is still animating.
+      gestureStartProgress.value = progress.value;
+      runOnJS(prewarmNeighbors)();
     })
-    .runOnJS(true);
+    .onUpdate((e) => {
+      const raw = gestureStartProgress.value - e.translationX / width;
+      progress.value =
+        raw < 0
+          ? -rubberband(-raw, 1, RUBBERBAND_CONSTANT)
+          : raw > maxIndex
+            ? maxIndex + rubberband(raw - maxIndex, 1, RUBBERBAND_CONSTANT)
+            : raw;
+    })
+    .onEnd((e) => {
+      const velocityInProgressUnits = -e.velocityX / width;
+      const target = reducedMotion
+        ? Math.round(Math.min(maxIndex, Math.max(0, progress.value)))
+        : projectedSnapIndex(progress.value, velocityInProgressUnits, maxIndex);
+
+      progress.value = reducedMotion
+        ? withTiming(target, { duration: 90, easing: SLIDE_EASING })
+        : withSpring(target, { ...springs.reposition, velocity: velocityInProgressUnits });
+
+      // navigateByGesture itself checks target against the live index and
+      // no-ops if they already match — see its own comment for why that
+      // check can't safely live here in the worklet.
+      runOnJS(navigateByGesture)(target);
+    });
 
   return (
     <NavigationContent>
