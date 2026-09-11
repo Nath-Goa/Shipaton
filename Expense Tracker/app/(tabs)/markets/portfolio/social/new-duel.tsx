@@ -33,14 +33,21 @@ export default function NewDuelScreen() {
   const [busy, setBusy] = useState(false);
 
   async function handleCreate() {
-    // The button is disabled via `ready` until opponentId exists for a
-    // friend challenge, but guard explicitly rather than asserting it —
-    // `ready`'s definition and this check must never be able to drift apart.
-    if (params.kind === 'friend' && !params.opponentId) return;
     setBusy(true);
     const days = Number(duration);
-    const result =
-      params.kind === 'friend' ? await duelsApi.challengeFriend(params.opponentId, days) : await duelsApi.challengeFamily(opponentCode.trim(), days);
+    let result;
+    if (params.kind === 'friend') {
+      // The button is disabled via `ready` until opponentId exists, but
+      // guard explicitly rather than asserting it — `ready`'s definition and
+      // this check must never be able to drift apart.
+      if (!params.opponentId) {
+        setBusy(false);
+        return;
+      }
+      result = await duelsApi.challengeFriend(params.opponentId, days);
+    } else {
+      result = await duelsApi.challengeFamily(opponentCode.trim(), days);
+    }
     setBusy(false);
     if (!result.ok) {
       showToast(result.message);
