@@ -1,10 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { triggerFeedback } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // "Read aloud" for lesson/story text — expo-speech, a genuinely new native
 // module (see CLAUDE.md §10): this component and every call site are
@@ -36,7 +40,9 @@ function bestVoiceId(): Promise<string | undefined> {
 
 export function SpeakButton({ text }: { text: string }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const [speaking, setSpeaking] = useState(false);
+  const scale = useSharedValue(1);
 
   // Stop mid-sentence if the screen unmounts (course switched, navigated
   // away) rather than leaving a voice talking over whatever's next.
@@ -45,6 +51,18 @@ export function SpeakButton({ text }: { text: string }) {
       Speech.stop();
     };
   }, []);
+
+  const handlePressIn = useCallback(() => {
+    scale.value = reducedMotion ? 1 : withSpring(0.9, springs.tap);
+  }, [scale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.tap);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   async function toggle() {
     triggerFeedback('secondary');
@@ -69,9 +87,14 @@ export function SpeakButton({ text }: { text: string }) {
   }
 
   return (
-    <Pressable onPress={toggle} hitSlop={8} style={[styles.btn, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+    <AnimatedPressable
+      onPress={toggle}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={8}
+      style={[styles.btn, { backgroundColor: colors.surface2, borderColor: colors.border }, animatedStyle]}>
       <Ionicons name={speaking ? 'stop' : 'volume-high-outline'} size={16} color={colors.accent} />
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

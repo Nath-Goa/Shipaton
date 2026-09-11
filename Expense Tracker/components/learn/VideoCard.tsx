@@ -1,11 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useCallback } from 'react';
 import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
-import { triggerFeedback } from '@/constants/animations';
+import { trackingFor } from '@/constants/typography';
+import { springs, triggerFeedback } from '@/constants/animations';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // A real, specific, checked YouTube video per course (constants/courses.ts's
 // visual.videoId) — not a search query, not embedded. Opens externally via
@@ -17,14 +23,32 @@ type Props = { videoId: string; title: string; source: string };
 
 export function VideoCard({ videoId, title, source }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    scale.value = reducedMotion ? 1 : withSpring(0.98, springs.tap);
+    triggerFeedback('navigation');
+  }, [scale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.tap);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   function handlePress() {
-    triggerFeedback('navigation');
     Linking.openURL(`https://www.youtube.com/watch?v=${videoId}`);
   }
 
   return (
-    <Pressable onPress={handlePress} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <AnimatedPressable
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, animatedStyle]}>
       <View style={styles.thumbWrap}>
         <Image source={{ uri: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` }} style={styles.thumb} resizeMode="cover" />
         <View style={[styles.playBadge, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
@@ -40,7 +64,7 @@ export function VideoCard({ videoId, title, source }: Props) {
           <Text style={[styles.watchHint, { color: colors.text3 }]}>Watch on YouTube ↗</Text>
         </View>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -61,7 +85,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   info: { padding: spacing.md, gap: spacing.xs },
-  title: { fontSize: 14, fontWeight: '700' },
+  title: { fontSize: 14, fontWeight: '700', letterSpacing: trackingFor(14) },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  watchHint: { fontSize: 11.5, fontWeight: '600' },
+  watchHint: { fontSize: 11.5, fontWeight: '600', letterSpacing: trackingFor(11.5) },
 });

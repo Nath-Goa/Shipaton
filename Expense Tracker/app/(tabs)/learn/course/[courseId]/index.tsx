@@ -12,6 +12,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { STAGES, SUBPART_LABELS, SUBPART_SEQUENCE, courseOf, type SubpartType } from '@/constants/courses';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useCourseStore } from '@/store/useCourseStore';
 
@@ -136,8 +137,8 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.xl, paddingBottom: spacing.xxl },
   head: { alignItems: 'center', textAlign: 'center' },
   iconBadge: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '700', marginTop: spacing.md, textAlign: 'center' },
-  summary: { fontSize: 13, marginTop: 4, textAlign: 'center', lineHeight: 18 },
+  title: { fontSize: 20, fontWeight: '700', marginTop: spacing.md, textAlign: 'center', letterSpacing: trackingFor(20) },
+  summary: { fontSize: 13, marginTop: 4, textAlign: 'center', lineHeight: 18, letterSpacing: trackingFor(13) },
   completeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  completeText: { fontSize: 13.5, fontWeight: '700', flex: 1 },
+  completeText: { fontSize: 13.5, fontWeight: '700', flex: 1, letterSpacing: trackingFor(13.5) },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,5 +156,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  rowLabel: { fontSize: 14.5, fontWeight: '600', flex: 1 },
+  rowLabel: { fontSize: 14.5, fontWeight: '600', flex: 1, letterSpacing: trackingFor(14.5) },
 });

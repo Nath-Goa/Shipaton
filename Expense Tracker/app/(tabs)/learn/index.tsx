@@ -21,8 +21,10 @@ import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { badgeInfo } from '@/constants/badges';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useRememberedScroll } from '@/hooks/useRememberedScroll';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { useQuizStore } from '@/store/useQuizStore';
@@ -40,10 +42,15 @@ const LEVEL_PATH_COPY = {
 
 function FlameIcon() {
   const scale = useSharedValue(1);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     // A single up-down flicker (1.8s total) rather than an endless loop —
     // decorative animations here are capped at ~2s and then hold static.
+    // Skipped entirely under reduced motion, per §14 — a decorative
+    // repeating scale is exactly the kind of motion that should drop out
+    // rather than just shorten.
+    if (reducedMotion) return;
     scale.value = withRepeat(
       withSequence(
         withTiming(1.22, { duration: 900 }),
@@ -52,7 +59,7 @@ function FlameIcon() {
       1,
       true
     );
-  }, [scale]);
+  }, [scale, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -290,18 +297,18 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingTop: 0, gap: spacing.xl, paddingBottom: spacing.xxl },
   streakCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   streakEmoji: { fontSize: 30 },
-  streakValue: { fontSize: 17, fontWeight: '700' },
-  streakSub: { fontSize: 12.5, marginTop: 2 },
+  streakValue: { fontSize: 17, fontWeight: '700', letterSpacing: trackingFor(17) },
+  streakSub: { fontSize: 12.5, marginTop: 2, letterSpacing: trackingFor(12.5) },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  sectionTitle: { fontSize: 15.5, fontWeight: '700' },
-  topicLabel: { fontSize: 15, fontWeight: '700' },
-  topicMeta: { fontSize: 12.5, marginTop: 4, lineHeight: 17 },
+  sectionTitle: { fontSize: 15.5, fontWeight: '700', letterSpacing: trackingFor(15.5) },
+  topicLabel: { fontSize: 15, fontWeight: '700', letterSpacing: trackingFor(15) },
+  topicMeta: { fontSize: 12.5, marginTop: 4, lineHeight: 17, letterSpacing: trackingFor(12.5) },
   categoryLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   topicRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  topicRowLabel: { fontSize: 13.5, fontWeight: '500' },
-  topicRowStatus: { fontSize: 12, fontWeight: '700' },
+  topicRowLabel: { fontSize: 13.5, fontWeight: '500', letterSpacing: trackingFor(13.5) },
+  topicRowStatus: { fontSize: 12, fontWeight: '700', letterSpacing: trackingFor(12) },
   levelCard: { gap: spacing.xs },
   levelCardEyebrow: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  levelCardTitle: { fontSize: 15, fontWeight: '700' },
-  levelCardSub: { fontSize: 12.5, lineHeight: 17 },
+  levelCardTitle: { fontSize: 15, fontWeight: '700', letterSpacing: trackingFor(15) },
+  levelCardSub: { fontSize: 12.5, lineHeight: 17, letterSpacing: trackingFor(12.5) },
 });

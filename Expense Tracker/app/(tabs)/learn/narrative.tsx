@@ -20,6 +20,8 @@ import { badgeInfo } from '@/constants/badges';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { QUIZ_TOPICS } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError, aiErrorActions } from '@/services/ai/errorMessage';
@@ -52,16 +54,17 @@ function NarrativeOptionItem({
   onChoose: () => void;
 }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
     if (revealed) return;
-    scale.value = withSpring(0.97, springs.snappy);
+    scale.value = reducedMotion ? 1 : withSpring(0.97, springs.tap);
     triggerFeedback('selection');
-  }, [revealed, scale]);
+  }, [revealed, scale, reducedMotion]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -213,13 +216,13 @@ export default function NarrativeScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   loadingWrap: { alignItems: 'center', paddingVertical: spacing.xxl },
-  title: { fontSize: 20, fontWeight: '700' },
-  setup: { fontSize: 14, lineHeight: 21, marginTop: 4 },
+  title: { fontSize: 20, fontWeight: '700', letterSpacing: trackingFor(20) },
+  setup: { fontSize: 14, lineHeight: 21, marginTop: 4, letterSpacing: trackingFor(14) },
   option: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   optionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  optionAction: { fontSize: 14, fontWeight: '600', flex: 1 },
+  optionAction: { fontSize: 14, fontWeight: '600', flex: 1, letterSpacing: trackingFor(14) },
   outcomeWrap: { marginTop: 2 },
   outcomeLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  outcomeText: { fontSize: 13, lineHeight: 18, marginTop: 2 },
-  nextAction: { fontSize: 13.5, lineHeight: 19 },
+  outcomeText: { fontSize: 13, lineHeight: 18, marginTop: 2, letterSpacing: trackingFor(13) },
+  nextAction: { fontSize: 13.5, lineHeight: 19, letterSpacing: trackingFor(13.5) },
 });

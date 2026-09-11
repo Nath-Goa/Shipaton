@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring, ZoomIn } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -10,10 +10,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { triggerFeedback } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { bankQuestionsFor } from '@/constants/quizBank';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { generateQuiz } from '@/services/ai/learn';
@@ -21,6 +23,54 @@ import { useQuizStore } from '@/store/useQuizStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import type { QuizQuestion } from '@/types/quiz';
 import { todayStr } from '@/utils/date';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// Mirrors quiz.tsx's QuizOptionItem — same "tap an answer" shape.
+function FocusOptionItem({
+  text,
+  isCorrect,
+  isSelected,
+  revealed,
+  onSelect,
+}: {
+  text: string;
+  isCorrect: boolean;
+  isSelected: boolean;
+  revealed: boolean;
+  onSelect: () => void;
+}) {
+  const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    if (revealed) return;
+    scale.value = reducedMotion ? 1 : withSpring(0.97, springs.tap);
+  }, [revealed, scale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.tap);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const bg = revealed && isCorrect ? colors.successSoft : revealed && isSelected ? colors.dangerSoft : colors.surface;
+  const borderColor = revealed && isCorrect ? colors.success : revealed && isSelected ? colors.danger : colors.border;
+
+  return (
+    <AnimatedPressable
+      onPress={onSelect}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.option, { backgroundColor: bg, borderColor }, animatedStyle]}>
+      <Text style={[styles.optionText, { color: colors.text }]}>{text}</Text>
+      {revealed && isCorrect ? <Ionicons name="checkmark-circle" size={18} color={colors.success} /> : null}
+    </AnimatedPressable>
+  );
+}
 
 const SESSION_LENGTH = 5;
 
@@ -167,19 +217,16 @@ export default function FocusSessionScreen() {
           <>
             <Text style={[styles.question, { color: colors.text }]}>{question.question}</Text>
             <View style={{ gap: spacing.sm }}>
-              {question.options.map((opt, i) => {
-                const isCorrect = i === question.correctIndex;
-                const isSelected = i === selectedIndex;
-                const revealed = selectedIndex !== null;
-                const bg = revealed && isCorrect ? colors.successSoft : revealed && isSelected ? colors.dangerSoft : colors.surface;
-                const borderColor = revealed && isCorrect ? colors.success : revealed && isSelected ? colors.danger : colors.border;
-                return (
-                  <Pressable key={i} onPress={() => selectOption(i)} style={[styles.option, { backgroundColor: bg, borderColor }]}>
-                    <Text style={[styles.optionText, { color: colors.text }]}>{opt}</Text>
-                    {revealed && isCorrect ? <Ionicons name="checkmark-circle" size={18} color={colors.success} /> : null}
-                  </Pressable>
-                );
-              })}
+              {question.options.map((opt, i) => (
+                <FocusOptionItem
+                  key={i}
+                  text={opt}
+                  isCorrect={i === question.correctIndex}
+                  isSelected={i === selectedIndex}
+                  revealed={selectedIndex !== null}
+                  onSelect={() => selectOption(i)}
+                />
+              ))}
             </View>
 
             {selectedIndex !== null ? (
@@ -204,7 +251,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   loadingWrap: { alignItems: 'center', paddingVertical: spacing.xxl },
-  question: { fontSize: 18, fontWeight: '700', lineHeight: 25 },
+  question: { fontSize: 18, fontWeight: '700', lineHeight: 25, letterSpacing: trackingFor(18) },
   option: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -214,10 +261,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     padding: spacing.md,
   },
-  optionText: { fontSize: 14, flex: 1 },
-  explanation: { fontSize: 13.5, lineHeight: 19 },
+  optionText: { fontSize: 14, flex: 1, letterSpacing: trackingFor(14) },
+  explanation: { fontSize: 13.5, lineHeight: 19, letterSpacing: trackingFor(13.5) },
   summaryWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   summaryEmoji: { fontSize: 44 },
-  summaryTitle: { fontSize: 24, fontWeight: '700', marginTop: spacing.md },
-  summarySub: { fontSize: 13, marginTop: 4 },
+  summaryTitle: { fontSize: 24, fontWeight: '700', marginTop: spacing.md, letterSpacing: trackingFor(24) },
+  summarySub: { fontSize: 13, marginTop: 4, letterSpacing: trackingFor(13) },
 });

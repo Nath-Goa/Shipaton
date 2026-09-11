@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { LoadingGame } from '@/components/games/LoadingGame';
 import { Button } from '@/components/ui/Button';
@@ -13,12 +13,16 @@ import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
-import { triggerFeedback } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { bankFlashcardsFor } from '@/constants/flashcardBank';
 import { QUIZ_TOPICS, quizTopicOf } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 import { describeAiError, aiErrorActions } from '@/services/ai/errorMessage';
 import { generateFlashcards } from '@/services/ai/learn';
 import { useCourseStore } from '@/store/useCourseStore';
@@ -44,6 +48,36 @@ export default function FlashcardsScreen() {
   return <DeckViewer topic={topic} fromCourse={fromCourse} />;
 }
 
+function TopicRow({ topicId, label, bordered }: { topicId: string; label: string; bordered: boolean }) {
+  const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    scale.value = reducedMotion ? 1 : withSpring(0.98, springs.tap);
+    triggerFeedback('navigation');
+  }, [scale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.tap);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <AnimatedPressable
+      onPress={() => router.push({ pathname: '/learn/flashcards', params: { topic: topicId } })}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.topicRow, bordered && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }, animatedStyle]}>
+      <Text style={[styles.topicRowLabel, { color: colors.text }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.text3} />
+    </AnimatedPressable>
+  );
+}
+
 function TopicPicker() {
   const { colors } = useTheme();
 
@@ -64,16 +98,7 @@ function TopicPicker() {
             <Text style={[styles.categoryLabel, { color: colors.text3 }]}>{category}</Text>
             <Card style={{ marginTop: spacing.sm, gap: 0 }}>
               {topics.map((t, i) => (
-                <Pressable
-                  key={t.id}
-                  onPress={() => {
-                    triggerFeedback('navigation');
-                    router.push({ pathname: '/learn/flashcards', params: { topic: t.id } });
-                  }}
-                  style={[styles.topicRow, i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                  <Text style={[styles.topicRowLabel, { color: colors.text }]}>{t.label}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.text3} />
-                </Pressable>
+                <TopicRow key={t.id} topicId={t.id} label={t.label} bordered={i > 0} />
               ))}
             </Card>
           </Animated.View>
@@ -89,6 +114,21 @@ function DeckViewer({ topic, fromCourse }: { topic: string; fromCourse?: string 
   const upgradeToTier = useUpgradeToTier();
   const { seenBankIndices, markBankSeen, history, addHistoryEntry, clearHistory } = useFlashcardStore();
   const completeSubpart = useCourseStore((s) => s.completeSubpart);
+  const reducedMotion = useReducedMotion();
+  const cardScale = useSharedValue(1);
+
+  const handleCardPressIn = useCallback(() => {
+    cardScale.value = reducedMotion ? 1 : withSpring(0.98, springs.tap);
+    triggerFeedback('selection');
+  }, [cardScale, reducedMotion]);
+
+  const handleCardPressOut = useCallback(() => {
+    cardScale.value = withSpring(1, springs.tap);
+  }, [cardScale]);
+
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -234,16 +274,15 @@ function DeckViewer({ topic, fromCourse }: { topic: string; fromCourse?: string 
                 keeping the flip-tap on the same animated node made the very
                 first tap on each new card unreliable. */}
             <Animated.View key={index} entering={FadeIn.duration(220)}>
-              <Pressable
-                onPress={() => {
-                  triggerFeedback('selection');
-                  setFlipped((f) => !f);
-                }}
-                style={[styles.flashcard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <AnimatedPressable
+                onPress={() => setFlipped((f) => !f)}
+                onPressIn={handleCardPressIn}
+                onPressOut={handleCardPressOut}
+                style={[styles.flashcard, { backgroundColor: colors.surface, borderColor: colors.border }, cardAnimatedStyle]}>
                 <Text style={[styles.flashcardLabel, { color: colors.text3 }]}>{flipped ? 'Answer' : 'Term'}</Text>
                 <Text style={[styles.flashcardText, { color: colors.text }]}>{flipped ? current.card.back : current.card.front}</Text>
                 <Text style={[styles.flipHint, { color: colors.text3 }]}>Tap to {flipped ? 'flip back' : 'reveal answer'}</Text>
-              </Pressable>
+              </AnimatedPressable>
             </Animated.View>
 
             <Button label="Next card" fullWidth onPress={handleNext} />
@@ -342,10 +381,10 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   categoryLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   topicRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: spacing.md },
-  topicRowLabel: { fontSize: 14, fontWeight: '600' },
+  topicRowLabel: { fontSize: 14, fontWeight: '600', letterSpacing: trackingFor(14) },
   topicRow2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   topicLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  aiLink: { fontSize: 12.5, fontWeight: '600' },
+  aiLink: { fontSize: 12.5, fontWeight: '600', letterSpacing: trackingFor(12.5) },
   loadingWrap: { alignItems: 'center', paddingVertical: spacing.xxl },
   flashcard: {
     minHeight: 200,
@@ -357,12 +396,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   flashcardLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  flashcardText: { fontSize: 19, fontWeight: '700', textAlign: 'center', lineHeight: 26 },
-  flipHint: { fontSize: 12, marginTop: spacing.sm },
+  flashcardText: { fontSize: 19, fontWeight: '700', textAlign: 'center', lineHeight: 26, letterSpacing: trackingFor(19) },
+  flipHint: { fontSize: 12, marginTop: spacing.sm, letterSpacing: trackingFor(12) },
   modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.md },
-  modalTitle: { fontSize: 19, fontWeight: '700' },
-  historyEmpty: { fontSize: 13, textAlign: 'center', paddingVertical: spacing.xl },
+  modalTitle: { fontSize: 19, fontWeight: '700', letterSpacing: trackingFor(19) },
+  historyEmpty: { fontSize: 13, textAlign: 'center', paddingVertical: spacing.xl, letterSpacing: trackingFor(13) },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -372,7 +411,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  historyLabel: { fontSize: 13.5, fontWeight: '600' },
-  historyPreview: { fontSize: 12, marginTop: 2 },
-  historyMeta: { fontSize: 11, marginTop: 3 },
+  historyLabel: { fontSize: 13.5, fontWeight: '600', letterSpacing: trackingFor(13.5) },
+  historyPreview: { fontSize: 12, marginTop: 2, letterSpacing: trackingFor(12) },
+  historyMeta: { fontSize: 11, marginTop: 3, letterSpacing: trackingFor(11) },
 });

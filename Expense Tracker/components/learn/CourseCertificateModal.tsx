@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { ShareCardModal, shareCardStyles } from '@/components/ui/ShareCardModal';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 type Props = {
@@ -37,6 +38,6 @@ const styles = StyleSheet.create({
   iconBadge: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
   brand: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
   title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginTop: spacing.sm, letterSpacing: -0.3 },
-  stage: { fontSize: 12.5, fontWeight: '600', marginTop: 4 },
-  date: { fontSize: 13, marginTop: spacing.md },
+  stage: { fontSize: 12.5, fontWeight: '600', marginTop: 4, letterSpacing: trackingFor(12.5) },
+  date: { fontSize: 13, marginTop: spacing.md, letterSpacing: trackingFor(13) },
 });
