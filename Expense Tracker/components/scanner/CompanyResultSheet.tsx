@@ -22,6 +22,7 @@ import { explainHeadlineCached, getCachedHeadlineExplanation } from '@/services/
 import { getHistory, getQuote } from '@/services/marketData/marketData';
 import { fetchHeadlines } from '@/services/news/newsFeed';
 import { money, signedPct } from '@/utils/money';
+import { nearestSnapPoint, projectMomentum, rubberband } from '@/utils/motion';
 import type { NewsItem } from '@/types/prediction';
 
 // Opens as a small collapsed "blob" (just the top guess, peeking up from the
@@ -148,6 +149,13 @@ export function CompanyResultSheet({ photoUri, candidates, onDismiss }: Props) {
   // 0 = collapsed blob, 1 = fully expanded.
   const progress = useSharedValue(0);
   const dragStartProgress = useSharedValue(0);
+  // Rubber-band "give" past 0/1, in px, added on top of the clamped height
+  // interpolation below. Kept separate from `progress` itself because
+  // `progress` still drives the [0,0.35]/[0.35,1] content-crossfade
+  // thresholds via Extrapolation.CLAMP further down — if progress itself
+  // were allowed to overshoot, that clamp would just hide the overshoot
+  // rather than let it read as resistance.
+  const rubberExtra = useSharedValue(0);
   const [dragging, setDragging] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -165,17 +173,23 @@ export function CompanyResultSheet({ photoUri, candidates, onDismiss }: Props) {
       runOnJS(setDragging)(true);
     })
     .onUpdate((e) => {
-      const delta = -e.translationY / dragRange;
-      progress.value = Math.min(1, Math.max(0, dragStartProgress.value + delta));
+      const raw = dragStartProgress.value - e.translationY / dragRange;
+      const clamped = Math.min(1, Math.max(0, raw));
+      progress.value = clamped;
+      const overshoot = raw - clamped;
+      rubberExtra.value = overshoot === 0 ? 0 : rubberband(overshoot, 1) * dragRange;
     })
     .onEnd((e) => {
-      const shouldExpand = progress.value > 0.4 || e.velocityY < -600;
-      progress.value = withSpring(shouldExpand ? 1 : 0, springs.snappy);
+      const velocityInProgressUnits = -e.velocityY / dragRange;
+      const projected = progress.value + projectMomentum(velocityInProgressUnits);
+      const target = nearestSnapPoint(projected, [0, 1]);
+      progress.value = withSpring(target, { ...springs.gentle, velocity: velocityInProgressUnits });
+      rubberExtra.value = withSpring(0, springs.gentle);
       runOnJS(setDragging)(false);
     });
 
   const sheetStyle = useAnimatedStyle(() => ({
-    height: interpolate(progress.value, [0, 1], [COLLAPSED_HEIGHT, expandedHeight], Extrapolation.CLAMP),
+    height: interpolate(progress.value, [0, 1], [COLLAPSED_HEIGHT, expandedHeight], Extrapolation.CLAMP) + rubberExtra.value,
   }));
 
   const blobStyle = useAnimatedStyle(() => ({
