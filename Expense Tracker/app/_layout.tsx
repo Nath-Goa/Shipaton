@@ -33,7 +33,6 @@ import { initSentry } from '@/services/monitoring/sentry';
 import {
   configurePurchases,
   fetchCurrentTier,
-  identifyAsJudge,
   subscribeTierChanges,
 } from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
@@ -246,24 +245,20 @@ function RootLayout() {
   // listener). A no-op on web or when no API key is configured yet — see
   // services/purchases/revenuecat.ts.
   //
-  // TEMPORARY judge handling (constants/judgeMode.ts): a judge device first
-  // identifies as the shared judge customer, so a promotional entitlement
-  // granted once in the RevenueCat dashboard arrives here as a real
-  // entitlement and flows through this same listener like any subscription.
-  // A 'free' report is ignored for judges specifically — that is what
-  // RevenueCat says when no grant exists yet, and acting on it would undo
-  // the paywall-dismiss unlock and silently re-lock the app next launch.
+  // TEMPORARY judge handling (constants/judgeMode.ts): the locally selected
+  // preview tier remains authoritative while judge mode is active. RevenueCat
+  // still powers every displayed paywall, but it must not revoke a judge's
+  // free preview on launch simply because no purchase was made.
   useEffect(() => {
     if (!configurePurchases()) return;
     let alive = true;
 
     function applyTier(next: Tier) {
-      if (isJudge && next === 'free') return;
+      if (isJudge) return;
       setTier(next);
     }
 
     (async () => {
-      if (isJudge) await identifyAsJudge();
       const current = await fetchCurrentTier();
       if (alive && current) applyTier(current);
     })();

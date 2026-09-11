@@ -35,11 +35,7 @@ import {
   getBiometricCapabilities,
   type BiometricCapabilities,
 } from '@/services/security/appLock';
-import {
-  fetchSubscriptionSince,
-  isPurchasesConfigured,
-  resetToAnonymousCustomer,
-} from '@/services/purchases/revenuecat';
+import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { useMistakeJournalStore } from '@/store/useMistakeJournalStore';
@@ -561,12 +557,8 @@ function PrivacyAgeSection() {
             label="Exit judging mode"
             variant="ghost"
             onPress={() => {
-              // Order matters only in that all three must happen: leaving the
-              // shared judge customer is what stops a real user continuing to
-              // read its comped entitlement (constants/judgeMode.ts).
               setJudgeMode(false);
               setTier('free');
-              resetToAnonymousCustomer();
             }}
           />
         </View>
@@ -661,11 +653,14 @@ function SmartNudgesToggle({ enabled, onToggle }: { enabled: boolean; onToggle: 
 
 function PlanCard({ tier, onManage }: { tier: keyof typeof TIER_LABELS; onManage: () => void }) {
   const { colors } = useTheme();
+  const isJudge = useIsJudgeMode();
   return (
     <Card style={styles.planRow}>
       <View>
         <Text style={[styles.planLabel, { color: colors.text3 }]}>Current plan</Text>
-        <Text style={[styles.planValue, { color: colors.text }]}>{TIER_LABELS[tier]}</Text>
+        <Text style={[styles.planValue, { color: colors.text }]}>
+          {isJudge ? `${TIER_LABELS[tier]} · Judge preview` : TIER_LABELS[tier]}
+        </Text>
       </View>
       <Pressable onPress={onManage} hitSlop={8}>
         <PillBadge label="Manage" />
@@ -684,11 +679,16 @@ function PlanDetailsModal({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  const isJudge = useIsJudgeMode();
   const [since, setSince] = useState<Date | null | undefined>(undefined);
 
   useEffect(() => {
     if (!visible) {
       setSince(undefined);
+      return;
+    }
+    if (isJudge) {
+      setSince(null);
       return;
     }
     let alive = true;
@@ -698,7 +698,7 @@ function PlanDetailsModal({
     return () => {
       alive = false;
     };
-  }, [visible]);
+  }, [visible, isJudge]);
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
@@ -716,7 +716,9 @@ function PlanDetailsModal({
             <Text style={[styles.modalTitle, { color: colors.text }]}>{TIER_LABELS[tier]} plan</Text>
             {tier !== 'free' ? (
               <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>
-                {since
+                {isJudge
+                  ? 'Complimentary Shipaton judge preview on this device.'
+                  : since
                   ? `Member since ${since.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`
                   : isPurchasesConfigured()
                     ? 'Fetching subscription details…'

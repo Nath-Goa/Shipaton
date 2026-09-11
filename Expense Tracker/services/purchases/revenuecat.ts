@@ -7,7 +7,6 @@ import Purchases, {
   LOG_LEVEL,
 } from 'react-native-purchases';
 
-import { JUDGE_APP_USER_ID } from '@/constants/judgeMode';
 import { ENTITLEMENT_APP, ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/constants/subscription';
 
 // RevenueCat is the sole source of truth for entitlement state in this app.
@@ -70,16 +69,16 @@ export function tierFromCustomerInfo(info: CustomerInfo): Tier {
 }
 
 // Each paid tier has its own Offering in the RevenueCat dashboard
-// (identifier "pro" / "max"), each containing "monthly" / "yearly" /
-// "lifetime" packages — this is what backs the per-tier paywall in
-// app/settings/upgrade.tsx. Falls back to the "current" offering if a
-// tier-named one hasn't been set up yet, so a fresh dashboard still shows
-// something rather than nothing.
+// (identifier "pro" / "max"), each containing monthly / annual / lifetime
+// packages — this is what backs the per-tier paywall in
+// app/settings/upgrade.tsx. Never fall back to an unrelated current
+// offering: that can show Pro products when the user tapped Max (and make
+// both comparison cards report the same price).
 export async function fetchOfferingForTier(tier: Exclude<Tier, 'free'>): Promise<PurchasesOffering | null> {
   if (!configured) return null;
   try {
     const offerings = await Purchases.getOfferings();
-    return offerings.all[tier] ?? offerings.current;
+    return offerings.all[tier] ?? null;
   } catch {
     return null;
   }
@@ -164,41 +163,6 @@ export async function fetchSubscriptionSince(): Promise<Date | null> {
     return entitlement ? new Date(entitlement.originalPurchaseDate) : null;
   } catch {
     return null;
-  }
-}
-
-// TEMPORARY, hackathon judging only — see constants/judgeMode.ts.
-//
-// Identifies this device as the one shared judge customer, so a promotional
-// entitlement granted once in the RevenueCat dashboard reaches every judge
-// without anyone needing to know who they are ahead of time. The entitlement
-// that comes back is a real one as far as RevenueCat and this app are
-// concerned: the customerInfo listener, tierFromCustomerInfo and every tier
-// gate all behave exactly as they would for a paying subscriber.
-//
-// Returns null when RevenueCat isn't configured or the call fails, which the
-// caller treats as "no entitlement" rather than an error — judge access
-// still works through the paywall-dismiss grant in that case.
-export async function identifyAsJudge(): Promise<Tier | null> {
-  if (!configured) return null;
-  try {
-    const { customerInfo } = await Purchases.logIn(JUDGE_APP_USER_ID);
-    return tierFromCustomerInfo(customerInfo);
-  } catch {
-    return null;
-  }
-}
-
-// Undoes identifyAsJudge, returning the device to its own anonymous customer
-// so a real user who was previously in judge mode doesn't keep reading the
-// shared judge customer's comped entitlement.
-export async function resetToAnonymousCustomer(): Promise<void> {
-  if (!configured) return;
-  try {
-    await Purchases.logOut();
-  } catch {
-    // Throws when already anonymous — nothing to undo, which is the state
-    // this function exists to reach.
   }
 }
 

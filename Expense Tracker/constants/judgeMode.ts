@@ -34,37 +34,11 @@
 // path on a device that already answered yes.
 export const JUDGE_MODE_ENABLED = true;
 
-// The shared RevenueCat App User ID every judge device identifies as, so that
-// ONE promotional entitlement granted in the RevenueCat dashboard reaches all
-// of them. This exists because the judges aren't known in advance — Play
-// licence testing needs their Google accounts up front, and a promotional
-// entitlement needs a customer id, so pinning a fixed id is what makes a
-// single dashboard grant work for anyone who downloads the app.
-//
-// The tradeoff, accepted deliberately: every judge shares one customer
-// record, so RevenueCat cannot tell them apart. That's fine for comping
-// access during judging and is the whole reason it works without knowing who
-// they are.
-//
-// SETUP (must be done in the RevenueCat dashboard, the app can't do it):
-//   1. Configure the RevenueCat keys first (§8) — none of this runs without
-//      them, since the SDK is never configured and logIn never happens.
-//   2. Install the app and tap "Yes, I'm a judge" once. That call is what
-//      creates this customer in RevenueCat; the dashboard has no "add
-//      customer" button, so it must exist before it can be granted anything.
-//   3. Dashboard → Customers → search this id → Grant Entitlement → pick
-//      "pro" or "max" (or the umbrella entitlement) and a duration that
-//      outlasts judging.
-// Until step 3 is done, judges still get in — the paywall-dismiss grant in
-// presentPaywallAsJudge is the fallback — they just won't hold a real
-// RevenueCat entitlement.
-export const JUDGE_APP_USER_ID = 'shipaton-judge';
-
 // Shown on the prompt itself. Kept here rather than inline so the promise
 // made to a judge and the behaviour implemented below cannot drift apart.
 export const JUDGE_MODE_PROMISE: string[] = [
   'Tapping a plan opens the real RevenueCat paywall, so you can review the integration exactly as a paying user would see it',
-  'Close that paywall whenever you like and the plan unlocks anyway — nothing is ever charged and no card is needed',
+  'Close that paywall without subscribing and the plan unlocks anyway — no card is needed for judge access',
   'You will not be asked your date of birth; the account is treated as 18+ so nothing is age-restricted',
   'Nothing else changes. Every feature, screen and number behaves exactly as it does for a normal user',
 ];

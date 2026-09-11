@@ -99,11 +99,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "c8bfbcb2-eccd-4587-8d77-0bb0a541b05c"
-      }
-    },
-    "owner": "nathgoas-team"
+      "router": {}
+    }
   }
 }

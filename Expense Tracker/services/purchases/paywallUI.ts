@@ -39,7 +39,17 @@ export async function presentPaywallForTier(tier: Exclude<Tier, 'free'>): Promis
   if (!isPurchasesConfigured()) return { shown: false, reason: 'not_configured' };
   try {
     const offering = await fetchOfferingForTier(tier);
-    const result = await RevenueCatUI.presentPaywall({ offering: offering ?? undefined });
+    if (!offering) {
+      return {
+        shown: false,
+        reason: 'error',
+        message: `The ${tier === 'pro' ? 'Pro' : 'Max'} plan is temporarily unavailable. Please try again later.`,
+      };
+    }
+    // Always provide an escape hatch. Judges need to close the real paywall
+    // to claim preview access, and a dashboard edit must not accidentally
+    // turn any upgrade surface into an inescapable hard gate.
+    const result = await RevenueCatUI.presentPaywall({ offering, displayCloseButton: true });
     return resolveOutcome(result);
   } catch (e: any) {
     // A configured-but-failing paywall (no offering set up in the
@@ -78,8 +88,7 @@ export async function presentPaywallIfNeededForTier(tier: Exclude<Tier, 'free'>)
 // Judges are evaluating the RevenueCat integration, so they have to actually
 // SEE the paywall; hiding it would hide the thing being judged. This shows
 // the real one — real offering, real packages, real dashboard-designed
-// template — and then grants the tier regardless of how they leave it, so
-// closing the paywall is enough and nobody is ever charged.
+// template — and then grants the tier locally after they close it.
 //
 // A real purchase still wins when there is one: a judge added as a Google
 // Play licence tester goes through the genuine billing flow at no cost and

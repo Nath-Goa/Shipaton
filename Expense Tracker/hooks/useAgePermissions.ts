@@ -47,7 +47,8 @@ export function useAgeGateStage(): AgeGateStage {
 }
 
 // TEMPORARY (constants/judgeMode.ts) — read by the purchase paths so a
-// subscribe tap grants the tier locally instead of opening a real paywall.
+// subscribe tap opens the real paywall and grants the selected preview tier
+// locally after the judge closes it.
 export function useIsJudgeMode(): boolean {
   const judgeMode = useAgeStore((s) => s.judgeMode);
   return JUDGE_MODE_ENABLED && judgeMode === true;

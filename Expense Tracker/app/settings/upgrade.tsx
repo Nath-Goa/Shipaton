@@ -96,9 +96,13 @@ export default function UpgradeScreen() {
     }
     switch (outcome.result) {
       case PAYWALL_RESULT.PURCHASED:
-        if (outcome.tier) setTier(outcome.tier);
-        showToast(`You're now on ${TIER_LABELS[outcome.tier ?? t]}.`);
-        router.back();
+        if (outcome.tier && outcome.tier !== 'free') {
+          setTier(outcome.tier);
+          showToast(`You're now on ${TIER_LABELS[outcome.tier]}.`);
+          router.back();
+        } else {
+          showToast('Purchase completed, but access is still syncing. Try Restore purchases in a moment.');
+        }
         return;
       case PAYWALL_RESULT.RESTORED:
         if (outcome.tier) setTier(outcome.tier);
@@ -191,7 +195,7 @@ export default function UpgradeScreen() {
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Text style={[styles.intro, { color: colors.text3 }]}>
             {isJudge
-              ? 'Judging mode — tapping a plan opens the real RevenueCat paywall so you can see the integration. Close it whenever you like and the plan unlocks anyway: nothing is charged and no card is needed.'
+              ? 'Judging mode — tapping a plan opens the real RevenueCat paywall so you can review it. Close it without subscribing and the plan unlocks free; no card is needed.'
               : configured
                 ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
                 : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
@@ -222,7 +226,7 @@ export default function UpgradeScreen() {
                 {/* The judge branches are TEMPORARY — constants/judgeMode.ts.
                     They sit ahead of the `configured` checks so a judge gets
                     the same one-tap unlock whether or not RevenueCat has live
-                    keys, and never reaches a real payment sheet. */}
+                    keys. */}
                 {t === 'free' ? (
                   isCurrent ? (
                     <Button label="Current plan" variant="ghost" disabled fullWidth />
