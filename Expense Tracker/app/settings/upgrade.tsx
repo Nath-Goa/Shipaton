@@ -25,7 +25,13 @@ import {
   presentPaywallAsJudge,
   presentPaywallForTier,
 } from '@/services/purchases/paywallUI';
-import { fetchTierPrice, isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
+import {
+  fetchTierPrice,
+  getPurchasesEnvironment,
+  isPurchasesConfigured,
+  restorePurchases,
+} from '@/services/purchases/revenuecat';
+import { useAgeStore } from '@/store/useAgeStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -38,6 +44,13 @@ export default function UpgradeScreen() {
   const agePermissions = useAgePermissions();
   const isJudge = useIsJudgeMode();
   const configured = isPurchasesConfigured();
+  const purchasesEnvironment = getPurchasesEnvironment();
+  const judgeAccessSource = useAgeStore((s) => s.judgeAccessSource);
+  const judgeAccessTier = useAgeStore((s) => s.judgeAccessTier);
+  const judgeOfflineFallbackAvailable = useAgeStore((s) => s.judgeOfflineFallbackAvailable);
+  const grantJudgeAccess = useAgeStore((s) => s.grantJudgeAccess);
+  const offerJudgeOfflineFallback = useAgeStore((s) => s.offerJudgeOfflineFallback);
+  const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
 
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -63,9 +76,7 @@ export default function UpgradeScreen() {
 
   function priceLabel(t: Tier): string {
     if (t === 'free') return TIER_PRICE.free;
-    // TEMPORARY (constants/judgeMode.ts) — showing a judge a price they will
-    // never be asked for would just be confusing.
-    if (isJudge) return 'Free while judging';
+    if (isJudge) return purchasesEnvironment === 'test_store' ? 'Simulated · no charge' : 'Offline preview available';
     if (!configured) return `From ${TIER_PRICE[t]}`;
     const live = livePrice[t];
     return live ? `From ${live}` : 'See pricing →';
@@ -128,6 +139,12 @@ export default function UpgradeScreen() {
       showToast(result.message);
       return;
     }
+    if (isJudge && result.tier === 'free' && judgeAccessTier) {
+      setTier(judgeAccessTier);
+      showToast('No active Test Store purchase found. Your completed judge preview remains available.');
+      return;
+    }
+    if (isJudge && result.tier !== 'free') grantJudgeAccess(result.tier, 'test_store');
     setTier(result.tier);
     showToast(
       result.tier === 'free' ? 'No active purchases found to restore.' : `Restored — you're on ${TIER_LABELS[result.tier]}.`
@@ -145,25 +162,38 @@ export default function UpgradeScreen() {
   }
 
   // TEMPORARY (constants/judgeMode.ts). Paid tiers open the real RevenueCat
-  // paywall first — judges are here to evaluate that integration, so it has
-  // to be visible — and the tier is granted however they leave it, charged
-  // or not. Downgrading to Free needs no paywall at all.
+  // paywall first, then requires RevenueCat Test Store's simulated purchase
+  // to return the expected entitlement. Downgrading to Free needs no paywall.
   async function chooseAsJudge(next: Tier) {
     if (next === 'free') {
+      clearJudgeAccess();
       setTier('free');
       showToast("You're now on Free.");
       router.back();
       return;
     }
     setBusyTier(next);
-    const granted = await presentPaywallAsJudge(next);
+    const outcome = await presentPaywallAsJudge(next);
     setBusyTier(null);
-    setTier(granted.tier);
-    showToast(
-      granted.viaRevenueCat
-        ? `${TIER_LABELS[granted.tier]} active via RevenueCat.`
-        : `${TIER_LABELS[granted.tier]} unlocked — free while judging.`
-    );
+    if (outcome.status === 'activated') {
+      grantJudgeAccess(outcome.tier, 'test_store');
+      setTier(outcome.tier);
+      showToast(`${TIER_LABELS[outcome.tier]} unlocked through RevenueCat Test Store.`);
+      router.back();
+      return;
+    }
+    if (outcome.status === 'cancelled') {
+      showToast('Test purchase cancelled — your plan was not changed.');
+      return;
+    }
+    offerJudgeOfflineFallback();
+    showToast(outcome.message);
+  }
+
+  function activateOfflineJudgePreview() {
+    grantJudgeAccess('max', 'offline_preview');
+    setTier('max');
+    showToast('Offline Max preview unlocked. RevenueCat was not used for this fallback.');
     router.back();
   }
 
@@ -195,7 +225,9 @@ export default function UpgradeScreen() {
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Text style={[styles.intro, { color: colors.text3 }]}>
             {isJudge
-              ? 'Judging mode — tapping a plan opens the real RevenueCat paywall so you can review it. Close it without subscribing and the plan unlocks free; no card is needed.'
+              ? purchasesEnvironment === 'test_store'
+                ? 'Judging mode — open a plan and choose “Simulate successful purchase” in RevenueCat Test Store. The real paywall and entitlement flow run, but no money or card is involved.'
+                : 'Judging mode is active, but this APK has no RevenueCat Test Store key. Try a plan to reveal the clearly labeled offline preview fallback.'
               : configured
                 ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
                 : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
@@ -224,14 +256,17 @@ export default function UpgradeScreen() {
                 </View>
 
                 {/* The judge branches are TEMPORARY — constants/judgeMode.ts.
-                    They sit ahead of the `configured` checks so a judge gets
-                    the same one-tap unlock whether or not RevenueCat has live
-                    keys. */}
+                    They require a Test Store entitlement; a failure reveals
+                    the separate, clearly labeled offline fallback below. */}
                 {t === 'free' ? (
                   isCurrent ? (
                     <Button label="Current plan" variant="ghost" disabled fullWidth />
                   ) : isJudge ? (
-                    <Button label="Switch to Free" variant="ghost" fullWidth onPress={() => chooseAsJudge(t)} />
+                    judgeAccessSource === 'offline_preview' ? (
+                      <Button label="End offline preview" variant="ghost" fullWidth onPress={() => chooseAsJudge(t)} />
+                    ) : (
+                      <Button label="Test Store entitlement active" variant="ghost" disabled fullWidth />
+                    )
                   ) : configured ? (
                     <Button label="Manage subscription" variant="ghost" loading={openingCenter} fullWidth onPress={handleManage} />
                   ) : (
@@ -241,7 +276,7 @@ export default function UpgradeScreen() {
                   <Button label="Current plan" variant="ghost" disabled fullWidth />
                 ) : isJudge ? (
                   <Button
-                    label={`Open ${TIER_LABELS[t]} paywall — free`}
+                    label={`Test ${TIER_LABELS[t]} purchase — free`}
                     loading={busyTier === t}
                     fullWidth
                     onPress={() => chooseAsJudge(t)}
@@ -263,8 +298,32 @@ export default function UpgradeScreen() {
 
         {configured ? (
           <Animated.View entering={FadeInDown.delay(60 + TIERS.length * 60).springify().damping(16)}>
-            <Button label="Restore purchases" variant="ghost" fullWidth loading={restoring} onPress={handleRestore} />
+            <Button
+              label={isJudge ? 'Restore Test Store purchase' : 'Restore purchases'}
+              variant="ghost"
+              fullWidth
+              loading={restoring}
+              onPress={handleRestore}
+            />
           </Animated.View>
+        ) : null}
+
+        {isJudge && judgeOfflineFallbackAvailable ? (
+          <Card style={styles.fallbackCard}>
+            <Text style={[styles.tierName, { color: colors.text }]}>RevenueCat unavailable?</Text>
+            <Text style={[styles.headline, { color: colors.text2 }]}>
+              Retry the Test Store first. If the network or dashboard setup is unavailable during judging, you can
+              still inspect every Max feature locally. This fallback does not count as a RevenueCat purchase.
+            </Text>
+            <Button label="Retry RevenueCat Test Store" fullWidth onPress={() => chooseAsJudge('max')} />
+            <Button label="Continue with offline Max preview" variant="ghost" fullWidth onPress={activateOfflineJudgePreview} />
+          </Card>
+        ) : null}
+
+        {isJudge && judgeAccessSource ? (
+          <Text style={[styles.accessSource, { color: colors.text3 }]}>
+            Access source: {judgeAccessSource === 'test_store' ? 'RevenueCat Test Store' : 'local offline preview'}
+          </Text>
         ) : null}
       </ScrollView>
     </Screen>
@@ -281,4 +340,6 @@ const styles = StyleSheet.create({
   headline: { fontSize: 13, marginTop: 4, marginBottom: spacing.md },
   features: { gap: 6, marginBottom: spacing.lg },
   feature: { fontSize: 13 },
+  fallbackCard: { gap: spacing.sm },
+  accessSource: { fontSize: 12, textAlign: 'center' },
 });

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { ageBandFor, permissionsFor } from '@/constants/ageCompliance';
+import type { Tier } from '@/constants/subscription';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 // The declared date of birth never leaves the device. It is not sent to
@@ -29,14 +30,20 @@ type AgeState = {
   /**
    * TEMPORARY, hackathon judging only — see constants/judgeMode.ts. Null
    * means the "Are you a judge?" prompt hasn't been answered yet; true
-   * treats the account as 18+ and makes subscriptions free. Setting it back
-   * to false is what Settings' "Exit judge mode" does, which drops straight
-   * into the real age gate since birthDate is still null.
+   * treats the account as 18+ and enables RevenueCat Test Store. Setting it
+   * back to false is what Settings' "Exit judge mode" does, which drops
+   * straight into the real age gate since birthDate is still null.
    */
   judgeMode: boolean | null;
+  judgeAccessTier: Exclude<Tier, 'free'> | null;
+  judgeAccessSource: 'test_store' | 'offline_preview' | null;
+  judgeOfflineFallbackAvailable: boolean;
   setBirthDate: (birthDate: string) => void;
   setAiDataConsent: (granted: boolean) => void;
   setJudgeMode: (isJudge: boolean) => void;
+  grantJudgeAccess: (tier: Exclude<Tier, 'free'>, source: 'test_store' | 'offline_preview') => void;
+  offerJudgeOfflineFallback: () => void;
+  clearJudgeAccess: () => void;
 };
 
 export const useAgeStore = create<AgeState>()(
@@ -46,6 +53,9 @@ export const useAgeStore = create<AgeState>()(
       verifiedAt: null,
       aiDataConsent: null,
       judgeMode: null,
+      judgeAccessTier: null,
+      judgeAccessSource: null,
+      judgeOfflineFallbackAvailable: false,
       setBirthDate: (birthDate) => {
         set({ birthDate, verifiedAt: Date.now() });
         // Privacy by default: on-device behavioural training starts off for a
@@ -59,7 +69,22 @@ export const useAgeStore = create<AgeState>()(
         }
       },
       setAiDataConsent: (aiDataConsent) => set({ aiDataConsent }),
-      setJudgeMode: (judgeMode) => set({ judgeMode }),
+      setJudgeMode: (judgeMode) =>
+        set(
+          judgeMode
+            ? { judgeMode }
+            : {
+                judgeMode,
+                judgeAccessTier: null,
+                judgeAccessSource: null,
+                judgeOfflineFallbackAvailable: false,
+              }
+        ),
+      grantJudgeAccess: (judgeAccessTier, judgeAccessSource) =>
+        set({ judgeAccessTier, judgeAccessSource, judgeOfflineFallbackAvailable: false }),
+      offerJudgeOfflineFallback: () => set({ judgeOfflineFallbackAvailable: true }),
+      clearJudgeAccess: () =>
+        set({ judgeAccessTier: null, judgeAccessSource: null, judgeOfflineFallbackAvailable: false }),
     }),
     {
       name: 'age-store',

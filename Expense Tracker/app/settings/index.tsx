@@ -534,6 +534,7 @@ function PrivacyAgeSection() {
   const isJudge = useIsJudgeMode();
   const setJudgeMode = useAgeStore((s) => s.setJudgeMode);
   const setTier = useSettingsStore((s) => s.setTier);
+  const judgeAccessSource = useAgeStore((s) => s.judgeAccessSource);
   const aiDataConsent = useAgeStore((s) => s.aiDataConsent);
   const setAiDataConsent = useAgeStore((s) => s.setAiDataConsent);
 
@@ -545,12 +546,17 @@ function PrivacyAgeSection() {
       <Card>
         <Text style={[styles.notifLabel, { color: colors.text }]}>Judging mode is on</Text>
         <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
-          Every subscription is free and this account is treated as 18+, so nothing is age-restricted. This is a
-          temporary option for Shipaton judges and will be removed after the hackathon.
+          Test Store purchases are simulated and this account is treated as 18+, so nothing is age-restricted. This
+          temporary option is only included in the Shipaton judge build.
         </Text>
+        {judgeAccessSource ? (
+          <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+            Current access came from {judgeAccessSource === 'test_store' ? 'RevenueCat Test Store' : 'the offline local preview'}.
+          </Text>
+        ) : null}
         <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
-          Exiting drops back to the free plan and asks your date of birth, so the app behaves as it does for
-          everyone else.
+          Exiting asks your date of birth and restores the normal age rules. A still-active Test Store entitlement
+          can remain visible until its accelerated test period expires.
         </Text>
         <View style={{ marginTop: spacing.md }}>
           <Button
@@ -680,6 +686,7 @@ function PlanDetailsModal({
 }) {
   const { colors } = useTheme();
   const isJudge = useIsJudgeMode();
+  const judgeAccessSource = useAgeStore((s) => s.judgeAccessSource);
   const [since, setSince] = useState<Date | null | undefined>(undefined);
 
   useEffect(() => {
@@ -717,7 +724,11 @@ function PlanDetailsModal({
             {tier !== 'free' ? (
               <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>
                 {isJudge
-                  ? 'Complimentary Shipaton judge preview on this device.'
+                  ? judgeAccessSource === 'test_store'
+                    ? 'Unlocked through a RevenueCat Test Store purchase.'
+                    : judgeAccessSource === 'offline_preview'
+                      ? 'Local offline judge preview — no RevenueCat transaction.'
+                      : 'Shipaton judge mode is active; complete a Test Store purchase to unlock this plan.'
                   : since
                   ? `Member since ${since.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`
                   : isPurchasesConfigured()

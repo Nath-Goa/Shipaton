@@ -48,8 +48,8 @@ function JudgeModeStep() {
       <Text style={[styles.eyebrow, { color: colors.accent }]}>Shipaton</Text>
       <Text style={[styles.title, { color: colors.text }]}>Are you a judge?</Text>
       <Text style={[styles.body, { color: colors.text2 }]}>
-        Markva is a RevenueCat Shipaton entry. If you are judging it, this unlocks everything so you can review the
-        whole app without paying for anything or answering personal questions.
+        Markva is a RevenueCat Shipaton entry. If you are judging it, you can unlock every plan through RevenueCat
+        Test Store so you can review the whole app without paying or answering personal questions.
       </Text>
 
       <View style={styles.list}>

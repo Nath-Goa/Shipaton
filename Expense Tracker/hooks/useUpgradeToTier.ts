@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { TIER_LABELS, type Tier } from '@/constants/subscription';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { presentPaywallAsJudge, presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
+import { useAgeStore } from '@/store/useAgeStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -19,20 +20,27 @@ export function useUpgradeToTier() {
   const showToast = useToastStore((s) => s.show);
   const agePermissions = useAgePermissions();
   const isJudge = useIsJudgeMode();
+  const grantJudgeAccess = useAgeStore((s) => s.grantJudgeAccess);
+  const offerJudgeOfflineFallback = useAgeStore((s) => s.offerJudgeOfflineFallback);
 
   return useCallback(
     async (tier: Exclude<Tier, 'free'>) => {
       // TEMPORARY, hackathon judging only (constants/judgeMode.ts). Shows the
-      // real RevenueCat paywall — that integration is the thing being judged,
-      // so it must not be hidden — then grants the tier however they leave it.
+      // real RevenueCat Test Store paywall, then requires its simulated
+      // purchase to produce the expected entitlement before access unlocks.
       if (isJudge) {
-        const granted = await presentPaywallAsJudge(tier);
-        setTier(granted.tier);
-        showToast(
-          granted.viaRevenueCat
-            ? `${TIER_LABELS[granted.tier]} active via RevenueCat.`
-            : `${TIER_LABELS[granted.tier]} unlocked — free while judging.`
-        );
+        const outcome = await presentPaywallAsJudge(tier);
+        if (outcome.status === 'activated') {
+          grantJudgeAccess(outcome.tier, 'test_store');
+          setTier(outcome.tier);
+          showToast(`${TIER_LABELS[outcome.tier]} unlocked through RevenueCat Test Store.`);
+        } else if (outcome.status === 'cancelled') {
+          showToast('Test purchase cancelled — your plan was not changed.');
+        } else {
+          offerJudgeOfflineFallback();
+          showToast(outcome.message);
+          router.push('/settings/upgrade');
+        }
         return;
       }
       // Because every upgrade CTA in the app routes through here, one check
@@ -56,6 +64,6 @@ export function useUpgradeToTier() {
       // subscription bought on another device) corrects itself on the tap.
       if (outcome.tier) setTier(outcome.tier);
     },
-    [setTier, showToast, agePermissions, isJudge]
+    [setTier, showToast, agePermissions, isJudge, grantJudgeAccess, offerJudgeOfflineFallback]
   );
 }

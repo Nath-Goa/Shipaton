@@ -80,6 +80,7 @@ function RootLayout() {
   // Gates rendering alongside settings: without it, birthDate reads null for
   // the first frame and an already-verified user is flashed the age gate.
   const [ageHydrated, setAgeHydrated] = useState(useAgeStore.persist.hasHydrated());
+  const judgeAccessTier = useAgeStore((s) => s.judgeAccessTier);
   const agePermissions = useAgePermissions();
   const isJudge = useIsJudgeMode();
 
@@ -238,7 +239,8 @@ function RootLayout() {
     });
   }, [smartNudgesEnabled, preferredStudyWindow, getSuggestedHour, agePermissions]);
 
-  // RevenueCat is the source of truth for entitlement state: configure once
+  // RevenueCat is the source of truth for ordinary entitlement state:
+  // configure once
   // at app start, adopt whatever tier the store already reports for this
   // customer, then keep it live-synced for the rest of the session (a
   // purchase, restore, renewal, or expiration all flow through this same
@@ -250,11 +252,25 @@ function RootLayout() {
   // still powers every displayed paywall, but it must not revoke a judge's
   // free preview on launch simply because no purchase was made.
   useEffect(() => {
+    if (isJudge) setTier(judgeAccessTier ?? 'free');
     if (!configurePurchases()) return;
     let alive = true;
 
     function applyTier(next: Tier) {
-      if (isJudge) return;
+      if (isJudge) {
+        if (judgeAccessTier) {
+          if (judgeAccessTier === 'max' || next === 'free') {
+            setTier(judgeAccessTier);
+            return;
+          }
+          // A live Max Test Store entitlement may supersede a persisted Pro
+          // demonstration, but RevenueCat can never downgrade judge access.
+          setTier(next);
+          return;
+        }
+        setTier(next);
+        return;
+      }
       setTier(next);
     }
 
@@ -268,7 +284,7 @@ function RootLayout() {
       alive = false;
       unsubscribe();
     };
-  }, [setTier, isJudge]);
+  }, [setTier, isJudge, judgeAccessTier]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
