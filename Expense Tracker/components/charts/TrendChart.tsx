@@ -4,6 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import Svg, { Rect } from 'react-native-svg';
 
 import { Text } from '@/components/ui/Text';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 export type TrendPoint = { label: string; value: number; highlighted?: boolean };
@@ -84,7 +85,7 @@ export function TrendChart({ points, height = 120, formatValue }: Props) {
 
 const styles = StyleSheet.create({
   labelRow: { flexDirection: 'row', marginTop: 4 },
-  label: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
+  label: { fontSize: 10, letterSpacing: trackingFor(10), fontWeight: '600', textAlign: 'center' },
   valueRow: { flexDirection: 'row', marginTop: 2 },
-  value: { fontSize: 9, textAlign: 'center' },
+  value: { fontSize: 9, letterSpacing: trackingFor(9), textAlign: 'center' },
 });

@@ -24,6 +24,7 @@ import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { SECTOR_COLORS, tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { sharePortfolioSummary } from '@/services/export/exportData';
@@ -39,12 +40,12 @@ function NetWorthTile({ value }: { value: number }) {
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.97, springs.snappy);
+    scale.value = withSpring(0.97, springs.tap);
     triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -78,12 +79,12 @@ function HoldingRow({
   const pnlPct = holding.avgCost ? (pnl / (holding.avgCost * holding.qty)) * 100 : 0;
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.98, springs.snappy);
+    scale.value = withSpring(0.98, springs.tap);
     triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -401,24 +402,24 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingTop: 0, gap: spacing.xl, paddingBottom: spacing.xxl },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   netWorthTileWrap: { flexGrow: 1, flexBasis: '47%' },
-  sectionTitle: { fontSize: 15.5, fontWeight: '700' },
+  sectionTitle: { fontSize: 15.5, letterSpacing: trackingFor(15.5), fontWeight: '700' },
   moveBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
-  moveBannerText: { flex: 1, fontSize: 12.5, lineHeight: 17 },
+  moveBannerText: { flex: 1, fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 17 },
   holdingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 2, gap: spacing.md },
   holdingRight: { alignItems: 'flex-end' },
-  symbol: { fontSize: 14.5, fontWeight: '700' },
-  meta: { fontSize: 12.5, marginTop: 1 },
-  value: { fontSize: 14.5, fontWeight: '600' },
-  pnl: { fontSize: 12.5, fontWeight: '600', marginTop: 1 },
+  symbol: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '700' },
+  meta: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 1 },
+  value: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '600' },
+  pnl: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600', marginTop: 1 },
   tradeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: spacing.md },
   sideBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
   diversificationCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 12.5, flex: 1 },
-  legendPct: { fontSize: 12.5, fontWeight: '600' },
-  diversificationWarning: { fontSize: 11.5, lineHeight: 15, marginTop: 4 },
+  legendLabel: { fontSize: 12.5, letterSpacing: trackingFor(12.5), flex: 1 },
+  legendPct: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
+  diversificationWarning: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 15, marginTop: 4 },
   dividendTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   dividendTotalLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  dividendTotalValue: { fontSize: 17, fontWeight: '700' },
+  dividendTotalValue: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '700' },
 });

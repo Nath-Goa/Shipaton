@@ -15,6 +15,7 @@ import { badgeInfo } from '@/constants/badges';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { subscribeLiveQuote } from '@/services/marketData/marketData';
@@ -345,14 +346,15 @@ export default function TradeScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.lg },
-  name: { fontSize: 13, fontWeight: '600' },
-  price: { fontSize: 26, fontWeight: '700', marginTop: 2 },
+  name: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
+  price: { fontSize: 26, letterSpacing: trackingFor(26), fontWeight: '700', marginTop: 2 },
   label: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
   qtyInput: {
     flex: 1,
     textAlign: 'center',
     fontSize: 18,
+    letterSpacing: trackingFor(18),
     fontWeight: '700',
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.sm,
@@ -361,6 +363,7 @@ const styles = StyleSheet.create({
   limitInput: {
     textAlign: 'center',
     fontSize: 16,
+    letterSpacing: trackingFor(16),
     fontWeight: '700',
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.sm,
@@ -368,11 +371,11 @@ const styles = StyleSheet.create({
   },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: spacing.md },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  summaryLabel: { fontSize: 13 },
-  summaryValue: { fontSize: 14, fontWeight: '600' },
-  error: { fontSize: 13, fontWeight: '600' },
+  summaryLabel: { fontSize: 13, letterSpacing: trackingFor(13) },
+  summaryValue: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600' },
+  error: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
   lockedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  lockedText: { fontSize: 12, flex: 1 },
+  lockedText: { fontSize: 12, letterSpacing: trackingFor(12), flex: 1 },
   pendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pendingText: { fontSize: 13, fontWeight: '600' },
+  pendingText: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
 });

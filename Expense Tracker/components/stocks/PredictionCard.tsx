@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { PRETRAINED_METRICS } from '@/services/predictor/pretrained';
 import { predict } from '@/services/predictor/predictor';
@@ -227,14 +228,14 @@ export function PredictionCard({ symbol }: Props) {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  title: { fontSize: 15, fontWeight: '700' },
+  title: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg },
   heroIconWrap: { width: 44, height: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  heroLabel: { fontSize: 17, fontWeight: '700' },
-  heroSub: { fontSize: 12.5, lineHeight: 17, marginTop: 2 },
+  heroLabel: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '700' },
+  heroSub: { fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 17, marginTop: 2 },
   heroPctWrap: { alignItems: 'center' },
   heroPct: { fontSize: 22, fontWeight: '700', letterSpacing: -0.3 },
-  heroPctLabel: { fontSize: 10.5, fontWeight: '600', marginTop: 1 },
+  heroPctLabel: { fontSize: 10.5, letterSpacing: trackingFor(10.5), fontWeight: '600', marginTop: 1 },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -243,16 +244,16 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.sm,
   },
-  infoText: { flex: 1, fontSize: 11, lineHeight: 15 },
-  body: { fontSize: 13, lineHeight: 19, marginTop: spacing.sm },
+  infoText: { flex: 1, fontSize: 11, letterSpacing: trackingFor(11), lineHeight: 15 },
+  body: { fontSize: 13, letterSpacing: trackingFor(13), lineHeight: 19, marginTop: spacing.sm },
   section: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, paddingTop: spacing.md, gap: 6 },
   sectionLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   driverRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  driverLabel: { fontSize: 13, flex: 1 },
+  driverLabel: { fontSize: 13, letterSpacing: trackingFor(13), flex: 1 },
   newsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   newsTone: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  headline: { fontSize: 12.5, lineHeight: 17 },
-  footnote: { fontSize: 11.5, lineHeight: 16 },
+  headline: { fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 17 },
+  footnote: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 16 },
   bar: { height: 4, borderRadius: radius.sm },
   warningBanner: {
     flexDirection: 'row',
@@ -262,5 +263,5 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.sm,
   },
-  warningText: { flex: 1, fontSize: 11, fontWeight: '600', lineHeight: 15 },
+  warningText: { flex: 1, fontSize: 11, letterSpacing: trackingFor(11), fontWeight: '600', lineHeight: 15 },
 });

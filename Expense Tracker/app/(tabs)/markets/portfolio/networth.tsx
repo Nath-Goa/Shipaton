@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { StatTile } from '@/components/ui/StatTile';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { useActivePortfolio } from '@/store/usePortfolioStore';
@@ -126,7 +127,7 @@ export default function NetWorthScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   bigValue: { fontSize: 34, fontWeight: '700', letterSpacing: -0.6 },
-  changeLine: { fontSize: 14, fontWeight: '700', marginTop: 4 },
+  changeLine: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700', marginTop: 4 },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   breakdownCard: { gap: spacing.md },
   breakdownBar: { height: 10, borderRadius: 5, overflow: 'hidden' },
@@ -134,11 +135,11 @@ const styles = StyleSheet.create({
   breakdownLegend: { flexDirection: 'row', gap: spacing.lg },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 12.5, fontWeight: '600' },
+  legendText: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
   goalsCard: { gap: spacing.xs },
   goalsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontSize: 15, fontWeight: '700' },
-  goalsLink: { fontSize: 12.5, fontWeight: '600' },
-  goalsTotal: { fontSize: 20, fontWeight: '700', marginTop: 2 },
-  goalsSub: { fontSize: 12.5 },
+  cardTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  goalsLink: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
+  goalsTotal: { fontSize: 20, letterSpacing: trackingFor(20), fontWeight: '700', marginTop: 2 },
+  goalsSub: { fontSize: 12.5, letterSpacing: trackingFor(12.5) },
 });

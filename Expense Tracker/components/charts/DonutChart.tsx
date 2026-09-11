@@ -12,6 +12,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 
 export type DonutSegment = { id: string; label: string; color: string; value: number };
@@ -66,17 +67,23 @@ function DonutSegmentArc({
   onPress: () => void;
 }) {
   const isWeb = Platform.OS === 'web';
-  const progress = useSharedValue(0);
-  const [webMounted, setWebMounted] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const progress = useSharedValue(reducedMotion ? 1 : 0);
+  const [webMounted, setWebMounted] = useState(reducedMotion);
 
   useEffect(() => {
+    if (reducedMotion) {
+      progress.value = 1;
+      setWebMounted(true);
+      return;
+    }
     if (isWeb) {
       const timer = setTimeout(() => setWebMounted(true), index * STAGGER_MS);
       return () => clearTimeout(timer);
     } else {
       progress.value = withDelay(index * STAGGER_MS, withTiming(1, { duration: DRAW_DURATION, easing: DRAW_EASING }));
     }
-  }, [isWeb, index, progress]);
+  }, [isWeb, index, progress, reducedMotion]);
 
   const animatedProps = useAnimatedProps(() => {
     return {

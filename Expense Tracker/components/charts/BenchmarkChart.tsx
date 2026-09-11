@@ -4,6 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
 import { Text } from '@/components/ui/Text';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import type { BenchmarkPoint } from '@/utils/portfolioMath';
 import { signedPct } from '@/utils/money';
@@ -77,5 +78,5 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', gap: 16, marginTop: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 12, fontWeight: '600' },
+  legendLabel: { fontSize: 12, letterSpacing: trackingFor(12), fontWeight: '600' },
 });

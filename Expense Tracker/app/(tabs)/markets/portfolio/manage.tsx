@@ -12,6 +12,7 @@ import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { getQuote } from '@/services/marketData/marketData';
@@ -41,12 +42,12 @@ function PortfolioRow({ portfolio, isActive, index }: { portfolio: PortfolioData
 
   const handlePressIn = useCallback(() => {
     if (isActive) return;
-    scale.value = withSpring(0.98, springs.snappy);
+    scale.value = withSpring(0.98, springs.tap);
     triggerFeedback('selection');
   }, [isActive, scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -190,8 +191,8 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  name: { fontSize: 15, fontWeight: '700' },
-  netWorth: { fontSize: 12.5, marginTop: 2 },
+  name: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  netWorth: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 2 },
   actions: { flexDirection: 'row', gap: spacing.sm },
   nameInput: {
     flex: 1,
@@ -200,10 +201,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   createRow: { flexDirection: 'row', gap: spacing.md },
   locked: { gap: spacing.sm },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  lockedTitle: { fontSize: 15, fontWeight: '700' },
-  lockedBody: { fontSize: 12.5, lineHeight: 17 },
+  lockedTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  lockedBody: { fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 17 },
 });

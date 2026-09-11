@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import * as duelsApi from '@/services/social/duels';
 import { profilesByIds } from '@/services/social/friends';
@@ -209,8 +210,8 @@ export default function DuelDetailScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  title: { fontSize: 17, fontWeight: '700' },
-  muted: { fontSize: 12.5 },
+  title: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '700' },
+  muted: { fontSize: 12.5, letterSpacing: trackingFor(12.5) },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },

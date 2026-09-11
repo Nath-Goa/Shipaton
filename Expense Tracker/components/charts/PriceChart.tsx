@@ -16,6 +16,7 @@ import Animated, {
 import Svg, { Circle, G, Line, Path, Polygon } from 'react-native-svg';
 
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import type { ForecastBand, PriceBar } from '@/types/stock';
 
@@ -35,6 +36,7 @@ const REVEAL_DURATION = 700;
 
 export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const [width, setWidth] = useState(0);
 
   const beaconPulse = useSharedValue(1);
@@ -63,6 +65,17 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
     // new array reference in both cases but NOT on the 15s live-quote poll,
     // so this never replays just because a price ticked.
     if (width === 0) return;
+
+    if (reducedMotion) {
+      // Skip the draw-in and the beacon's pulsing entirely — the line
+      // renders complete immediately, and the beacon just holds at a
+      // steady, visible ring instead of animating.
+      drawProgress.value = 1;
+      beaconPulse.value = 1;
+      beaconOpacity.value = 0.8;
+      return;
+    }
+
     drawProgress.value = 0;
     drawProgress.value = withTiming(1, { duration: REVEAL_DURATION, easing: Easing.out(Easing.cubic) });
 
@@ -81,7 +94,7 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
       REVEAL_DURATION,
       withRepeat(withSequence(withTiming(2.2, { duration: 450 }), withTiming(1, { duration: 450 })), 2, false)
     );
-  }, [bars, width, drawProgress, beaconPulse, beaconOpacity]);
+  }, [bars, width, drawProgress, beaconPulse, beaconOpacity, reducedMotion]);
 
   const beaconStyle = useAnimatedStyle(() => {
     return {

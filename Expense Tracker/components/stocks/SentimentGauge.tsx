@@ -12,6 +12,7 @@ import Animated, {
 import { Text } from '@/components/ui/Text';
 import { springs } from '@/constants/animations';
 import { radius } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 // score: -100 (very bearish) .. 100 (very bullish)
@@ -88,5 +89,5 @@ const styles = StyleSheet.create({
     marginLeft: -7,
   },
   labels: { flexDirection: 'row', justifyContent: 'space-between' },
-  labelText: { fontSize: 10.5, fontWeight: '600' },
+  labelText: { fontSize: 10.5, letterSpacing: trackingFor(10.5), fontWeight: '600' },
 });

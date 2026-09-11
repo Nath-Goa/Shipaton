@@ -16,6 +16,7 @@ import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS, tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { money, signedMoney, signedPct } from '@/utils/money';
@@ -264,26 +265,27 @@ const styles = StyleSheet.create({
   pnlRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pnlPctGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pnlValue: { fontSize: 26, fontWeight: '700', letterSpacing: -0.4 },
-  disclaimer: { fontSize: 12, lineHeight: 16 },
+  disclaimer: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16 },
   searchBox: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.sm, paddingHorizontal: spacing.md },
-  searchInput: { paddingVertical: 10, fontSize: 14 },
+  searchInput: { paddingVertical: 10, fontSize: 14, letterSpacing: trackingFor(14) },
   list: { flex: 1 },
-  changeStock: { fontSize: 13, fontWeight: '600' },
-  stockName: { fontSize: 13, fontWeight: '600' },
-  stockPrice: { fontSize: 22, fontWeight: '700', marginTop: 2 },
+  changeStock: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
+  stockName: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
+  stockPrice: { fontSize: 22, letterSpacing: trackingFor(22), fontWeight: '700', marginTop: 2 },
   label: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
   qtyInput: {
     flex: 1,
     textAlign: 'center',
     fontSize: 18,
+    letterSpacing: trackingFor(18),
     fontWeight: '700',
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.sm,
     paddingVertical: 8,
   },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
-  summaryRowLabel: { fontSize: 13 },
-  summaryRowValue: { fontSize: 14, fontWeight: '600' },
-  message: { fontSize: 13, fontWeight: '600' },
+  summaryRowLabel: { fontSize: 13, letterSpacing: trackingFor(13) },
+  summaryRowValue: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600' },
+  message: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
 });

@@ -14,6 +14,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import * as duelsApi from '@/services/social/duels';
@@ -443,8 +444,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   switchWrap: { paddingHorizontal: spacing.xl, marginBottom: spacing.md },
   content: { padding: spacing.xl, paddingTop: 0, gap: spacing.lg, paddingBottom: spacing.xxl },
-  sectionTitle: { fontSize: 15, fontWeight: '700' },
-  muted: { fontSize: 12, marginTop: 2 },
+  sectionTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  muted: { fontSize: 12, letterSpacing: trackingFor(12), marginTop: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   input: {
     flex: 1,
@@ -453,6 +454,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
   listRowPress: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
