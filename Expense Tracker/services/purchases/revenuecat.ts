@@ -36,7 +36,7 @@ export function getPurchasesEnvironment(): PurchasesEnvironment {
 
 function apiKeyForPlatform(): string | undefined {
   if (APP_VARIANT === 'judge') return TEST_STORE_API_KEY;
-  const developmentFallback = APP_VARIANT === 'development' ? SHARED_API_KEY : undefined;
+  const developmentFallback = APP_VARIANT === 'development' && __DEV__ ? SHARED_API_KEY : undefined;
   if (Platform.OS === 'ios') return IOS_API_KEY ?? developmentFallback;
   if (Platform.OS === 'android') return ANDROID_API_KEY ?? developmentFallback;
   return undefined; // RevenueCat's native SDK has no web target.
