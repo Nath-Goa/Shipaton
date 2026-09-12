@@ -162,7 +162,7 @@ export default function MarketsScreen() {
 
   return (
     <Screen>
-      <TopBar title="Markets" subtitle={liveData ? 'Mock trading — real live prices' : 'Mock stocks — simulated prices, real symbols'} />
+      <TopBar title="Markets" subtitle={liveData ? 'Mock trading — live prices when available' : 'Mock stocks — simulated prices, real symbols'} />
       <MarketsPortfolioSwitch active="markets" />
       <View style={styles.searchWrap}>
         <View style={[styles.searchBox, { backgroundColor: colors.surface2, borderColor: colors.border }]}>

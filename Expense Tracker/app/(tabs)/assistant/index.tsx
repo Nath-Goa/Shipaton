@@ -143,14 +143,14 @@ export default function AssistantScreen() {
           contentContainerStyle={styles.messages}
           onContentSizeChange={() => messageListRef.current?.scrollToEnd({ animated: true })}
           ListEmptyComponent={
-            <>
+            <View>
               <EmptyState
                 icon="🤖"
                 title={activeThread === 'general' ? 'Ask anything about investing' : `Ask about ${activeThread}`}
                 message="Explains terms in plain English, scoped to this simulated app — not real market data."
               />
               <UpgradeBanner title="Never run out of questions" body="Upgrade for a bigger daily AI allowance." />
-            </>
+            </View>
           }
           ListFooterComponent={loading ? (
             <>

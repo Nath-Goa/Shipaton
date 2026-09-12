@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-rout
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -136,6 +137,7 @@ function RootLayout() {
   // Tapping the study-nudge notification deep-links straight into a bite-
   // sized focus session rather than just foregrounding the app.
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       if (response.notification.request.identifier === STUDY_NUDGE_ID) {
         router.push('/learn/focus-session');
@@ -196,7 +198,7 @@ function RootLayout() {
   // lives in Settings › Learning Environment. Re-evaluated once per app
   // open against whatever the usage histogram currently suggests.
   useEffect(() => {
-    if (!smartNudgesEnabled) return;
+    if (Platform.OS === 'web' || !smartNudgesEnabled) return;
     refreshStudyNudge({ suggestedHour: getSuggestedHour(preferredStudyWindow), enabled: true });
   }, [smartNudgesEnabled, preferredStudyWindow, getSuggestedHour]);
 

@@ -80,11 +80,9 @@ const ICON_SIZE = 24;
 
 // Tab roots stay mounted once rendered (this matches the previous <Tabs>
 // behaviour), but mounting all six at launch would put every screen's work
-// on the startup path. Instead the focused tab renders immediately, and the
-// rest are warmed shortly after first paint so later slides have real
-// content to travel past. A jump that happens before warm-up finishes still
-// works: the slide itself runs on the UI thread, so it stays smooth even
-// while the newly mounted screens are still rendering.
+// and network effects on the startup path. Warm only the immediate neighbours
+// after first paint. A direct multi-tab jump still mounts every screen it
+// visibly travels past in the index-change effect below.
 const WARMUP_DELAY_MS = 700;
 
 const SWIPE_ACTIVE_OFFSET = 32;
@@ -240,6 +238,7 @@ function SlidingTabNavigator({
   const quickMenuProgress = useSharedValue(0);
   const previousIndexRef = useRef(index);
   const longPressHandledRef = useRef<number | null>(null);
+  const quickMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTabTapRef = useRef<{ index: number; at: number } | null>(null);
   const [quickMenuIndex, setQuickMenuIndex] = useState<number | null>(null);
   // `routes` gets a new identity on every navigation, so effects below read
@@ -270,8 +269,10 @@ function SlidingTabNavigator({
     setRenderedKeys((prev) => {
       const next = new Set(prev);
       let added = false;
-      for (let i = lo; i <= hi; i++) {
-        const key = routesRef.current[i]?.key;
+    // Keep one screen on either side ready for the next swipe without
+    // eagerly mounting every tab (and every tab's network/data effects).
+    for (let i = Math.max(0, lo - 1); i <= Math.min(routesRef.current.length - 1, hi + 1); i++) {
+      const key = routesRef.current[i]?.key;
         if (key && !next.has(key)) {
           next.add(key);
           added = true;
@@ -290,13 +291,20 @@ function SlidingTabNavigator({
     const timer = setTimeout(() => {
       setRenderedKeys((prev) => {
         const all = routesRef.current;
-        if (prev.size === all.length) return prev;
         const next = new Set(prev);
-        for (const route of all) next.add(route.key);
-        return next;
+        const current = indexRef.current;
+        for (let i = Math.max(0, current - 1); i <= Math.min(all.length - 1, current + 1); i++) {
+          const key = all[i]?.key;
+          if (key) next.add(key);
+        }
+        return next.size === prev.size ? prev : next;
       });
     }, WARMUP_DELAY_MS);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => () => {
+    if (quickMenuCloseTimerRef.current) clearTimeout(quickMenuCloseTimerRef.current);
   }, []);
 
   const rowStyle = useAnimatedStyle(() => ({
@@ -323,6 +331,10 @@ function SlidingTabNavigator({
   };
 
   function openQuickMenu(tabIndex: number) {
+    if (quickMenuCloseTimerRef.current) {
+      clearTimeout(quickMenuCloseTimerRef.current);
+      quickMenuCloseTimerRef.current = null;
+    }
     longPressHandledRef.current = tabIndex;
     setQuickMenuIndex(tabIndex);
     quickMenuProgress.value = 0;
@@ -339,8 +351,16 @@ function SlidingTabNavigator({
   }
 
   function closeQuickMenu() {
+    if (reducedMotion) {
+      quickMenuProgress.value = 0;
+      setQuickMenuIndex(null);
+      return;
+    }
     quickMenuProgress.value = withTiming(0, { duration: 90 });
-    setQuickMenuIndex(null);
+    quickMenuCloseTimerRef.current = setTimeout(() => {
+      setQuickMenuIndex(null);
+      quickMenuCloseTimerRef.current = null;
+    }, 95);
   }
 
   function chooseQuickAction(href: Href) {
@@ -410,6 +430,17 @@ function SlidingTabNavigator({
                 style={styles.tabButton}
                 delayLongPress={280}
                 onLongPress={() => openQuickMenu(i)}
+                onPressOut={() => {
+                  // If a long press is cancelled by dragging away, onPress
+                  // never fires to clear the guard. Clear it after this event
+                  // loop so a normal release still gets suppressed, while the
+                  // next genuine tap is never swallowed.
+                  if (longPressHandledRef.current === i) {
+                    setTimeout(() => {
+                      if (longPressHandledRef.current === i) longPressHandledRef.current = null;
+                    }, 0);
+                  }
+                }}
                 onPress={() => {
                   if (longPressHandledRef.current === i) {
                     longPressHandledRef.current = null;

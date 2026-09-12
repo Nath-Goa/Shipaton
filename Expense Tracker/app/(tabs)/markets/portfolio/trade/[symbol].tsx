@@ -86,6 +86,9 @@ export default function TradeScreen() {
   const autoAmount = Math.max(0, Number(autoAmountText) || 0);
   const total = qty * (orderType === 'limit' && limitPrice > 0 ? limitPrice : price);
   const owned = holdings[symbol]?.qty ?? 0;
+  const exceedsAvailable = orderType !== 'autoInvest' && (
+    side === 'buy' ? total > cash : qty > owned
+  );
   const symbolOrders = limitOrders.filter((o) => o.symbol === symbol);
   const symbolAutoInvests = autoInvests.filter((p) => p.symbol === symbol);
 
@@ -333,7 +336,7 @@ export default function TradeScreen() {
             disabled={
               orderType === 'autoInvest'
                 ? autoAmount <= 0
-                : qty <= 0 || (orderType === 'limit' && limitPrice <= 0)
+                : qty <= 0 || (orderType === 'limit' && limitPrice <= 0) || exceedsAvailable
             }
             onPress={submit}
           />

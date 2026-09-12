@@ -53,7 +53,7 @@ export default function SocialScreen() {
         <EmptyState
           icon="🔒"
           title="Social features aren't set up"
-          message="This install has no Supabase project configured — friends, families, and duels need one. See Expense Tracker/.env.example."
+          message="This install has no Supabase project configured — friends, families, and duels need one. See the app's .env.example file."
         />
       </Screen>
     );
