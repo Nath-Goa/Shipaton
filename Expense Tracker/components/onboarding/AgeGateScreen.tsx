@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -135,21 +135,47 @@ function BirthDateStep() {
       </Pressable>
 
       {showPicker ? (
-        <DateTimePicker
-          value={picked ? parseDateLocal(picked) : initialDate}
-          mode="date"
-          display="spinner"
-          maximumDate={new Date()}
-          minimumDate={oldest}
-          onChange={(event, selected) => {
-            if (event.type === 'dismissed') {
-              setShowPicker(false);
-              return;
-            }
-            if (selected) setPicked(toDateStr(selected));
-            if (Platform.OS !== 'ios') setShowPicker(false);
-          }}
-        />
+        Platform.OS === 'web' ? (
+          <View style={[styles.webDatePicker, { borderColor: colors.border, backgroundColor: colors.surface2 }]}>
+            {createElement('input', {
+              type: 'date',
+              'aria-label': 'Date of birth',
+              value: picked ?? '',
+              min: toDateStr(oldest),
+              max: toDateStr(new Date()),
+              autoFocus: true,
+              onChange: (event: { currentTarget: { value: string } }) => {
+                if (event.currentTarget.value) setPicked(event.currentTarget.value);
+              },
+              style: {
+                width: '100%',
+                border: 0,
+                outline: 0,
+                background: 'transparent',
+                color: colors.text,
+                fontFamily: 'inherit',
+                fontSize: 16,
+                colorScheme: colors.bg === '#000000' ? 'dark' : 'light',
+              },
+            })}
+          </View>
+        ) : (
+          <DateTimePicker
+            value={picked ? parseDateLocal(picked) : initialDate}
+            mode="date"
+            display="spinner"
+            maximumDate={new Date()}
+            minimumDate={oldest}
+            onChange={(event, selected) => {
+              if (event.type === 'dismissed') {
+                setShowPicker(false);
+                return;
+              }
+              if (selected) setPicked(toDateStr(selected));
+              if (Platform.OS !== 'ios') setShowPicker(false);
+            }}
+          />
+        )
       ) : null}
 
       <View style={styles.actions}>
@@ -247,6 +273,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   dateFieldLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600', flexShrink: 1 },
+  webDatePicker: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    marginTop: spacing.sm,
+  },
   list: { marginTop: spacing.lg, gap: spacing.sm },
   listRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   listIcon: { marginTop: 2 },
