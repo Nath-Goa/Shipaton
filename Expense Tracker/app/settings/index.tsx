@@ -17,10 +17,14 @@ import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
+import { TEEN_RESTRICTIONS } from '@/constants/ageCompliance';
 import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
+import { JUDGE_MODE_ENABLED } from '@/constants/judgeMode';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS, type Tier } from '@/constants/subscription';
+import { trackingFor } from '@/constants/typography';
+import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import {
   disableAllReminders,
@@ -34,6 +38,7 @@ import {
   type BiometricCapabilities,
 } from '@/services/security/appLock';
 import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
+import { useAgeStore } from '@/store/useAgeStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { useMistakeJournalStore } from '@/store/useMistakeJournalStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
@@ -78,6 +83,7 @@ const TEXT_SCALE_SEGMENT_OPTIONS = TEXT_SCALE_OPTIONS.map((o) => ({ value: Strin
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
+  const agePermissions = useAgePermissions();
   const {
     themeMode,
     setThemeMode,
@@ -143,6 +149,11 @@ export default function SettingsScreen() {
   const TITLE_TAP_WINDOW_MS = 1500;
 
   function handleTitleTap() {
+    // __DEV__-only, matching app/settings/debug.tsx's own gate — this was
+    // shipping ungated, which meant any production user could tap their way
+    // to a free Max tier with no RevenueCat purchase at all. That's the
+    // exact hole this line closes; do not remove it.
+    if (!__DEV__) return;
     const now = Date.now();
     if (now - lastTitleTapAtRef.current > TITLE_TAP_WINDOW_MS) titleTapCountRef.current = 0;
     lastTitleTapAtRef.current = now;
@@ -208,7 +219,10 @@ export default function SettingsScreen() {
       return;
     }
     setNotificationsEnabled(true);
-    await scheduleDailyReminder();
+    // The 8pm check-in exists to pull someone back into the app, so it is an
+    // engagement nudge rather than a reminder they asked for. A minor still
+    // gets their own bill reminders from this same toggle.
+    if (agePermissions.engagementNudges) await scheduleDailyReminder();
   }
 
   function handleToggleAppLock(next: boolean) {
@@ -304,6 +318,12 @@ export default function SettingsScreen() {
           </Section>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(25).springify().damping(16)}>
+          <Section title="Privacy & age" subtitle="What Markva does and doesn't do with your information.">
+            <PrivacyAgeSection />
+          </Section>
+        </Animated.View>
+
         <Animated.View entering={FadeInDown.delay(50).springify().damping(16)}>
           <Section title="Appearance">
             <SegmentedControl options={THEME_OPTIONS} value={themeMode} onChange={setThemeMode} />
@@ -332,19 +352,26 @@ export default function SettingsScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.text3 }]}>AI tutor tone</Text>
                 <SegmentedControl options={PERSONA_OPTIONS} value={tutorPersona} onChange={setTutorPersona} />
               </View>
-              <SmartNudgesToggle enabled={smartNudgesEnabled} onToggle={handleToggleSmartNudges} />
-              {smartNudgesEnabled ? (
-                <View>
-                  <Text style={[styles.fieldLabel, { color: colors.text3 }]}>When are you usually free to learn?</Text>
-                  <SegmentedControl
-                    options={STUDY_WINDOW_OPTIONS}
-                    value={preferredStudyWindow ?? 'evening'}
-                    onChange={(w) => {
-                      setPreferredStudyWindow(w);
-                      refreshStudyNudge({ suggestedHour: getSuggestedHour(w), enabled: true });
-                    }}
-                  />
-                </View>
+              {/* Hidden rather than disabled for a minor: app/_layout.tsx
+                  never schedules a study nudge for them, so a toggle here
+                  would be a switch that visibly does nothing. */}
+              {agePermissions.engagementNudges ? (
+                <>
+                  <SmartNudgesToggle enabled={smartNudgesEnabled} onToggle={handleToggleSmartNudges} />
+                  {smartNudgesEnabled ? (
+                    <View>
+                      <Text style={[styles.fieldLabel, { color: colors.text3 }]}>When are you usually free to learn?</Text>
+                      <SegmentedControl
+                        options={STUDY_WINDOW_OPTIONS}
+                        value={preferredStudyWindow ?? 'evening'}
+                        onChange={(w) => {
+                          setPreferredStudyWindow(w);
+                          refreshStudyNudge({ suggestedHour: getSuggestedHour(w), enabled: true });
+                        }}
+                      />
+                    </View>
+                  ) : null}
+                </>
               ) : null}
               <Button label="Personal records" variant="ghost" onPress={() => router.push('/settings/records')} />
               <Button label="Reset learning progress" variant="ghost" onPress={resetLearningProgress} />
@@ -375,7 +402,11 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(175).springify().damping(16)}>
           <Section title="Notifications" subtitle="Daily market reviews, learning check-ins, and study alerts.">
             <View style={{ gap: spacing.md }}>
-              <NotificationsToggle enabled={notificationsEnabled} onToggle={handleToggleNotifications} />
+              <NotificationsToggle
+                enabled={notificationsEnabled}
+                onToggle={handleToggleNotifications}
+                nudgesAllowed={agePermissions.engagementNudges}
+              />
               <Button
                 label={testingNotif ? 'Sending notification…' : 'Send test notification'}
                 variant="ghost"
@@ -501,14 +532,137 @@ function AchievementsRow({ badgeCount }: { badgeCount: number }) {
   );
 }
 
-function NotificationsToggle({ enabled, onToggle }: { enabled: boolean; onToggle: (next: boolean) => void }) {
+// The only place a minor can revisit the choice made in the age gate. The
+// restriction list is rendered from TEEN_RESTRICTIONS rather than retyped,
+// so this screen and the gate can never describe the rules differently.
+function PrivacyAgeSection() {
+  const { colors } = useTheme();
+  const permissions = useAgePermissions();
+  const isJudge = useIsJudgeMode();
+  const setJudgeMode = useAgeStore((s) => s.setJudgeMode);
+  const setTier = useSettingsStore((s) => s.setTier);
+  const judgeAccessSource = useAgeStore((s) => s.judgeAccessSource);
+  const aiDataConsent = useAgeStore((s) => s.aiDataConsent);
+  const setAiDataConsent = useAgeStore((s) => s.setAiDataConsent);
+
+  // TEMPORARY, hackathon judging only — constants/judgeMode.ts. Exiting drops
+  // straight into the real age gate, which is also how to get back to the
+  // normal flow on a device that already answered "yes".
+  if (isJudge) {
+    return (
+      <Card>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>Judging mode is on</Text>
+        <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+          Test Store purchases are simulated and this account is treated as 18+, so nothing is age-restricted. This
+          temporary option is only included in the Shipaton judge build.
+        </Text>
+        {judgeAccessSource ? (
+          <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+            Current access came from {judgeAccessSource === 'test_store' ? 'RevenueCat Test Store' : 'the offline local preview'}.
+          </Text>
+        ) : null}
+        <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+          Exiting asks your date of birth and restores the normal age rules. A still-active Test Store entitlement
+          can remain visible until its accelerated test period expires.
+        </Text>
+        <View style={{ marginTop: spacing.md }}>
+          <Button
+            label="Exit judging mode"
+            variant="ghost"
+            onPress={() => {
+              setJudgeMode(false);
+              setTier('free');
+            }}
+          />
+        </View>
+      </Card>
+    );
+  }
+
+  // TEMPORARY, hackathon judging only — constants/judgeMode.ts. The initial
+  // "Are you a judge?" prompt is the only other place judge mode can be
+  // turned on, so without this a mis-tapped "No" is only recoverable by
+  // reinstalling the app. Shown regardless of age band; gated on
+  // JUDGE_MODE_ENABLED so it's dead code outside a judge-variant build.
+  const judgeRecovery = JUDGE_MODE_ENABLED ? (
+    <Card>
+      <Text style={[styles.notifLabel, { color: colors.text }]}>Shipaton judge?</Text>
+      <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+        This is a judge build. If you meant to answer “yes” at the first prompt, you can turn on judging mode here
+        instead of reinstalling.
+      </Text>
+      <View style={{ marginTop: spacing.md }}>
+        <Button label="Enable judging mode" variant="ghost" onPress={() => setJudgeMode(true)} />
+      </View>
+    </Card>
+  ) : null;
+
+  if (permissions.band === 'adult') {
+    return (
+      <View style={{ gap: spacing.md }}>
+        {judgeRecovery}
+        <Card style={styles.notifRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.notifLabel, { color: colors.text }]}>Adult account</Text>
+            <Text style={[styles.notifSub, { color: colors.text3 }]}>
+              No age restrictions apply to this account. What the app sends where is set out in full in the privacy
+              policy.
+            </Text>
+          </View>
+        </Card>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ gap: spacing.md }}>
+      {judgeRecovery}
+      <Card style={styles.notifRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.notifLabel, { color: colors.text }]}>AI features</Text>
+          <Text style={[styles.notifSub, { color: colors.text3 }]}>
+            While this is on, what you type into the Assistant, quizzes and lesson stories is sent to an outside AI
+            company so it can answer. Turning it off stops that completely — nothing else changes.
+          </Text>
+        </View>
+        <Switch value={aiDataConsent === true} onValueChange={setAiDataConsent} trackColor={{ true: colors.accent }} />
+      </Card>
+      <Card>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>Always off while you are under 18</Text>
+        {TEEN_RESTRICTIONS.map((line) => (
+          <Text key={line} style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+            •  {line}
+          </Text>
+        ))}
+      </Card>
+    </View>
+  );
+}
+
+// The same switch means different things by age band, so it says different
+// things — a minor gets only the reminders they set up themselves, and
+// promising them an evening check-in that app/_layout.tsx will never schedule
+// would just be wrong.
+function NotificationsToggle({
+  enabled,
+  onToggle,
+  nudgesAllowed,
+}: {
+  enabled: boolean;
+  onToggle: (next: boolean) => void;
+  nudgesAllowed: boolean;
+}) {
   const { colors } = useTheme();
   return (
     <Card style={styles.notifRow}>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.notifLabel, { color: colors.text }]}>Daily reminders</Text>
+        <Text style={[styles.notifLabel, { color: colors.text }]}>
+          {nudgesAllowed ? 'Daily reminders' : 'Bill reminders'}
+        </Text>
         <Text style={[styles.notifSub, { color: colors.text3 }]}>
-          A check-in reminder each evening, plus a nudge if your Learn streak is about to lapse.
+          {nudgesAllowed
+            ? 'A check-in reminder each evening, plus a nudge if your Learn streak is about to lapse.'
+            : 'A heads-up the day before a recurring expense is due. Streak and check-in reminders stay off while you are under 18.'}
         </Text>
       </View>
       <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: colors.accent }} />
@@ -534,11 +688,14 @@ function SmartNudgesToggle({ enabled, onToggle }: { enabled: boolean; onToggle: 
 
 function PlanCard({ tier, onManage }: { tier: keyof typeof TIER_LABELS; onManage: () => void }) {
   const { colors } = useTheme();
+  const isJudge = useIsJudgeMode();
   return (
     <Card style={styles.planRow}>
       <View>
         <Text style={[styles.planLabel, { color: colors.text3 }]}>Current plan</Text>
-        <Text style={[styles.planValue, { color: colors.text }]}>{TIER_LABELS[tier]}</Text>
+        <Text style={[styles.planValue, { color: colors.text }]}>
+          {isJudge ? `${TIER_LABELS[tier]} · Judge preview` : TIER_LABELS[tier]}
+        </Text>
       </View>
       <Pressable onPress={onManage} hitSlop={8}>
         <PillBadge label="Manage" />
@@ -557,11 +714,17 @@ function PlanDetailsModal({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  const isJudge = useIsJudgeMode();
+  const judgeAccessSource = useAgeStore((s) => s.judgeAccessSource);
   const [since, setSince] = useState<Date | null | undefined>(undefined);
 
   useEffect(() => {
     if (!visible) {
       setSince(undefined);
+      return;
+    }
+    if (isJudge) {
+      setSince(null);
       return;
     }
     let alive = true;
@@ -571,7 +734,7 @@ function PlanDetailsModal({
     return () => {
       alive = false;
     };
-  }, [visible]);
+  }, [visible, isJudge]);
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
@@ -589,7 +752,13 @@ function PlanDetailsModal({
             <Text style={[styles.modalTitle, { color: colors.text }]}>{TIER_LABELS[tier]} plan</Text>
             {tier !== 'free' ? (
               <Text style={[styles.modalSubtitle, { color: colors.text3 }]}>
-                {since
+                {isJudge
+                  ? judgeAccessSource === 'test_store'
+                    ? 'Unlocked through a RevenueCat Test Store purchase.'
+                    : judgeAccessSource === 'offline_preview'
+                      ? 'Local offline judge preview — no RevenueCat transaction.'
+                      : 'Shipaton judge mode is active; complete a Test Store purchase to unlock this plan.'
+                  : since
                   ? `Member since ${since.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`
                   : isPurchasesConfigured()
                     ? 'Fetching subscription details…'
@@ -635,20 +804,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  headerTitleText: { fontSize: 17, fontWeight: '600' },
-  sectionTitle: { fontSize: 15, fontWeight: '700' },
-  sectionSubtitle: { fontSize: 12.5, marginTop: 2 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: spacing.sm },
+  headerTitleText: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '600' },
+  sectionTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  sectionSubtitle: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 2 },
+  fieldLabel: { fontSize: 12, letterSpacing: trackingFor(12), fontWeight: '600', marginBottom: spacing.sm },
   planRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   planLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  planValue: { fontSize: 16, fontWeight: '700', marginTop: 2 },
+  planValue: { fontSize: 16, letterSpacing: trackingFor(16), fontWeight: '700', marginTop: 2 },
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  notifLabel: { fontSize: 14, fontWeight: '700' },
-  notifSub: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  notifLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
+  notifSub: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, marginTop: 2 },
   modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.sm },
-  modalTitle: { fontSize: 19, fontWeight: '700' },
-  modalSubtitle: { fontSize: 13, marginBottom: spacing.sm },
+  modalTitle: { fontSize: 19, letterSpacing: trackingFor(19), fontWeight: '700' },
+  modalSubtitle: { fontSize: 13, letterSpacing: trackingFor(13), marginBottom: spacing.sm },
   modalFeatures: { gap: 6, marginVertical: spacing.md },
-  modalFeature: { fontSize: 13.5 },
+  modalFeature: { fontSize: 13.5, letterSpacing: trackingFor(13.5) },
 });

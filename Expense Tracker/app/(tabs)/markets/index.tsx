@@ -22,7 +22,9 @@ import { UpgradeBanner } from '@/components/ui/UpgradeBanner';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useQuotes } from '@/hooks/useQuotes';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { isLiveMarketDataConfigured, searchSymbols, type SymbolSearchResult } from '@/services/marketData/marketData';
 import { regenerateMarket } from '@/services/marketData/regenerateMarket';
@@ -43,15 +45,16 @@ function MarketActionBtn({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.95, springs.snappy);
+    scale.value = reducedMotion ? 1 : withSpring(0.95, springs.tap);
     triggerFeedback('secondary');
-  }, [scale]);
+  }, [scale, reducedMotion]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -273,7 +276,7 @@ export default function MarketsScreen() {
 const styles = StyleSheet.create({
   listWrap: { flex: 1 },
   liveSearchCenter: { alignItems: 'center', paddingVertical: spacing.xxl },
-  liveSearchHeading: { fontSize: 12.5, marginBottom: spacing.sm, paddingHorizontal: 2 },
+  liveSearchHeading: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginBottom: spacing.sm, paddingHorizontal: 2 },
   liveResultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -281,7 +284,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  liveSearchFootnote: { fontSize: 11.5, lineHeight: 15, marginTop: spacing.md },
+  liveSearchFootnote: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 15, marginTop: spacing.md },
   searchWrap: { paddingHorizontal: spacing.xl, marginBottom: spacing.sm },
   searchBox: {
     flexDirection: 'row',
@@ -291,7 +294,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
   },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 14 },
+  searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, letterSpacing: trackingFor(14) },
   bannerWrap: { paddingHorizontal: spacing.xl, marginBottom: spacing.sm },
   // 4 actions no longer fit one row without squeezing labels like "Practice
   // trade" onto two lines with the icon flush against the rounded corner
@@ -310,7 +313,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: spacing.sm,
   },
-  actionLabel: { fontSize: 12.5, fontWeight: '600' },
+  actionLabel: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
   row: { flexDirection: 'row', alignItems: 'center' },
 });

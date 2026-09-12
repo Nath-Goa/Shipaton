@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 
@@ -38,5 +39,5 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6 },
-  body: { fontSize: 12.5 },
+  body: { fontSize: 12.5, letterSpacing: trackingFor(12.5) },
 });

@@ -7,6 +7,7 @@ import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useQuotes } from '@/hooks/useQuotes';
 import { getLeaderboardBots } from '@/services/leaderboard/leaderboard';
@@ -93,12 +94,12 @@ export default function LeaderboardScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  disclaimer: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
+  disclaimer: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
-  rank: { fontSize: 15, fontWeight: '700', width: 28 },
+  rank: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700', width: 28 },
   avatar: { fontSize: 20 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  name: { fontSize: 14.5, fontWeight: '700', flexShrink: 1 },
-  netWorth: { fontSize: 12, marginTop: 2 },
-  pct: { fontSize: 14, fontWeight: '700' },
+  name: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '700', flexShrink: 1 },
+  netWorth: { fontSize: 12, letterSpacing: trackingFor(12), marginTop: 2 },
+  pct: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
 });

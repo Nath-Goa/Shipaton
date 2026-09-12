@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer } from 'expo-audio';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { RecapCardView, toneColors } from '@/components/recap/RecapCardView';
-import { triggerFeedback } from '@/constants/animations';
+import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { buildWeeklyRecapCards, type RecapCard } from '@/services/recap/weeklyRecap';
@@ -92,7 +92,6 @@ export default function WeeklyRecapScreen() {
   }, [activeIndex]);
 
   function handleTapZone(direction: 'back' | 'forward') {
-    triggerFeedback('navigation');
     if (direction === 'back') goTo(activeIndex - 1);
     else handleAdvance();
   }
@@ -116,8 +115,8 @@ export default function WeeklyRecapScreen() {
           advances — the same split every Stories-style UI uses so a thumb
           resting anywhere on the right side always moves forward. */}
       <View style={[StyleSheet.absoluteFill, styles.tapZones]} pointerEvents="box-none">
-        <Pressable style={styles.tapBack} onPress={() => handleTapZone('back')} />
-        <Pressable style={styles.tapForward} onPress={() => handleTapZone('forward')} />
+        <Pressable feedbackCategory="navigation" style={styles.tapBack} onPress={() => handleTapZone('back')} />
+        <Pressable feedbackCategory="navigation" style={styles.tapForward} onPress={() => handleTapZone('forward')} />
       </View>
 
       <View style={[styles.chrome, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
@@ -134,25 +133,21 @@ export default function WeeklyRecapScreen() {
             ))}
           </View>
           <Pressable
+            feedbackCategory="selection"
             accessibilityLabel={musicEnabled ? 'Mute recap music' : 'Play recap music'}
             accessibilityRole="button"
             hitSlop={10}
             style={[styles.soundBtn, { backgroundColor: `${activeTone.fg}20` }]}
-            onPress={() => {
-              triggerFeedback('selection');
-              setMusicEnabled((enabled) => !enabled);
-            }}>
+            onPress={() => setMusicEnabled((enabled) => !enabled)}>
             <Ionicons name={musicEnabled ? 'volume-high' : 'volume-mute'} size={17} color={activeTone.fg} />
           </Pressable>
           <Pressable
+            feedbackCategory="secondary"
             accessibilityLabel="Close weekly recap"
             accessibilityRole="button"
             hitSlop={12}
             style={styles.closeBtn}
-            onPress={() => {
-              triggerFeedback('secondary');
-              router.back();
-            }}>
+            onPress={() => router.back()}>
             <Ionicons name="close" size={22} color={activeTone.fg} />
           </Pressable>
         </View>

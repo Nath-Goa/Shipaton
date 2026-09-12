@@ -13,9 +13,17 @@ import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { categoryOf } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import type { Expense } from '@/types/expense';
+import { gestureIntent, rubberband } from '@/utils/motion';
 import { money } from '@/utils/money';
+
+// Swipe-commit threshold and the hard drag clamp it sits inside — the clamp
+// also doubles as `rubberband`'s dimension, so the "give" past it scales
+// with the row's own drag range instead of being imperceptibly tiny.
+const SWIPE_CLAMP = 82;
+const SWIPE_COMMIT = 70;
 
 type Props = {
   expense: Expense;
@@ -35,12 +43,12 @@ export function ExpenseListItem({ expense, onPress, onLongPress, onSwipeLeft, on
   const translateX = useSharedValue(0);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.98, springs.snappy);
+    scale.value = withSpring(0.98, springs.tap);
     triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -53,12 +61,23 @@ export function ExpenseListItem({ expense, onPress, onLongPress, onSwipeLeft, on
     .activeOffsetX([-24, 24])
     .failOffsetY([-14, 14])
     .onUpdate((event) => {
-      translateX.value = Math.max(-82, Math.min(82, event.translationX));
+      const raw = event.translationX;
+      translateX.value =
+        raw < -SWIPE_CLAMP
+          ? -SWIPE_CLAMP - rubberband(-raw - SWIPE_CLAMP, SWIPE_CLAMP)
+          : raw > SWIPE_CLAMP
+            ? SWIPE_CLAMP + rubberband(raw - SWIPE_CLAMP, SWIPE_CLAMP)
+            : raw;
     })
     .onEnd((event) => {
-      if (event.translationX < -70 && onSwipeLeft) runOnJS(onSwipeLeft)();
-      if (event.translationX > 70 && onSwipeRight) runOnJS(onSwipeRight)();
-      translateX.value = withSpring(0, springs.snappy);
+      // Position blended with velocity (same 0.12 weighting SlidingTabs'
+      // own swipe already uses) — a fast flick can now commit the action
+      // even short of the pure-position threshold, previously ignored
+      // entirely.
+      const intent = gestureIntent(event.translationX, event.velocityX);
+      if (intent < -SWIPE_COMMIT && onSwipeLeft) runOnJS(onSwipeLeft)();
+      if (intent > SWIPE_COMMIT && onSwipeRight) runOnJS(onSwipeRight)();
+      translateX.value = withSpring(0, { ...springs.snappy, velocity: event.velocityX });
     });
 
   return (
@@ -117,11 +136,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: { fontSize: 17 },
+  iconText: { fontSize: 17, letterSpacing: trackingFor(17) },
   photo: { width: 38, height: 38, borderRadius: radius.sm },
   main: { flex: 1, minWidth: 0 },
   descRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  desc: { fontSize: 14.5, fontWeight: '500', flexShrink: 1 },
-  meta: { fontSize: 12.5, marginTop: 1 },
-  amount: { fontSize: 15, fontWeight: '600' },
+  desc: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '500', flexShrink: 1 },
+  meta: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 1 },
+  amount: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '600' },
 });

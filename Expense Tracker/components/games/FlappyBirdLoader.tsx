@@ -5,6 +5,7 @@ import Animated, { runOnJS, useAnimatedStyle, useFrameCallback, useSharedValue }
 import { Text } from '@/components/ui/Text';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { radius } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 const WIDTH = 264;
@@ -195,12 +196,12 @@ function Pipe({ animatedStyle, top = false }: { animatedStyle: object; top?: boo
 
 const styles = StyleSheet.create({
   wrap: { width: WIDTH, height: HEIGHT, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, overflow: 'hidden', alignSelf: 'center', marginVertical: 8 },
-  score: { position: 'absolute', top: 7, alignSelf: 'center', fontSize: 16, fontWeight: '900', color: '#FFF', zIndex: 4, textShadowColor: '#174A6277', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  score: { position: 'absolute', top: 7, alignSelf: 'center', fontSize: 16, letterSpacing: trackingFor(16), fontWeight: '900', color: '#FFF', zIndex: 4, textShadowColor: '#174A6277', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   startPrompt: { position: 'absolute', top: 48, left: 82, right: 20, alignItems: 'center', zIndex: 5 },
   deadPrompt: { left: 0, right: 0 },
-  startPromptTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', textShadowColor: '#174A62AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
-  startPromptScore: { color: '#FFFFFFDD', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  hint: { position: 'absolute', bottom: 15, alignSelf: 'center', color: '#FFFFFFDD', fontSize: 9, fontWeight: '800', zIndex: 5 },
+  startPromptTitle: { color: '#FFF', fontSize: 16, letterSpacing: trackingFor(16), fontWeight: '900', textShadowColor: '#174A62AA', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  startPromptScore: { color: '#FFFFFFDD', fontSize: 11, letterSpacing: trackingFor(11), fontWeight: '700', marginTop: 2 },
+  hint: { position: 'absolute', bottom: 15, alignSelf: 'center', color: '#FFFFFFDD', fontSize: 9, letterSpacing: trackingFor(9), fontWeight: '800', zIndex: 5 },
   cloud: { position: 'absolute', width: 52, height: 13, borderRadius: 20, backgroundColor: '#FFFFFF55' },
   cloudPuff: { position: 'absolute', left: 12, top: -8, width: 25, height: 20, borderRadius: 20, backgroundColor: '#FFFFFF55' },
   cloudOne: { left: 15, top: 27 }, cloudTwo: { right: 23, top: 50, transform: [{ scale: 0.72 }] },

@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { Text } from '@/components/ui/Text';
 import { radius, shadow, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 type Props = {
@@ -82,5 +83,6 @@ const styles = StyleSheet.create({
   },
   sub: {
     fontSize: 12.5,
+    letterSpacing: trackingFor(12.5),
   },
 });

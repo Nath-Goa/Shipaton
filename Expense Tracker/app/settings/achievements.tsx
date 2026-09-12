@@ -7,6 +7,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { BADGE_INFO, badgeInfo } from '@/constants/badges';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useStreakStore } from '@/store/useStreakStore';
 
@@ -58,12 +59,12 @@ export default function AchievementsScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  summary: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  streak: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
+  summary: { fontSize: 20, letterSpacing: trackingFor(20), fontWeight: '700', textAlign: 'center' },
+  streak: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600', textAlign: 'center', marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   cell: { flexGrow: 1, flexBasis: '47%' },
   badgeCard: { alignItems: 'center', gap: 4, paddingVertical: spacing.lg },
-  badgeIcon: { fontSize: 30 },
-  badgeLabel: { fontSize: 13.5, fontWeight: '700', textAlign: 'center' },
+  badgeIcon: { fontSize: 30, letterSpacing: trackingFor(30) },
+  badgeLabel: { fontSize: 13.5, letterSpacing: trackingFor(13.5), fontWeight: '700', textAlign: 'center' },
   badgeStatus: { fontSize: 11.5, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
 });

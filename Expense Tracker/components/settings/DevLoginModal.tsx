@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 
 type Props = {
@@ -43,6 +45,7 @@ const OWNER_LOGINS: { username: string; password: string; name: string }[] = [
 
 export function DevLoginModal({ visible, onClose, onSuccess }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -76,12 +79,16 @@ export function DevLoginModal({ visible, onClose, onSuccess }: Props) {
     }
     triggerFeedback('error');
     setErrorMsg('Incorrect username or password.');
-    shakeTranslate.value = withSequence(
-      withTiming(-10, { duration: 60 }),
-      withSpring(10, springs.snappy),
-      withSpring(-6, springs.snappy),
-      withSpring(0, springs.snappy)
-    );
+    // A shake is exactly the oscillating motion §14 wants gated — the red
+    // error text already carries the "wrong" signal on its own.
+    if (!reducedMotion) {
+      shakeTranslate.value = withSequence(
+        withTiming(-10, { duration: 60 }),
+        withSpring(10, springs.snappy),
+        withSpring(-6, springs.snappy),
+        withSpring(0, springs.snappy)
+      );
+    }
   }
 
   return (
@@ -141,8 +148,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
     gap: spacing.md,
   },
-  title: { fontSize: 19, fontWeight: '700', textAlign: 'center' },
-  subtitle: { fontSize: 13, textAlign: 'center', marginTop: 2, marginBottom: spacing.md },
+  title: { fontSize: 19, letterSpacing: trackingFor(19), fontWeight: '700', textAlign: 'center' },
+  subtitle: { fontSize: 13, letterSpacing: trackingFor(13), textAlign: 'center', marginTop: 2, marginBottom: spacing.md },
   fields: { gap: spacing.sm },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -150,7 +157,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 11,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
-  errorText: { fontSize: 13, textAlign: 'center', fontWeight: '600', marginTop: spacing.sm },
+  errorText: { fontSize: 13, letterSpacing: trackingFor(13), textAlign: 'center', fontWeight: '600', marginTop: spacing.sm },
   actions: { gap: spacing.sm, marginTop: spacing.lg },
 });

@@ -14,6 +14,7 @@ import { TopBar } from '@/components/ui/TopBar';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { TICKERS, tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { runBacktest } from '@/services/market/backtest';
@@ -151,10 +152,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   chipRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, paddingVertical: 2 },
-  resultTitle: { fontSize: 15.5, fontWeight: '700' },
-  resultSub: { fontSize: 12.5, marginTop: 2 },
+  resultTitle: { fontSize: 15.5, letterSpacing: trackingFor(15.5), fontWeight: '700' },
+  resultSub: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 2 },
   statsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
   directionRow: {
     flexDirection: 'row',
@@ -163,7 +165,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: spacing.sm,
   },
-  directionLabel: { fontSize: 13, flex: 1 },
-  directionValue: { fontSize: 13, fontWeight: '700' },
-  disclaimer: { fontSize: 11.5, lineHeight: 16, textAlign: 'center' },
+  directionLabel: { fontSize: 13, letterSpacing: trackingFor(13), flex: 1 },
+  directionValue: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '700' },
+  disclaimer: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 16, textAlign: 'center' },
 });

@@ -7,6 +7,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
 import { useTheme } from '@/hooks/useTheme';
 import { clearApiKey, getApiKey, maskKey, setApiKey } from '@/services/ai/apiKey';
@@ -138,11 +139,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 11,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   keyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  maskedKey: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+  maskedKey: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600', marginTop: 4 },
   modelRow: { marginTop: spacing.lg },
-  modelHint: { fontSize: 11.5, lineHeight: 15, marginTop: spacing.sm },
-  brokenHint: { fontSize: 11.5, lineHeight: 15, marginTop: spacing.md },
-  hint: { fontSize: 12, lineHeight: 16 },
+  modelHint: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 15, marginTop: spacing.sm },
+  brokenHint: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 15, marginTop: spacing.md },
+  hint: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16 },
 });

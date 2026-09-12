@@ -6,11 +6,14 @@ import Animated, {
   useSharedValue,
   withSequence,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
 import { springs } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import type { Direction } from '@/types/stock';
 
@@ -23,6 +26,7 @@ const ICON: Record<Direction, keyof typeof Ionicons.glyphMap> = {
 
 export function DirectionBadge({ direction, size = 'md' }: { direction: Direction; size?: 'sm' | 'md' }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const color = direction === 'up' ? colors.success : direction === 'down' ? colors.danger : colors.text2;
   const bg = direction === 'up' ? colors.successSoft : direction === 'down' ? colors.dangerSoft : colors.surface2;
   const small = size === 'sm';
@@ -30,11 +34,10 @@ export function DirectionBadge({ direction, size = 'md' }: { direction: Directio
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    scale.value = withSequence(
-      withSpring(1.12, springs.bouncy),
-      withSpring(1, springs.snappy)
-    );
-  }, [direction, scale]);
+    scale.value = reducedMotion
+      ? withTiming(1, { duration: 150 })
+      : withSequence(withSpring(1.12, springs.bouncy), withSpring(1, springs.snappy));
+  }, [direction, scale, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -61,6 +64,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   pillSm: { paddingVertical: 3, paddingHorizontal: spacing.sm },
-  label: { fontSize: 12.5, fontWeight: '700' },
-  labelSm: { fontSize: 11 },
+  label: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '700' },
+  labelSm: { fontSize: 11, letterSpacing: trackingFor(11) },
 });

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 const PAIRS = [
@@ -58,10 +59,10 @@ export function MarketMatchLoader() {
 
 const styles = StyleSheet.create({
   card: { gap: spacing.sm, width: '100%' },
-  title: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
-  help: { fontSize: 11.5, lineHeight: 15, textAlign: 'center' },
+  title: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '800', textAlign: 'center' },
+  help: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 15, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tile: { flexBasis: '46%', flexGrow: 1, minHeight: 48, borderWidth: 1, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', padding: spacing.sm },
-  tileText: { fontSize: 11.5, fontWeight: '700', textAlign: 'center' },
+  tileText: { fontSize: 11.5, letterSpacing: trackingFor(11.5), fontWeight: '700', textAlign: 'center' },
 });
 

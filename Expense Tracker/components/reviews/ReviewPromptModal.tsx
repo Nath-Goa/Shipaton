@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useReviewStore } from '@/store/useReviewStore';
 
@@ -35,7 +36,6 @@ export function ReviewPromptModal({ visible, onClose }: Props) {
   }, [onClose]);
 
   const handleStarPress = useCallback((value: number) => {
-    triggerFeedback('selection');
     setRating(value);
   }, []);
 
@@ -80,7 +80,7 @@ export function ReviewPromptModal({ visible, onClose }: Props) {
 
             <View style={styles.starRow}>
               {STARS.map((value) => (
-                <Pressable key={value} hitSlop={8} onPress={() => handleStarPress(value)}>
+                <Pressable key={value} hitSlop={8} onPressIn={() => triggerFeedback('selection')} onPress={() => handleStarPress(value)}>
                   <Ionicons
                     name={value <= rating ? 'star' : 'star-outline'}
                     size={34}
@@ -121,8 +121,8 @@ export function ReviewPromptModal({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   sheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.sm },
-  title: { fontSize: 19, fontWeight: '700' },
-  subtitle: { fontSize: 13, marginBottom: spacing.sm },
+  title: { fontSize: 19, letterSpacing: trackingFor(19), fontWeight: '700' },
+  subtitle: { fontSize: 13, letterSpacing: trackingFor(13), marginBottom: spacing.sm },
   starRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.md, marginVertical: spacing.md },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -130,6 +130,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
     minHeight: 70,
     textAlignVertical: 'top',
     marginBottom: spacing.sm,

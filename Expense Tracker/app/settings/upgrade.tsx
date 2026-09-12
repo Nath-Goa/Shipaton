@@ -5,10 +5,12 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import {
   TIER_FEATURE_COPY,
   TIER_HEADLINE,
@@ -16,9 +18,21 @@ import {
   TIER_PRICE,
   type Tier,
 } from '@/constants/subscription';
+import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
-import { PAYWALL_RESULT, presentCustomerCenter, presentPaywallForTier } from '@/services/purchases/paywallUI';
-import { fetchTierPrice, isPurchasesConfigured, restorePurchases } from '@/services/purchases/revenuecat';
+import {
+  PAYWALL_RESULT,
+  presentCustomerCenter,
+  presentPaywallAsJudge,
+  presentPaywallForTier,
+} from '@/services/purchases/paywallUI';
+import {
+  fetchTierPrice,
+  getPurchasesEnvironment,
+  isPurchasesConfigured,
+  restorePurchases,
+} from '@/services/purchases/revenuecat';
+import { useAgeStore } from '@/store/useAgeStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
 
@@ -28,7 +42,16 @@ export default function UpgradeScreen() {
   const { colors } = useTheme();
   const { tier, setTier } = useSettingsStore();
   const showToast = useToastStore((s) => s.show);
+  const agePermissions = useAgePermissions();
+  const isJudge = useIsJudgeMode();
   const configured = isPurchasesConfigured();
+  const purchasesEnvironment = getPurchasesEnvironment();
+  const judgeAccessSource = useAgeStore((s) => s.judgeAccessSource);
+  const judgeAccessTier = useAgeStore((s) => s.judgeAccessTier);
+  const judgeOfflineFallbackAvailable = useAgeStore((s) => s.judgeOfflineFallbackAvailable);
+  const grantJudgeAccess = useAgeStore((s) => s.grantJudgeAccess);
+  const offerJudgeOfflineFallback = useAgeStore((s) => s.offerJudgeOfflineFallback);
+  const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
 
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -54,6 +77,7 @@ export default function UpgradeScreen() {
 
   function priceLabel(t: Tier): string {
     if (t === 'free') return TIER_PRICE.free;
+    if (isJudge) return purchasesEnvironment === 'test_store' ? 'Simulated · no charge' : 'Offline preview available';
     if (!configured) return `From ${TIER_PRICE[t]}`;
     const live = livePrice[t];
     return live ? `From ${live}` : 'See pricing →';
@@ -63,6 +87,13 @@ export default function UpgradeScreen() {
   // "monthly" / "yearly" / "lifetime" packages) — pricing, layout, and the
   // whole purchase flow are handled natively from there.
   async function handleChoose(t: Exclude<Tier, 'free'>) {
+    // TEMPORARY, hackathon judging only (constants/judgeMode.ts). This
+    // screen is reachable directly from Settings, not only via
+    // useUpgradeToTier, so the grant is repeated here rather than assumed.
+    if (isJudge) {
+      chooseAsJudge(t);
+      return;
+    }
     setBusyTier(t);
     const outcome = await presentPaywallForTier(t);
     setBusyTier(null);
@@ -77,9 +108,13 @@ export default function UpgradeScreen() {
     }
     switch (outcome.result) {
       case PAYWALL_RESULT.PURCHASED:
-        if (outcome.tier) setTier(outcome.tier);
-        showToast(`You're now on ${TIER_LABELS[outcome.tier ?? t]}.`);
-        router.back();
+        if (outcome.tier && outcome.tier !== 'free') {
+          setTier(outcome.tier);
+          showToast(`You're now on ${TIER_LABELS[outcome.tier]}.`);
+          router.back();
+        } else {
+          showToast('Purchase completed, but access is still syncing. Try Restore purchases in a moment.');
+        }
         return;
       case PAYWALL_RESULT.RESTORED:
         if (outcome.tier) setTier(outcome.tier);
@@ -105,6 +140,12 @@ export default function UpgradeScreen() {
       showToast(result.message);
       return;
     }
+    if (isJudge && result.tier === 'free' && judgeAccessTier) {
+      setTier(judgeAccessTier);
+      showToast('No active Test Store purchase found. Your completed judge preview remains available.');
+      return;
+    }
+    if (isJudge && result.tier !== 'free') grantJudgeAccess(result.tier, 'test_store');
     setTier(result.tier);
     showToast(
       result.tier === 'free' ? 'No active purchases found to restore.' : `Restored — you're on ${TIER_LABELS[result.tier]}.`
@@ -121,10 +162,62 @@ export default function UpgradeScreen() {
     if (!result.ok) showToast(result.message ?? 'Could not open subscription management.');
   }
 
+  // TEMPORARY (constants/judgeMode.ts). Paid tiers open the real RevenueCat
+  // paywall first, then requires RevenueCat Test Store's simulated purchase
+  // to return the expected entitlement. Downgrading to Free needs no paywall.
+  async function chooseAsJudge(next: Tier) {
+    if (next === 'free') {
+      clearJudgeAccess();
+      setTier('free');
+      showToast("You're now on Free.");
+      router.back();
+      return;
+    }
+    setBusyTier(next);
+    const outcome = await presentPaywallAsJudge(next);
+    setBusyTier(null);
+    if (outcome.status === 'activated') {
+      grantJudgeAccess(outcome.tier, 'test_store');
+      setTier(outcome.tier);
+      showToast(`${TIER_LABELS[outcome.tier]} unlocked through RevenueCat Test Store.`);
+      router.back();
+      return;
+    }
+    if (outcome.status === 'cancelled') {
+      showToast('Test purchase cancelled — your plan was not changed.');
+      return;
+    }
+    offerJudgeOfflineFallback();
+    showToast(outcome.message);
+  }
+
+  function activateOfflineJudgePreview() {
+    grantJudgeAccess('max', 'offline_preview');
+    setTier('max');
+    showToast('Offline Max preview unlocked. RevenueCat was not used for this fallback.');
+    router.back();
+  }
+
   function chooseDemo(next: Tier) {
     setTier(next);
     showToast(`You're now on ${TIER_LABELS[next]}. (Demo mode — no charge.)`);
     router.back();
+  }
+
+  // This screen is reachable directly from Settings, not only through
+  // useUpgradeToTier, so it needs the same rule applied independently. No
+  // prices are shown either — a plan list a minor cannot buy is just an
+  // advert aimed at them.
+  if (!agePermissions.purchases) {
+    return (
+      <Screen edges={['left', 'right', 'bottom']}>
+        <EmptyState
+          icon="🔒"
+          title="Subscriptions are 18+"
+          message="Markva does not sell subscriptions to under-18 accounts. Everything on the free plan stays available, including unlimited paper trading, all lessons and quizzes, budgets and savings goals."
+        />
+      </Screen>
+    );
   }
 
   return (
@@ -132,9 +225,13 @@ export default function UpgradeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Text style={[styles.intro, { color: colors.text3 }]}>
-            {configured
-              ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
-              : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
+            {isJudge
+              ? purchasesEnvironment === 'test_store'
+                ? 'Judging mode — open a plan and choose “Simulate successful purchase” in RevenueCat Test Store. The real paywall and entitlement flow run, but no money or card is involved.'
+                : 'Judging mode is active, but this APK has no RevenueCat Test Store key. Try a plan to reveal the clearly labeled offline preview fallback.'
+              : configured
+                ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
+                : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
           </Text>
         </Animated.View>
 
@@ -159,9 +256,18 @@ export default function UpgradeScreen() {
                   ))}
                 </View>
 
+                {/* The judge branches are TEMPORARY — constants/judgeMode.ts.
+                    They require a Test Store entitlement; a failure reveals
+                    the separate, clearly labeled offline fallback below. */}
                 {t === 'free' ? (
                   isCurrent ? (
                     <Button label="Current plan" variant="ghost" disabled fullWidth />
+                  ) : isJudge ? (
+                    judgeAccessSource === 'offline_preview' ? (
+                      <Button label="End offline preview" variant="ghost" fullWidth onPress={() => chooseAsJudge(t)} />
+                    ) : (
+                      <Button label="Test Store entitlement active" variant="ghost" disabled fullWidth />
+                    )
                   ) : configured ? (
                     <Button label="Manage subscription" variant="ghost" loading={openingCenter} fullWidth onPress={handleManage} />
                   ) : (
@@ -169,6 +275,13 @@ export default function UpgradeScreen() {
                   )
                 ) : isCurrent ? (
                   <Button label="Current plan" variant="ghost" disabled fullWidth />
+                ) : isJudge ? (
+                  <Button
+                    label={`Test ${TIER_LABELS[t]} purchase — free`}
+                    loading={busyTier === t}
+                    fullWidth
+                    onPress={() => chooseAsJudge(t)}
+                  />
                 ) : configured ? (
                   <Button
                     label={`View ${TIER_LABELS[t]} plan`}
@@ -186,8 +299,32 @@ export default function UpgradeScreen() {
 
         {configured ? (
           <Animated.View entering={FadeInDown.delay(60 + TIERS.length * 60).springify().damping(16)}>
-            <Button label="Restore purchases" variant="ghost" fullWidth loading={restoring} onPress={handleRestore} />
+            <Button
+              label={isJudge ? 'Restore Test Store purchase' : 'Restore purchases'}
+              variant="ghost"
+              fullWidth
+              loading={restoring}
+              onPress={handleRestore}
+            />
           </Animated.View>
+        ) : null}
+
+        {isJudge && judgeOfflineFallbackAvailable ? (
+          <Card style={styles.fallbackCard}>
+            <Text style={[styles.tierName, { color: colors.text }]}>RevenueCat unavailable?</Text>
+            <Text style={[styles.headline, { color: colors.text2 }]}>
+              Retry the Test Store first. If the network or dashboard setup is unavailable during judging, you can
+              still inspect every Max feature locally. This fallback does not count as a RevenueCat purchase.
+            </Text>
+            <Button label="Retry RevenueCat Test Store" fullWidth onPress={() => chooseAsJudge('max')} />
+            <Button label="Continue with offline Max preview" variant="ghost" fullWidth onPress={activateOfflineJudgePreview} />
+          </Card>
+        ) : null}
+
+        {isJudge && judgeAccessSource ? (
+          <Text style={[styles.accessSource, { color: colors.text3 }]}>
+            Access source: {judgeAccessSource === 'test_store' ? 'RevenueCat Test Store' : 'local offline preview'}
+          </Text>
         ) : null}
       </ScrollView>
     </Screen>
@@ -196,12 +333,14 @@ export default function UpgradeScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  intro: { fontSize: 12, textAlign: 'center', lineHeight: 16 },
+  intro: { fontSize: 12, letterSpacing: trackingFor(12), textAlign: 'center', lineHeight: 16 },
   card: { gap: 4 },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tierName: { fontSize: 18, fontWeight: '700' },
-  price: { fontSize: 22, fontWeight: '700', marginTop: 2 },
-  headline: { fontSize: 13, marginTop: 4, marginBottom: spacing.md },
+  tierName: { fontSize: 18, letterSpacing: trackingFor(18), fontWeight: '700' },
+  price: { fontSize: 22, letterSpacing: trackingFor(22), fontWeight: '700', marginTop: 2 },
+  headline: { fontSize: 13, letterSpacing: trackingFor(13), marginTop: 4, marginBottom: spacing.md },
   features: { gap: 6, marginBottom: spacing.lg },
-  feature: { fontSize: 13 },
+  feature: { fontSize: 13, letterSpacing: trackingFor(13) },
+  fallbackCard: { gap: spacing.sm },
+  accessSource: { fontSize: 12, letterSpacing: trackingFor(12), textAlign: 'center' },
 });

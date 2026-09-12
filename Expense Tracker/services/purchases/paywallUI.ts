@@ -26,7 +26,19 @@ async function resolveOutcome(result: PAYWALL_RESULT): Promise<PresentPaywallOut
   if (result !== PAYWALL_RESULT.PURCHASED && result !== PAYWALL_RESULT.RESTORED) {
     return { shown: true, result };
   }
-  const tier = await fetchCurrentTier();
+  // RevenueCat's own SDK cache is normally already updated by the time
+  // PURCHASED/RESTORED resolves, but a transient hiccup fetching it here
+  // shouldn't read as "the purchase didn't grant anything" — that's the
+  // difference between a real user seeing "still syncing, try Restore" and
+  // a judge being dropped straight to the offline fallback moments after a
+  // real Test Store purchase actually succeeded. A couple of short retries
+  // costs under a second and removes most of that false negative.
+  let tier: Tier | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    tier = await fetchCurrentTier();
+    if (tier && tier !== 'free') break;
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 400));
+  }
   return { shown: true, result, tier: tier ?? undefined };
 }
 
@@ -39,7 +51,16 @@ export async function presentPaywallForTier(tier: Exclude<Tier, 'free'>): Promis
   if (!isPurchasesConfigured()) return { shown: false, reason: 'not_configured' };
   try {
     const offering = await fetchOfferingForTier(tier);
-    const result = await RevenueCatUI.presentPaywall({ offering: offering ?? undefined });
+    if (!offering) {
+      return {
+        shown: false,
+        reason: 'error',
+        message: `The ${tier === 'pro' ? 'Pro' : 'Max'} plan is temporarily unavailable. Please try again later.`,
+      };
+    }
+    // Always provide an escape hatch. Cancelling never grants access, and a
+    // dashboard edit must not turn an upgrade surface into a hard gate.
+    const result = await RevenueCatUI.presentPaywall({ offering, displayCloseButton: true });
     return resolveOutcome(result);
   } catch (e: any) {
     // A configured-but-failing paywall (no offering set up in the
@@ -71,6 +92,46 @@ export async function presentPaywallIfNeededForTier(tier: Exclude<Tier, 'free'>)
     return { shown: true, result: PAYWALL_RESULT.NOT_PRESENTED, tier: current };
   }
   return presentPaywallForTier(tier);
+}
+
+// TEMPORARY, hackathon judging only — see constants/judgeMode.ts.
+//
+export type JudgePaywallOutcome =
+  | { status: 'activated'; tier: Exclude<Tier, 'free'> }
+  | { status: 'cancelled' }
+  | { status: 'unavailable'; message: string }
+  | { status: 'entitlement_missing'; message: string };
+
+// Judges use RevenueCat Test Store, so a simulated successful purchase must
+// produce the same CustomerInfo entitlement the production app expects.
+// Dismissing the paywall is deliberately not success: the judge is reviewing
+// both the interface and the actual entitlement execution.
+export async function presentPaywallAsJudge(
+  tier: Exclude<Tier, 'free'>
+): Promise<JudgePaywallOutcome> {
+  const outcome = await presentPaywallForTier(tier);
+  if (!outcome.shown) {
+    return {
+      status: 'unavailable',
+      message:
+        outcome.reason === 'not_configured'
+          ? 'RevenueCat Test Store is not configured for this judge build.'
+          : outcome.message,
+    };
+  }
+  if (outcome.result === PAYWALL_RESULT.CANCELLED || outcome.result === PAYWALL_RESULT.NOT_PRESENTED) {
+    return { status: 'cancelled' };
+  }
+  if (outcome.result === PAYWALL_RESULT.ERROR) {
+    return { status: 'unavailable', message: 'RevenueCat could not complete the test purchase. Please try again.' };
+  }
+  if (!outcome.tier || outcome.tier === 'free' || !tierSatisfies(outcome.tier, tier)) {
+    return {
+      status: 'entitlement_missing',
+      message: `The test purchase finished, but RevenueCat did not return the ${tier === 'pro' ? 'Pro' : 'Max'} entitlement.`,
+    };
+  }
+  return { status: 'activated', tier: outcome.tier };
 }
 
 export async function presentCustomerCenter(): Promise<{ ok: boolean; message?: string }> {

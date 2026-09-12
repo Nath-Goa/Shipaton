@@ -1,5 +1,6 @@
 import { supabase } from '@/services/social/supabaseClient';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useToastStore } from '@/store/useToastStore';
 
 // Friends live entirely behind Supabase — see supabase/schema.sql's
 // FRIENDSHIPS section for the table/RLS this talks to, and its
@@ -23,11 +24,20 @@ function errorMessage(e: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
+// A read that fails must never look identical to "you have none" — that's
+// indistinguishable from real data on screen. Surfaced as a toast
+// (cross-store getState() call, same pattern used throughout this codebase)
+// rather than changing these functions' return shape.
+function notifyLoadError(): void {
+  useToastStore.getState().show("Couldn't load — check your connection.");
+}
+
 /** Shared by anything that needs to turn a list of user ids into display names — e.g. a duel's roster. */
 export async function profilesByIds(ids: string[]): Promise<Map<string, Profile>> {
   const map = new Map<string, Profile>();
   if (ids.length === 0) return map;
-  const { data } = await supabase.from('profiles').select('id, display_name').in('id', ids);
+  const { data, error } = await supabase.from('profiles').select('id, display_name').in('id', ids);
+  if (error) notifyLoadError();
   for (const row of data ?? []) map.set(row.id, { id: row.id, displayName: row.display_name });
   return map;
 }
@@ -83,11 +93,12 @@ export async function removeFriendship(friendshipId: string): Promise<Result> {
 export async function listFriends(): Promise<Friend[]> {
   const me = currentUserId();
   if (!me) return [];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('friendships')
     .select('id, requester_id, addressee_id')
     .eq('status', 'accepted')
     .or(`requester_id.eq.${me},addressee_id.eq.${me}`);
+  if (error) notifyLoadError();
   const rows = data ?? [];
   const otherIds = rows.map((r) => (r.requester_id === me ? r.addressee_id : r.requester_id));
   const profiles = await profilesByIds(otherIds);
@@ -103,11 +114,12 @@ export async function listFriends(): Promise<Friend[]> {
 export async function listPendingRequests(): Promise<FriendRequest[]> {
   const me = currentUserId();
   if (!me) return [];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('friendships')
     .select('id, requester_id, addressee_id')
     .eq('status', 'pending')
     .or(`requester_id.eq.${me},addressee_id.eq.${me}`);
+  if (error) notifyLoadError();
   const rows = data ?? [];
   const otherIds = rows.map((r) => (r.requester_id === me ? r.addressee_id : r.requester_id));
   const profiles = await profilesByIds(otherIds);

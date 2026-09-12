@@ -30,6 +30,8 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { radius, spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
@@ -57,6 +59,7 @@ export default function StockDetailScreen() {
   const { symbol: rawSymbol } = useLocalSearchParams<{ symbol: string }>();
   const symbol = (rawSymbol ?? '').toUpperCase();
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
   const upgradeToTier = useUpgradeToTier();
@@ -84,6 +87,10 @@ export default function StockDetailScreen() {
   const refreshSpin = useSharedValue(0);
   const priceFlashOpacity = useSharedValue(0);
   const prevPriceRef = useRef(quote?.price);
+  // Mirrors StarButton's own guard: RN fires onPress before onPressOut on a
+  // successful tap, so without this onPressOut would immediately spring the
+  // star back to 1 and cut off handleToggleWatchlist's bounce mid-overshoot.
+  const starPressCommittedRef = useRef(false);
 
   const blocked = wouldExceedLimit(symbol, features.stockDetailDailyLimit);
 
@@ -141,12 +148,26 @@ export default function StockDetailScreen() {
   const changePct = quote?.changePct ?? 0;
   const up = changePct >= 0;
 
+  function handleStarPressIn() {
+    starPressCommittedRef.current = false;
+    // Instant, subtle feedback the moment the finger lands — nothing has
+    // been committed yet, so no haptic here (matches StarButton.tsx's own
+    // causality-driven fix: the pop represents "you just toggled it," which
+    // should only fire on commit, not on touch-down).
+    starScale.value = reducedMotion ? 1 : withSpring(0.9, springs.tap);
+  }
+
+  function handleStarPressOut() {
+    if (starPressCommittedRef.current) return;
+    starScale.value = withSpring(1, springs.tap);
+  }
+
   function handleToggleWatchlist() {
+    starPressCommittedRef.current = true;
     triggerFeedback('selection');
-    starScale.value = withSequence(
-      withSpring(1.35, springs.bouncy),
-      withSpring(1, springs.snappy)
-    );
+    starScale.value = reducedMotion
+      ? withTiming(1, { duration: 150 })
+      : withSequence(withSpring(1.35, springs.bouncy), withSpring(1, springs.snappy));
     toggleWatchlist(symbol);
   }
 
@@ -271,7 +292,11 @@ export default function StockDetailScreen() {
                   <Ionicons name="refresh-outline" size={20} color={colors.text2} />
                 </Animated.View>
               </Pressable>
-              <Pressable hitSlop={8} onPress={handleToggleWatchlist}>
+              <Pressable
+                hitSlop={8}
+                onPressIn={handleStarPressIn}
+                onPress={handleToggleWatchlist}
+                onPressOut={handleStarPressOut}>
                 <Animated.View style={starAnimatedStyle}>
                   <Ionicons
                     name={watched ? 'star' : 'star-outline'}
@@ -548,8 +573,8 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   notTrackedBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  notTrackedText: { flex: 1, fontSize: 12.5, lineHeight: 17 },
-  name: { fontSize: 13, fontWeight: '600' },
+  notTrackedText: { flex: 1, fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 17 },
+  name: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 2 },
   price: { fontSize: 30, fontWeight: '700', letterSpacing: -0.5 },
   changePill: {
@@ -560,26 +585,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
   },
-  change: { fontSize: 13, fontWeight: '700' },
-  todayLabel: { fontSize: 11.5, fontWeight: '600', marginTop: 4 },
+  change: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '700' },
+  todayLabel: { fontSize: 11.5, letterSpacing: trackingFor(11.5), fontWeight: '600', marginTop: 4 },
   positionCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   positionLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  positionQty: { fontSize: 14, fontWeight: '600', marginTop: 2 },
+  positionQty: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600', marginTop: 2 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  cardTitle: { fontSize: 15, fontWeight: '700' },
-  reason: { fontSize: 13.5, lineHeight: 19 },
-  confidence: { fontSize: 12, marginTop: spacing.sm },
-  predictorDisclaimer: { fontSize: 11.5, lineHeight: 16, textAlign: 'center', paddingHorizontal: spacing.sm },
-  tapHint: { fontSize: 11, textAlign: 'center', marginTop: spacing.sm },
+  cardTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  reason: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 19 },
+  confidence: { fontSize: 12, letterSpacing: trackingFor(12), marginTop: spacing.sm },
+  predictorDisclaimer: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 16, textAlign: 'center', paddingHorizontal: spacing.sm },
+  tapHint: { fontSize: 11, letterSpacing: trackingFor(11), textAlign: 'center', marginTop: spacing.sm },
   forecastRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   forecastCol: { alignItems: 'center', flex: 1 },
-  forecastLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  forecastValue: { fontSize: 16, fontWeight: '700', marginTop: 4 },
-  sentimentLabel: { fontSize: 14, fontWeight: '700', marginTop: spacing.sm },
-  headline: { fontSize: 12.5, lineHeight: 17 },
+  forecastLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: trackingFor(11, { uppercase: true }) },
+  forecastValue: { fontSize: 16, letterSpacing: trackingFor(16), fontWeight: '700', marginTop: 4 },
+  sentimentLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700', marginTop: spacing.sm },
+  headline: { fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 17 },
   ctaRow: { flexDirection: 'row', gap: spacing.md },
   patternRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md, gap: 4 },
-  patternName: { fontSize: 13.5, fontWeight: '700', textTransform: 'capitalize' },
-  patternError: { fontSize: 12.5, fontWeight: '600', marginTop: spacing.sm },
-  learningMoment: { fontSize: 12.5, fontWeight: '600', marginTop: 2 },
+  patternName: { fontSize: 13.5, letterSpacing: trackingFor(13.5), fontWeight: '700', textTransform: 'capitalize' },
+  patternError: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600', marginTop: spacing.sm },
+  learningMoment: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600', marginTop: 2 },
 });

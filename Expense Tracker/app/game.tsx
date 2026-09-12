@@ -6,6 +6,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function GamePreviewScreen() {
@@ -34,6 +35,7 @@ const styles = StyleSheet.create({
   },
   instructions: {
     fontSize: 13,
+    letterSpacing: trackingFor(13),
     marginTop: spacing.sm,
   },
 });

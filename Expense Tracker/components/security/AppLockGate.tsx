@@ -13,10 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import {
   authenticateWithBiometrics,
   getBiometricCapabilities,
+  getPinLockoutRemainingMs,
   verifyPin,
   type BiometricCapabilities,
 } from '@/services/security/appLock';
@@ -24,6 +27,7 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 
 export function AppLockGate({ children }: { children: ReactNode }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const appLockEnabled = useSettingsStore((s) => s.appLockEnabled || s.biometricLockEnabled);
   const pinLength = useSettingsStore((s) => s.pinLength);
   const useBiometrics = useSettingsStore((s) => s.useBiometrics);
@@ -45,14 +49,18 @@ export function AppLockGate({ children }: { children: ReactNode }) {
 
   const triggerShake = useCallback(() => {
     triggerFeedback('error');
-    shakeTranslate.value = withSequence(
-      withTiming(-12, { duration: 50 }),
-      withSpring(12, springs.snappy),
-      withSpring(-8, springs.snappy),
-      withSpring(8, springs.snappy),
-      withSpring(0, springs.snappy)
-    );
-  }, [shakeTranslate]);
+    // A shake is exactly the oscillating motion §14 wants gated — the red
+    // dots/error text already carry the "wrong" signal on their own.
+    if (!reducedMotion) {
+      shakeTranslate.value = withSequence(
+        withTiming(-12, { duration: 50 }),
+        withSpring(12, springs.snappy),
+        withSpring(-8, springs.snappy),
+        withSpring(8, springs.snappy),
+        withSpring(0, springs.snappy)
+      );
+    }
+  }, [shakeTranslate, reducedMotion]);
 
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeTranslate.value }],
@@ -116,7 +124,6 @@ export function AppLockGate({ children }: { children: ReactNode }) {
 
   const handleKeyPress = useCallback(
     async (num: string) => {
-      triggerFeedback('selection');
       setErrorMsg(null);
 
       if (enteredPin.length < pinLength) {
@@ -131,7 +138,10 @@ export function AppLockGate({ children }: { children: ReactNode }) {
             setEnteredPin('');
           } else {
             triggerShake();
-            setErrorMsg('Incorrect PIN');
+            const lockoutMs = getPinLockoutRemainingMs();
+            setErrorMsg(
+              lockoutMs > 0 ? `Too many attempts. Try again in ${Math.ceil(lockoutMs / 1000)}s.` : 'Incorrect PIN'
+            );
             setTimeout(() => {
               setEnteredPin('');
             }, 300);
@@ -143,7 +153,6 @@ export function AppLockGate({ children }: { children: ReactNode }) {
   );
 
   const handleDelete = useCallback(() => {
-    triggerFeedback('secondary');
     setErrorMsg(null);
     setEnteredPin((p) => p.slice(0, -1));
   }, []);
@@ -208,6 +217,7 @@ export function AppLockGate({ children }: { children: ReactNode }) {
                     <Pressable
                       key={colIdx}
                       hitSlop={10}
+                      onPressIn={() => triggerFeedback('secondary')}
                       onPress={handleDelete}
                       disabled={enteredPin.length === 0}
                       style={({ pressed }) => [
@@ -243,6 +253,7 @@ export function AppLockGate({ children }: { children: ReactNode }) {
                   <Pressable
                     key={colIdx}
                     hitSlop={6}
+                    onPressIn={() => triggerFeedback('selection')}
                     onPress={() => handleKeyPress(btn)}
                     style={({ pressed }) => [
                       styles.keyBtn,
@@ -280,8 +291,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  title: { fontSize: 22, fontWeight: '700' },
-  subtitle: { fontSize: 13.5, marginTop: spacing.xs, textAlign: 'center' },
+  title: { fontSize: 22, letterSpacing: trackingFor(22), fontWeight: '700' },
+  subtitle: { fontSize: 13.5, letterSpacing: trackingFor(13.5), marginTop: spacing.xs, textAlign: 'center' },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -295,7 +306,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
   },
-  errorText: { fontSize: 13, fontWeight: '600', marginBottom: spacing.xs },
+  errorText: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600', marginBottom: spacing.xs },
   keypad: { gap: 12, marginTop: spacing.lg, width: '100%', maxWidth: 280 },
   keypadRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 14 },
   keyBtn: {
@@ -307,5 +318,5 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   keyEmpty: { flex: 1, height: 58 },
-  keyText: { fontSize: 24, fontWeight: '600' },
+  keyText: { fontSize: 24, letterSpacing: trackingFor(24), fontWeight: '600' },
 });

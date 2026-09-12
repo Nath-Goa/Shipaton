@@ -16,12 +16,12 @@ export function QtyStepperButton({ label, onPress }: { label: string; onPress: (
   const scale = useSharedValue(1);
 
   function handlePressIn() {
-    scale.value = withSpring(0.88, springs.snappy);
+    scale.value = withSpring(0.88, springs.tap);
     triggerFeedback('selection');
   }
 
   function handlePressOut() {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }
 
   const animatedStyle = useAnimatedStyle(() => ({

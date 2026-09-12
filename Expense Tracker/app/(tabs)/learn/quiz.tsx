@@ -26,6 +26,8 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { bankQuestionsFor } from '@/constants/quizBank';
 import { quizTopicOf } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError, aiErrorActions } from '@/services/ai/errorMessage';
@@ -58,16 +60,17 @@ function QuizOptionItem({
   onSelect: () => void;
 }) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
     if (revealed) return;
-    scale.value = withSpring(0.97, springs.snappy);
+    scale.value = reducedMotion ? 1 : withSpring(0.97, springs.tap);
     triggerFeedback('selection');
-  }, [revealed, scale]);
+  }, [revealed, scale, reducedMotion]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -403,9 +406,9 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   topicRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   topicLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  aiLink: { fontSize: 12.5, fontWeight: '600' },
+  aiLink: { fontSize: 12.5, fontWeight: '600', letterSpacing: trackingFor(12.5) },
   loadingWrap: { alignItems: 'center', paddingVertical: spacing.xxl },
-  question: { fontSize: 19, fontWeight: '700', lineHeight: 26 },
+  question: { fontSize: 19, fontWeight: '700', lineHeight: 26, letterSpacing: trackingFor(19) },
   option: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -415,14 +418,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     padding: spacing.md,
   },
-  optionText: { fontSize: 14, flex: 1 },
+  optionText: { fontSize: 14, flex: 1, letterSpacing: trackingFor(14) },
   explanationLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  explanation: { fontSize: 13.5, lineHeight: 19, marginTop: spacing.sm },
-  followUp: { fontSize: 12.5, fontWeight: '600', marginTop: spacing.sm },
+  explanation: { fontSize: 13.5, lineHeight: 19, marginTop: spacing.sm, letterSpacing: trackingFor(13.5) },
+  followUp: { fontSize: 12.5, fontWeight: '600', marginTop: spacing.sm, letterSpacing: trackingFor(12.5) },
   modalBackdrop: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   modalSheet: { padding: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, gap: spacing.md },
-  modalTitle: { fontSize: 19, fontWeight: '700' },
-  historyEmpty: { fontSize: 13, textAlign: 'center', paddingVertical: spacing.xl },
+  modalTitle: { fontSize: 19, fontWeight: '700', letterSpacing: trackingFor(19) },
+  historyEmpty: { fontSize: 13, textAlign: 'center', paddingVertical: spacing.xl, letterSpacing: trackingFor(13) },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -432,6 +435,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  historyLabel: { fontSize: 13.5, fontWeight: '600' },
-  historyPreview: { fontSize: 11.5, marginTop: 3 },
+  historyLabel: { fontSize: 13.5, fontWeight: '600', letterSpacing: trackingFor(13.5) },
+  historyPreview: { fontSize: 11.5, marginTop: 3, letterSpacing: trackingFor(11.5) },
 });

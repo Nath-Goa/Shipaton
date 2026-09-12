@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/Text';
 import { COURSES } from '@/constants/courses';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 const DESTINATIONS: { label: string; detail: string; icon: keyof typeof Ionicons.glyphMap; href: Href }[] = [
@@ -71,13 +72,13 @@ export default function GlobalSearchScreen() {
 
 const styles = StyleSheet.create({
   search: { margin: spacing.xl, marginBottom: 0, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: spacing.md },
-  input: { flex: 1, minHeight: 46, fontSize: 14 },
+  input: { flex: 1, minHeight: 46, fontSize: 14, letterSpacing: trackingFor(14) },
   content: { padding: spacing.xl, gap: spacing.sm, paddingBottom: spacing.xxl },
-  count: { fontSize: 11.5, fontWeight: '700' },
+  count: { fontSize: 11.5, letterSpacing: trackingFor(11.5), fontWeight: '700' },
   resultsCard: { padding: 0, overflow: 'hidden' },
   row: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md },
-  label: { fontSize: 13.5, fontWeight: '700' },
-  detail: { fontSize: 11.5, marginTop: 2 },
-  empty: { padding: spacing.xl, textAlign: 'center', fontSize: 12.5 },
+  label: { fontSize: 13.5, letterSpacing: trackingFor(13.5), fontWeight: '700' },
+  detail: { fontSize: 11.5, letterSpacing: trackingFor(11.5), marginTop: 2 },
+  empty: { padding: spacing.xl, textAlign: 'center', fontSize: 12.5, letterSpacing: trackingFor(12.5) },
 });
 

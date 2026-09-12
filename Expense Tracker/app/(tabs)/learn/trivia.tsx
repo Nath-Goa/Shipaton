@@ -2,17 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring, ZoomIn } from 'react-native-reanimated';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PillBadge } from '@/components/ui/PillBadge';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { triggerFeedback } from '@/constants/animations';
+import { springs, triggerFeedback } from '@/constants/animations';
 import { bankQuestionsFor } from '@/constants/quizBank';
 import { QUIZ_TOPICS } from '@/constants/quizTopics';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { generateQuiz } from '@/services/ai/learn';
@@ -22,6 +24,58 @@ import { useTriviaStore } from '@/store/useTriviaStore';
 import type { QuizQuestion } from '@/types/quiz';
 import { hashString, mulberry32 } from '@/utils/prng';
 import { todayStr } from '@/utils/date';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// Mirrors quiz.tsx's QuizOptionItem — same tab, same "tap an answer" shape,
+// so the same instant press-feedback convention applies here too (this
+// screen previously had none at all, unlike quiz.tsx).
+function TriviaOptionItem({
+  text,
+  isCorrect,
+  isSelected,
+  revealed,
+  onSelect,
+}: {
+  text: string;
+  isCorrect: boolean;
+  isSelected: boolean;
+  revealed: boolean;
+  onSelect: () => void;
+}) {
+  const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+
+  const handlePressIn = useCallback(() => {
+    if (revealed) return;
+    scale.value = reducedMotion ? 1 : withSpring(0.97, springs.tap);
+  }, [revealed, scale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, springs.tap);
+  }, [scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const bg = revealed && isCorrect ? colors.successSoft : revealed && isSelected ? colors.dangerSoft : colors.surface;
+  const borderColor = revealed && isCorrect ? colors.success : revealed && isSelected ? colors.danger : colors.border;
+
+  return (
+    <AnimatedPressable
+      disabled={revealed}
+      onPress={onSelect}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.option, { backgroundColor: bg, borderColor }, animatedStyle]}>
+      <Text style={{ color: colors.text, flex: 1, fontSize: 14, letterSpacing: trackingFor(14) }}>{text}</Text>
+      {revealed && isCorrect ? <Ionicons name="checkmark-circle" size={20} color={colors.success} /> : null}
+      {revealed && isSelected && !isCorrect ? <Ionicons name="close-circle" size={20} color={colors.danger} /> : null}
+    </AnimatedPressable>
+  );
+}
 
 const ROUND_SIZE = 5;
 // Fixed opponent skill — a seeded per-question roll, not a real model call,
@@ -129,7 +183,7 @@ export default function TriviaScreen() {
           {currentStreak > 1 ? (
             <Text style={{ color: colors.accent, marginTop: spacing.sm, fontWeight: '700' }}>🔥 {currentStreak}-win streak</Text>
           ) : null}
-          <Text style={{ color: colors.text3, marginTop: spacing.lg, fontSize: 12.5, textAlign: 'center' }}>
+          <Text style={{ color: colors.text3, marginTop: spacing.lg, fontSize: 12.5, letterSpacing: trackingFor(12.5), textAlign: 'center' }}>
             Come back tomorrow for a new round.
           </Text>
           <View style={{ marginTop: spacing.xl, width: '100%' }}>
@@ -151,7 +205,7 @@ export default function TriviaScreen() {
           <Text style={[styles.finishedTitle, { color: colors.text }]}>
             {result === 'win' ? 'You beat the bot!' : result === 'tie' ? "It's a tie" : 'The bot got you this time'}
           </Text>
-          <Text style={{ color: colors.text2, marginTop: spacing.sm, fontSize: 16, fontWeight: '600' }}>
+          <Text style={{ color: colors.text2, marginTop: spacing.sm, fontSize: 16, fontWeight: '600', letterSpacing: trackingFor(16) }}>
             You {yourScore} — {botScore} Bot
           </Text>
           {currentStreak > 1 ? (
@@ -207,32 +261,25 @@ export default function TriviaScreen() {
         </Animated.Text>
 
         <View style={{ gap: spacing.sm }}>
-          {question.options.map((opt, i) => {
-            const isCorrect = i === question.correctIndex;
-            const isSelected = i === selected;
-            const bg = revealed && isCorrect ? colors.successSoft : revealed && isSelected ? colors.dangerSoft : colors.surface;
-            const borderColor = revealed && isCorrect ? colors.success : revealed && isSelected ? colors.danger : colors.border;
-            return (
-              <Pressable
-                key={i}
-                disabled={revealed}
-                onPress={() => selectOption(i)}
-                style={[styles.option, { backgroundColor: bg, borderColor }]}>
-                <Text style={{ color: colors.text, flex: 1, fontSize: 14 }}>{opt}</Text>
-                {revealed && isCorrect ? <Ionicons name="checkmark-circle" size={20} color={colors.success} /> : null}
-                {revealed && isSelected && !isCorrect ? <Ionicons name="close-circle" size={20} color={colors.danger} /> : null}
-              </Pressable>
-            );
-          })}
+          {question.options.map((opt, i) => (
+            <TriviaOptionItem
+              key={i}
+              text={opt}
+              isCorrect={i === question.correctIndex}
+              isSelected={i === selected}
+              revealed={revealed}
+              onSelect={() => selectOption(i)}
+            />
+          ))}
         </View>
 
         {revealed ? (
           <Animated.View entering={FadeInUp.springify().damping(16)}>
             <Card style={{ gap: spacing.sm }}>
-              <Text style={{ color: colors.text2, fontSize: 13.5, lineHeight: 19 }}>{question.explanation}</Text>
+              <Text style={{ color: colors.text2, fontSize: 13.5, lineHeight: 19, letterSpacing: trackingFor(13.5) }}>{question.explanation}</Text>
               <View style={[styles.botRow, { borderColor: colors.border }]}>
                 <Ionicons name="hardware-chip-outline" size={16} color={colors.text3} />
-                <Text style={{ color: colors.text2, fontSize: 12.5, flex: 1 }}>
+                <Text style={{ color: colors.text2, fontSize: 12.5, flex: 1, letterSpacing: trackingFor(12.5) }}>
                   The bot {botDidWell ? 'got it right' : 'got it wrong'} on this one.
                 </Text>
               </View>
@@ -248,9 +295,9 @@ export default function TriviaScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  finishedTitle: { fontSize: 19, fontWeight: '700', marginTop: spacing.sm, textAlign: 'center' },
+  finishedTitle: { fontSize: 19, fontWeight: '700', marginTop: spacing.sm, textAlign: 'center', letterSpacing: trackingFor(19) },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  question: { fontSize: 18, fontWeight: '700', lineHeight: 25 },
+  question: { fontSize: 18, fontWeight: '700', lineHeight: 25, letterSpacing: trackingFor(18) },
   option: {
     flexDirection: 'row',
     justifyContent: 'space-between',

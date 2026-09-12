@@ -27,12 +27,12 @@ export function IconButton({ name, onPress, size = 18, category = 'navigation' }
   const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.9, springs.snappy);
+    scale.value = withSpring(0.9, springs.tap);
     triggerFeedback(category);
   }, [scale, category]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {

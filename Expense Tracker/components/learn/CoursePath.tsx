@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { STAGES, SUBPART_SEQUENCE, coursesForStage } from '@/constants/courses';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useCourseStore } from '@/store/useCourseStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   stageLabel: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  stageCount: { fontSize: 11.5, marginTop: 2 },
+  stageCount: { fontSize: 11.5, marginTop: 2, letterSpacing: trackingFor(11.5) },
   node: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   nodeLocked: { opacity: 0.6 },
   ringWrap: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
   ringIcon: { position: 'absolute' },
-  nodeTitle: { fontSize: 14, fontWeight: '700' },
-  nodeSummary: { fontSize: 11.5, marginTop: 1 },
-  nodeCount: { fontSize: 11.5, fontWeight: '700' },
+  nodeTitle: { fontSize: 14, fontWeight: '700', letterSpacing: trackingFor(14) },
+  nodeSummary: { fontSize: 11.5, marginTop: 1, letterSpacing: trackingFor(11.5) },
+  nodeCount: { fontSize: 11.5, fontWeight: '700', letterSpacing: trackingFor(11.5) },
 });

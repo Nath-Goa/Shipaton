@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {
+  FadeIn,
   FadeInDown,
+  FadeOut,
   FadeOutDown,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,11 +12,14 @@ import { Text } from '@/components/ui/Text';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { triggerHaptic } from '@/constants/animations';
 import { radius, shadow, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useToastStore } from '@/store/useToastStore';
 
 export function ToastHost() {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const { message, actionLabel, onAction, hide } = useToastStore();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,8 +38,8 @@ export function ToastHost() {
 
   return (
     <Animated.View
-      entering={FadeInDown.springify().damping(16).mass(0.8)}
-      exiting={FadeOutDown.duration(200)}
+      entering={reducedMotion ? FadeIn.duration(150) : FadeInDown.springify().damping(16).mass(0.8)}
+      exiting={reducedMotion ? FadeOut.duration(150) : FadeOutDown.duration(200)}
       pointerEvents="box-none"
       style={[styles.wrap, { bottom: insets.bottom + 78 }]}>
       <Pressable
@@ -81,6 +86,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     maxWidth: '92%',
   },
-  msg: { fontSize: 14, flexShrink: 1, fontWeight: '500' },
-  action: { fontSize: 13, fontWeight: '700' },
+  msg: { fontSize: 14, letterSpacing: trackingFor(14), flexShrink: 1, fontWeight: '500' },
+  action: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '700' },
 });

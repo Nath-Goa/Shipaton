@@ -5,26 +5,41 @@ import * as Notifications from 'expo-notifications';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 
 import { LimitOrderWatcher } from '@/components/markets/LimitOrderWatcher';
 import { PriceAlertWatcher } from '@/components/markets/PriceAlertWatcher';
+import { AgeGateScreen } from '@/components/onboarding/AgeGateScreen';
 import { OnboardingScreen } from '@/components/onboarding/OnboardingScreen';
 import { ReviewPromptModal } from '@/components/reviews/ReviewPromptModal';
 import { AppLockGate } from '@/components/security/AppLockGate';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { NetworkStatusBanner } from '@/components/ui/NetworkStatusBanner';
-import { TIER_FEATURES } from '@/constants/subscription';
+import { TIER_FEATURES, type Tier } from '@/constants/subscription';
+import { APP_VARIANT } from '@/constants/build';
 import { CUSTOM_FONTS_TO_LOAD } from '@/constants/fonts';
+import { useAgeGateStage, useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
-import { disableAllReminders, refreshBillReminders, refreshStreakRiskReminder } from '@/services/notifications/notifications';
+import {
+  cancelStreakRiskReminder,
+  disableAllReminders,
+  refreshBillReminders,
+  refreshStreakRiskReminder,
+} from '@/services/notifications/notifications';
 import { refreshStudyNudge, STUDY_NUDGE_ID } from '@/services/notifications/studyNudge';
 import { runStartupScan } from '@/services/predictor/startupScan';
 import { cleanupProductPhotoCache, cleanupUnreferencedReceiptFiles } from '@/services/images/storedImageFiles';
 import { initSentry } from '@/services/monitoring/sentry';
-import { configurePurchases, fetchCurrentTier, subscribeTierChanges } from '@/services/purchases/revenuecat';
+import {
+  configurePurchases,
+  fetchCurrentTier,
+  subscribeTierChanges,
+} from '@/services/purchases/revenuecat';
+import { useAgeStore } from '@/store/useAgeStore';
+import { useQolStore } from '@/store/useQolStore';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { usePredictorStore } from '@/store/usePredictorStore';
@@ -48,6 +63,10 @@ initSentry();
 
 function RootLayout() {
   const [fontsLoaded, fontsError] = useFonts(CUSTOM_FONTS_TO_LOAD);
+  // Deliberately the raw toggle rather than useReducedMotion(): the OS half
+  // of that hook is already what Reanimated defaults to, so forcing it here
+  // too would be redundant — see the ReducedMotionConfig comment below.
+  const manualReducedMotion = useQolStore((s) => s.reducedMotion);
   const setTier = useSettingsStore((s) => s.setTier);
   const tier = useSettingsStore((s) => s.tier);
   const learningRewardExpiresAt = useSettingsStore((s) => s.learningRewardExpiresAt);
@@ -66,11 +85,23 @@ function RootLayout() {
   const processRecurringContributions = useSavingsGoalStore((s) => s.processRecurringContributions);
   const [savingsGoalHydrated, setSavingsGoalHydrated] = useState(useSavingsGoalStore.persist.hasHydrated());
   const [settingsHydrated, setSettingsHydrated] = useState(useSettingsStore.persist.hasHydrated());
+  // Gates rendering alongside settings: without it, birthDate reads null for
+  // the first frame and an already-verified user is flashed the age gate.
+  const [ageHydrated, setAgeHydrated] = useState(useAgeStore.persist.hasHydrated());
+  const judgeAccessTier = useAgeStore((s) => s.judgeAccessTier);
+  const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
+  const agePermissions = useAgePermissions();
+  const isJudge = useIsJudgeMode();
 
   useEffect(() => {
     if (settingsHydrated) return;
     return useSettingsStore.persist.onFinishHydration(() => setSettingsHydrated(true));
   }, [settingsHydrated]);
+
+  useEffect(() => {
+    if (ageHydrated) return;
+    return useAgeStore.persist.onFinishHydration(() => setAgeHydrated(true));
+  }, [ageHydrated]);
 
   useEffect(() => {
     if (!settingsHydrated) return;
@@ -120,9 +151,9 @@ function RootLayout() {
   }, [expenseHydrated, expenses]);
 
   useEffect(() => {
-    if ((!fontsLoaded && !fontsError) || !settingsHydrated) return;
+    if ((!fontsLoaded && !fontsError) || !settingsHydrated || !ageHydrated) return;
     SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded, fontsError, settingsHydrated]);
+  }, [fontsLoaded, fontsError, settingsHydrated, ageHydrated]);
 
   // Once per app open — builds store/useUsageStore's hour-of-day histogram
   // that the smart study-nudge suggestion (below) is derived from.
@@ -186,45 +217,135 @@ function RootLayout() {
   // know about notifications at all. Also the single place that walks back
   // a stale "enabled" flag if the user's tier no longer includes pushAlerts
   // (e.g. a subscription lapsed).
+  //
+  // Split by age band, not just by the toggle: a minor gets bill reminders
+  // (a reminder they set up themselves) but never the streak nudge, whose
+  // whole job is to pull them back into the app. Both calls cancel before
+  // they schedule, so a user who was an adult on a previous version and has
+  // since declared a minor date of birth has the streak nudge actively
+  // cleared here rather than left scheduled forever.
   useEffect(() => {
     if (!notificationsEnabled) return;
-    refreshStreakRiskReminder({ streakDays, activityDoneToday: lastActivityDate === todayStr() });
-    refreshBillReminders(upcomingRecurring);
-  }, [notificationsEnabled, streakDays, lastActivityDate, upcomingRecurring]);
+    if (agePermissions.engagementNudges) {
+      refreshStreakRiskReminder({ streakDays, activityDoneToday: lastActivityDate === todayStr() });
+    } else {
+      cancelStreakRiskReminder();
+    }
+    refreshBillReminders(agePermissions.utilityReminders ? upcomingRecurring : []);
+  }, [notificationsEnabled, streakDays, lastActivityDate, upcomingRecurring, agePermissions]);
 
   // Smart study-time nudge: independent of the pushAlerts tier gate above
   // (it's a core engagement feature, not a paid perk) and of the OS
   // permission toggle used by the other reminders — its own on/off switch
   // lives in Settings › Learning Environment. Re-evaluated once per app
   // open against whatever the usage histogram currently suggests.
+  // Passed through as `enabled` rather than early-returning, so that turning
+  // it off actively cancels a nudge scheduled by an earlier version — see
+  // refreshStudyNudge, which cancels before it checks the flag.
   useEffect(() => {
-    if (Platform.OS === 'web' || !smartNudgesEnabled) return;
-    refreshStudyNudge({ suggestedHour: getSuggestedHour(preferredStudyWindow), enabled: true });
-  }, [smartNudgesEnabled, preferredStudyWindow, getSuggestedHour]);
+    if (Platform.OS === 'web') return;
+    refreshStudyNudge({
+      suggestedHour: getSuggestedHour(preferredStudyWindow),
+      enabled: smartNudgesEnabled && agePermissions.engagementNudges,
+    });
+  }, [smartNudgesEnabled, preferredStudyWindow, getSuggestedHour, agePermissions]);
 
-  // RevenueCat is the source of truth for entitlement state: configure once
+  // RevenueCat is the source of truth for ordinary entitlement state:
+  // configure once
   // at app start, adopt whatever tier the store already reports for this
   // customer, then keep it live-synced for the rest of the session (a
   // purchase, restore, renewal, or expiration all flow through this same
   // listener). A no-op on web or when no API key is configured yet — see
   // services/purchases/revenuecat.ts.
+  //
+  // TEMPORARY judge handling (constants/judgeMode.ts): the locally selected
+  // preview tier remains authoritative while judge mode is active. RevenueCat
+  // still powers every displayed paywall, but it must not revoke a judge's
+  // free preview on launch simply because no purchase was made.
   useEffect(() => {
+    // Judge and production builds share one Android package (no native
+    // build-flavor split — constants/judgeMode.ts), so a device that ran a
+    // judge build and unlocked a tier through it can carry that grant
+    // straight into a production install via AsyncStorage, entirely outside
+    // RevenueCat. isJudge is already false here whenever JUDGE_MODE_ENABLED
+    // is false, but the persisted tier itself doesn't self-correct until
+    // RevenueCat successfully reports back below — which never happens in
+    // demo mode (no key configured). A leftover judgeAccessTier is the only
+    // signal this device ever ran a judge build, so revoke it before that.
+    if (!isJudge && judgeAccessTier) {
+      clearJudgeAccess();
+      setTier('free');
+    }
+    if (isJudge) setTier(judgeAccessTier ?? 'free');
+    // Configure unconditionally, even for a "regular" user on the judge
+    // build — apiKeyForPlatform() already always resolves to the Test Store
+    // key on this variant, so this just makes the real paywall available
+    // to them too instead of silently falling back to the local demo-mode
+    // buttons (see services/purchases/revenuecat.ts).
     if (!configurePurchases()) return;
+    // On a judge build, once the user isn't in judge mode (never opted in,
+    // or explicitly exited via Settings › Privacy & age), RevenueCat must
+    // never drive tier from this listener — a still-active simulated
+    // entitlement would otherwise silently re-apply a paid tier moments
+    // after "Exit judging mode" set it back to Free. A genuine purchase made
+    // through the paywall still applies immediately via its own caller
+    // (useUpgradeToTier / settings/upgrade.tsx), independent of this effect.
+    if (APP_VARIANT === 'judge' && !isJudge) return;
     let alive = true;
-    fetchCurrentTier().then((tier) => {
-      if (alive && tier) setTier(tier);
-    });
-    const unsubscribe = subscribeTierChanges((tier) => setTier(tier));
+
+    function applyTier(next: Tier) {
+      if (isJudge) {
+        if (judgeAccessTier) {
+          if (judgeAccessTier === 'max' || next === 'free') {
+            setTier(judgeAccessTier);
+            return;
+          }
+          // A live Max Test Store entitlement may supersede a persisted Pro
+          // demonstration, but RevenueCat can never downgrade judge access.
+          setTier(next);
+          return;
+        }
+        setTier(next);
+        return;
+      }
+      setTier(next);
+    }
+
+    (async () => {
+      const current = await fetchCurrentTier();
+      if (alive && current) applyTier(current);
+    })();
+
+    const unsubscribe = subscribeTierChanges(applyTier);
     return () => {
       alive = false;
       unsubscribe();
     };
-  }, [setTier]);
+  }, [setTier, isJudge, judgeAccessTier, clearJudgeAccess]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Makes the in-app "Reduced motion" toggle reach the ~60 `entering=`
+          layout animations that don't read useReducedMotion() themselves,
+          plus anything added later. Reanimated already resolves every
+          animation against the *device's* reduce-motion setting on its own
+          (ReduceMotion.System is the default), so this only ever forces it
+          on — which is why it's mounted conditionally rather than being
+          handed the merged value: rendering it with System would override
+          nothing and would fire Reanimated's dev-only "setting overwritten"
+          warning on every launch, and unmounting it restores whatever the
+          device setting said.
+
+          useReducedMotion() stays the right tool wherever a component picks
+          a *different* animation under reduced motion (SlidingTabs' 90ms
+          cut, the swipe's no-momentum snap) — this can only remove motion,
+          not substitute for it. Live gesture tracking is unaffected either
+          way, since a drag assigns its shared value directly rather than
+          animating to it: reduced motion drops the travel the user didn't
+          ask for, never the feedback they did. */}
+      {manualReducedMotion ? <ReducedMotionConfig mode={ReduceMotion.Always} /> : null}
       <SafeAreaProvider>
-        <RootLayoutNav ready={settingsHydrated} />
+        <RootLayoutNav ready={settingsHydrated && ageHydrated} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -235,6 +356,11 @@ export default Sentry.wrap(RootLayout);
 function RootLayoutNav({ ready }: { ready: boolean }) {
   const { scheme, colors } = useTheme();
   const onboardingComplete = useSettingsStore((s) => s.onboardingComplete);
+  const ageGateStage = useAgeGateStage();
+  // Nothing behind the gate runs until it is answered — including for an
+  // existing install upgrading into this version, whose onboardingComplete
+  // is already true.
+  const pastAgeGate = ageGateStage === 'complete';
   const badgeCount = useStreakStore((s) => s.badges.length);
   const portfolios = usePortfolioStore((s) => s.portfolios);
   const tradeCount = useMemo(
@@ -267,17 +393,17 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
   // inside degrades to "no news", never to a broken start. Held until
   // onboarding is done so a first-run user isn't fetching news mid-setup.
   useEffect(() => {
-    if (!ready || !onboardingComplete || !predictorHydrated) return;
+    if (!ready || !pastAgeGate || !onboardingComplete || !predictorHydrated) return;
     runStartupScan().catch(() => undefined);
-  }, [ready, onboardingComplete, predictorHydrated]);
+  }, [ready, pastAgeGate, onboardingComplete, predictorHydrated]);
 
   // Ask once, only after the person has actually done something — a badge
   // earned (Learn/Markets) or a few trades (Portfolio) — rather than
   // nagging on first open.
   useEffect(() => {
-    if (!ready || !onboardingComplete || !reviewStoreHydrated || hasPrompted) return;
+    if (!ready || !pastAgeGate || !onboardingComplete || !reviewStoreHydrated || hasPrompted) return;
     if (badgeCount >= 1 || tradeCount >= REVIEW_PROMPT_MIN_TRADES) setReviewModalVisible(true);
-  }, [ready, onboardingComplete, reviewStoreHydrated, hasPrompted, badgeCount, tradeCount]);
+  }, [ready, pastAgeGate, onboardingComplete, reviewStoreHydrated, hasPrompted, badgeCount, tradeCount]);
 
   if (!ready) {
     return (
@@ -289,7 +415,9 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {onboardingComplete ? (
+      {!pastAgeGate ? (
+        <AgeGateScreen />
+      ) : onboardingComplete ? (
         <AppLockGate>
           <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg }, gestureEnabled: true, fullScreenGestureEnabled: true, animation: 'slide_from_right' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -307,7 +435,7 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
       ) : (
         <OnboardingScreen />
       )}
-      {onboardingComplete ? (
+      {pastAgeGate && onboardingComplete ? (
         <>
           <PriceAlertWatcher />
           <LimitOrderWatcher />

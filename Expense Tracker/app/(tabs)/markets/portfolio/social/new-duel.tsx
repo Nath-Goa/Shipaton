@@ -8,6 +8,7 @@ import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import * as duelsApi from '@/services/social/duels';
 import { useToastStore } from '@/store/useToastStore';
@@ -35,8 +36,19 @@ export default function NewDuelScreen() {
   async function handleCreate() {
     setBusy(true);
     const days = Number(duration);
-    const result =
-      params.kind === 'friend' ? await duelsApi.challengeFriend(params.opponentId!, days) : await duelsApi.challengeFamily(opponentCode.trim(), days);
+    let result;
+    if (params.kind === 'friend') {
+      // The button is disabled via `ready` until opponentId exists, but
+      // guard explicitly rather than asserting it — `ready`'s definition and
+      // this check must never be able to drift apart.
+      if (!params.opponentId) {
+        setBusy(false);
+        return;
+      }
+      result = await duelsApi.challengeFriend(params.opponentId, days);
+    } else {
+      result = await duelsApi.challengeFamily(opponentCode.trim(), days);
+    }
     setBusy(false);
     if (!result.ok) {
       showToast(result.message);
@@ -85,8 +97,8 @@ export default function NewDuelScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl },
-  title: { fontSize: 17, fontWeight: '700' },
-  body: { fontSize: 13, lineHeight: 18 },
+  title: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '700' },
+  body: { fontSize: 13, letterSpacing: trackingFor(13), lineHeight: 18 },
   label: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: spacing.sm },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -94,5 +106,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
 });

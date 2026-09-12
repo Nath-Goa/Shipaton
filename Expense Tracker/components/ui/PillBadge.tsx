@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 
 type Props = {
@@ -34,6 +35,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
+    letterSpacing: trackingFor(12),
     fontWeight: '700',
   },
 });

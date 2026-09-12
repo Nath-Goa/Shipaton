@@ -7,6 +7,7 @@ import Purchases, {
   LOG_LEVEL,
 } from 'react-native-purchases';
 
+import { APP_VARIANT } from '@/constants/build';
 import { ENTITLEMENT_APP, ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/constants/subscription';
 
 // RevenueCat is the sole source of truth for entitlement state in this app.
@@ -17,16 +18,27 @@ import { ENTITLEMENT_APP, ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/
 // across dev/staging/production RevenueCat projects.
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
 const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
-// A single key for projects that haven't split iOS/Android keys yet (e.g. a
-// RevenueCat project with only one app configured so far). Platform-specific
-// keys above always take priority when set.
+const TEST_STORE_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY;
+// Development-only fallback for projects that have not split iOS/Android
+// keys yet. Judge builds exclusively use TEST_STORE_API_KEY; production
+// builds exclusively use their platform key.
 const SHARED_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY;
 
 let configured = false;
 
+export type PurchasesEnvironment = 'test_store' | 'production' | 'development' | 'demo';
+
+export function getPurchasesEnvironment(): PurchasesEnvironment {
+  if (APP_VARIANT === 'judge') return TEST_STORE_API_KEY ? 'test_store' : 'demo';
+  if (APP_VARIANT === 'production') return apiKeyForPlatform() ? 'production' : 'demo';
+  return apiKeyForPlatform() ? 'development' : 'demo';
+}
+
 function apiKeyForPlatform(): string | undefined {
-  if (Platform.OS === 'ios') return IOS_API_KEY ?? SHARED_API_KEY;
-  if (Platform.OS === 'android') return ANDROID_API_KEY ?? SHARED_API_KEY;
+  if (APP_VARIANT === 'judge') return TEST_STORE_API_KEY;
+  const developmentFallback = APP_VARIANT === 'development' && __DEV__ ? SHARED_API_KEY : undefined;
+  if (Platform.OS === 'ios') return IOS_API_KEY ?? developmentFallback;
+  if (Platform.OS === 'android') return ANDROID_API_KEY ?? developmentFallback;
   return undefined; // RevenueCat's native SDK has no web target.
 }
 
@@ -69,16 +81,16 @@ export function tierFromCustomerInfo(info: CustomerInfo): Tier {
 }
 
 // Each paid tier has its own Offering in the RevenueCat dashboard
-// (identifier "pro" / "max"), each containing "monthly" / "yearly" /
-// "lifetime" packages — this is what backs the per-tier paywall in
-// app/settings/upgrade.tsx. Falls back to the "current" offering if a
-// tier-named one hasn't been set up yet, so a fresh dashboard still shows
-// something rather than nothing.
+// (identifier "pro" / "max"), each containing monthly / annual / lifetime
+// packages — this is what backs the per-tier paywall in
+// app/settings/upgrade.tsx. Never fall back to an unrelated current
+// offering: that can show Pro products when the user tapped Max (and make
+// both comparison cards report the same price).
 export async function fetchOfferingForTier(tier: Exclude<Tier, 'free'>): Promise<PurchasesOffering | null> {
   if (!configured) return null;
   try {
     const offerings = await Purchases.getOfferings();
-    return offerings.all[tier] ?? offerings.current;
+    return offerings.all[tier] ?? null;
   } catch {
     return null;
   }

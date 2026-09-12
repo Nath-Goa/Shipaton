@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import * as duelsApi from '@/services/social/duels';
 import { profilesByIds } from '@/services/social/friends';
@@ -34,17 +35,26 @@ export default function DuelDetailScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    await duelsApi.finalizeDuelIfReady(id);
-    const row = await duelsApi.getDuel(id);
-    setDuel(row);
-    if (row) {
-      const profiles = await profilesByIds(row.participantIds);
-      setNames(new Map([...profiles].map(([pid, p]) => [pid, p.displayName])));
+    // Best-effort refresh — never let a raw network exception (not a
+    // Postgrest error field, an actual rejected fetch) surface as an
+    // unhandled rejection to every caller of load() (handleAccept/
+    // handleDecline/handleVoteEnd's bare `load();`, the mount effect below).
+    try {
+      await duelsApi.finalizeDuelIfReady(id);
+      const row = await duelsApi.getDuel(id);
+      setDuel(row);
+      if (row) {
+        const profiles = await profilesByIds(row.participantIds);
+        setNames(new Map([...profiles].map(([pid, p]) => [pid, p.displayName])));
+      }
+      // Let the other side see this device is still active — a live nudge
+      // on every open, same "resolve/refresh on view" pattern as everything
+      // else network-bound in this app rather than a background timer.
+      if (row?.status === 'active') duelsApi.reportLiveNetWorth(id).catch(() => undefined);
+    } catch {
+      // Swallow — this is a best-effort refresh, not a user action with its
+      // own error path.
     }
-    // Let the other side see this device is still active — a live nudge on
-    // every open, same "resolve/refresh on view" pattern as everything else
-    // network-bound in this app rather than a background timer.
-    if (row?.status === 'active') duelsApi.reportLiveNetWorth(id);
   }, [id]);
 
   useEffect(() => {
@@ -200,8 +210,8 @@ export default function DuelDetailScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  title: { fontSize: 17, fontWeight: '700' },
-  muted: { fontSize: 12.5 },
+  title: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '700' },
+  muted: { fontSize: 12.5, letterSpacing: trackingFor(12.5) },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },

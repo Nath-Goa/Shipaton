@@ -34,12 +34,12 @@ export function Chip({ label, active, onPress }: Props) {
   }, [active, scale]);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.92, springs.snappy);
+    scale.value = withSpring(0.92, springs.tap);
     triggerFeedback('selection');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {

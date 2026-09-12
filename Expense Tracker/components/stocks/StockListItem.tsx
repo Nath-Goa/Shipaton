@@ -15,7 +15,14 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import type { Quote } from '@/types/stock';
+import { gestureIntent, rubberband } from '@/utils/motion';
 import { money, signedPct } from '@/utils/money';
+
+// Swipe-commit threshold and the hard drag clamp it sits inside — the clamp
+// also doubles as `rubberband`'s dimension, so the "give" past it scales
+// with the row's own drag range instead of being imperceptibly tiny.
+const SWIPE_CLAMP = 70;
+const SWIPE_COMMIT = 62;
 
 type Props = {
   symbol: string;
@@ -49,12 +56,12 @@ export function StockListItem({ symbol, name, quote, onPress, onSwipeLeft, onSwi
   }, [quote?.price, flashOpacity]);
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.98, springs.snappy);
+    scale.value = withSpring(0.98, springs.tap);
     triggerFeedback('navigation');
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -73,12 +80,23 @@ export function StockListItem({ symbol, name, quote, onPress, onSwipeLeft, onSwi
     .activeOffsetX([-24, 24])
     .failOffsetY([-14, 14])
     .onUpdate((event) => {
-      translateX.value = Math.max(-70, Math.min(70, event.translationX));
+      const raw = event.translationX;
+      translateX.value =
+        raw < -SWIPE_CLAMP
+          ? -SWIPE_CLAMP - rubberband(-raw - SWIPE_CLAMP, SWIPE_CLAMP)
+          : raw > SWIPE_CLAMP
+            ? SWIPE_CLAMP + rubberband(raw - SWIPE_CLAMP, SWIPE_CLAMP)
+            : raw;
     })
     .onEnd((event) => {
-      if (event.translationX < -62 && onSwipeLeft) runOnJS(onSwipeLeft)();
-      if (event.translationX > 62 && onSwipeRight) runOnJS(onSwipeRight)();
-      translateX.value = withSpring(0, springs.snappy);
+      // Position blended with velocity (same 0.12 weighting SlidingTabs'
+      // own swipe already uses) — a fast flick can now commit the action
+      // even short of the pure-position threshold, previously ignored
+      // entirely.
+      const intent = gestureIntent(event.translationX, event.velocityX);
+      if (intent < -SWIPE_COMMIT && onSwipeLeft) runOnJS(onSwipeLeft)();
+      if (intent > SWIPE_COMMIT && onSwipeRight) runOnJS(onSwipeRight)();
+      translateX.value = withSpring(0, { ...springs.snappy, velocity: event.velocityX });
     });
 
   return (

@@ -22,6 +22,8 @@ import { Text } from '@/components/ui/Text';
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
 import { TICKERS, tickerOf } from '@/constants/tickers';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import {
   DIFFICULTY_PROFILE,
@@ -55,6 +57,7 @@ type Phase = 'config' | 'live' | 'results';
 
 export default function ArenaScreen() {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const tutorialSeen = useSettingsStore((s) => s.arenaTutorialSeen);
   const setTutorialSeen = useSettingsStore((s) => s.setArenaTutorialSeen);
 
@@ -156,8 +159,10 @@ export default function ArenaScreen() {
   useEffect(() => {
     if (phase !== 'results') return;
     trophyScale.value = 0;
-    trophyScale.value = withSequence(withSpring(1.15, springs.bouncy), withSpring(1, springs.snappy));
-  }, [phase, trophyScale]);
+    trophyScale.value = reducedMotion
+      ? withTiming(1, { duration: 150 })
+      : withSequence(withSpring(1.15, springs.bouncy), withSpring(1, springs.snappy));
+  }, [phase, trophyScale, reducedMotion]);
 
   function skipAhead() {
     triggerFeedback('secondary');
@@ -443,8 +448,8 @@ export default function ArenaScreen() {
 
 const styles = StyleSheet.create({
   configContent: { padding: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.md },
-  title: { fontSize: 22, fontWeight: '700' },
-  subtitle: { fontSize: 13.5, lineHeight: 19 },
+  title: { fontSize: 22, letterSpacing: trackingFor(22), fontWeight: '700' },
+  subtitle: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 19 },
   label: { fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   input: {
@@ -453,6 +458,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 9,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
     marginTop: spacing.sm,
   },
   liveContent: { flex: 1, padding: spacing.xl, gap: spacing.md },
@@ -466,20 +472,21 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 18,
+    letterSpacing: trackingFor(18),
     fontWeight: '700',
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.sm,
     paddingVertical: 8,
   },
-  ownedText: { fontSize: 12.5, marginTop: spacing.sm },
-  message: { fontSize: 12.5, marginTop: spacing.sm },
+  ownedText: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: spacing.sm },
+  message: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: spacing.sm },
   tradeActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   resultsWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  resultsTitle: { fontSize: 22, fontWeight: '700' },
+  resultsTitle: { fontSize: 22, letterSpacing: trackingFor(22), fontWeight: '700' },
   resultsRow: { flexDirection: 'row', gap: spacing.md, width: '100%' },
-  resultsDelta: { fontSize: 16, fontWeight: '700' },
+  resultsDelta: { fontSize: 16, letterSpacing: trackingFor(16), fontWeight: '700' },
   tutorialBackdrop: { flex: 1, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   tutorialCard: { borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md, width: '100%' },
-  tutorialTitle: { fontSize: 19, fontWeight: '700', textAlign: 'center' },
-  tutorialBody: { fontSize: 13.5, lineHeight: 20 },
+  tutorialTitle: { fontSize: 19, letterSpacing: trackingFor(19), fontWeight: '700', textAlign: 'center' },
+  tutorialBody: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 20 },
 });

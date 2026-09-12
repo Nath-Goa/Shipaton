@@ -16,6 +16,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { courseOf, lessonPagesFor } from '@/constants/courses';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -179,7 +180,7 @@ export default function LessonScreen() {
               <>
                 <AppText variant="subtitle" color={colors.text}>Related video</AppText>
                 <VideoCard videoId={course.visual.videoId} title={course.visual.videoTitle} source={course.visual.videoSource} />
-                <Text style={{ color: colors.text3, fontSize: 12, lineHeight: 17 }}>
+                <Text style={{ color: colors.text3, fontSize: 12, lineHeight: 17, letterSpacing: trackingFor(12) }}>
                   Every course includes a direct learning video. Tap the card to watch it on YouTube.
                 </Text>
               </>
@@ -187,10 +188,10 @@ export default function LessonScreen() {
               !features.visualLearning ? (
                 <Card style={styles.locked}>
                   <View style={styles.cardHead}>
-                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>Interactive concept chart</Text>
+                    <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700', letterSpacing: trackingFor(15) }}>Interactive concept chart</Text>
                     <Ionicons name="lock-closed" size={16} color={colors.text3} />
                   </View>
-                  <Text style={{ color: colors.text3, fontSize: 12.5, lineHeight: 17 }}>
+                  <Text style={{ color: colors.text3, fontSize: 12.5, lineHeight: 17, letterSpacing: trackingFor(12.5) }}>
                     The related video is free. Pro/Max also unlocks the visual breakdown for every course.
                   </Text>
                   <Button label="Upgrade to Pro" variant="ghost" onPress={() => upgradeToTier('pro')} />
@@ -209,8 +210,8 @@ export default function LessonScreen() {
                     {course.visual.segments.map((s, i) => (
                       <View key={s.id} style={styles.legendRow}>
                         <View style={[styles.legendDot, { backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }]} />
-                        <Text style={{ color: colors.text2, fontSize: 12.5, flex: 1 }} numberOfLines={1}>{s.label}</Text>
-                        <Text style={{ color: colors.text3, fontSize: 12.5, fontWeight: '600' }}>{s.value}%</Text>
+                        <Text style={{ color: colors.text2, fontSize: 12.5, flex: 1, letterSpacing: trackingFor(12.5) }} numberOfLines={1}>{s.label}</Text>
+                        <Text style={{ color: colors.text3, fontSize: 12.5, fontWeight: '600', letterSpacing: trackingFor(12.5) }}>{s.value}%</Text>
                       </View>
                     ))}
                   </View>
@@ -219,7 +220,7 @@ export default function LessonScreen() {
             ) : (
               <Card style={[styles.takeawayCard, { borderColor: colors.accent }]}>
                 <Ionicons name="bulb-outline" size={16} color={colors.accent} />
-                <Text style={{ color: colors.text2, fontSize: 12.5, lineHeight: 18, flex: 1 }}>{course.visual.caption}</Text>
+                <Text style={{ color: colors.text2, fontSize: 12.5, lineHeight: 18, flex: 1, letterSpacing: trackingFor(12.5) }}>{course.visual.caption}</Text>
               </Card>
             )}
           </>
@@ -238,8 +239,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   lessonProgress: { gap: spacing.xs },
   lessonProgressLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  lessonNumber: { fontSize: 11.5, fontWeight: '600' },
-  lessonPercent: { fontSize: 11.5, fontWeight: '700' },
+  lessonNumber: { fontSize: 11.5, fontWeight: '600', letterSpacing: trackingFor(11.5) },
+  lessonPercent: { fontSize: 11.5, fontWeight: '700', letterSpacing: trackingFor(11.5) },
   pageTitle: { marginTop: spacing.xs },
   paragraph: { marginTop: spacing.xs },
   termCard: { gap: 2 },

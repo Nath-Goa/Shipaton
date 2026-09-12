@@ -21,6 +21,7 @@ import { CATEGORIES, categoryOf } from '@/constants/categories';
 import { MOCK_CHART_SEGMENTS, MOCK_CHART_TOTAL } from '@/constants/mockExpenseChart';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
   headerBlock: { gap: spacing.lg, marginBottom: spacing.md },
   chipsRow: { flexDirection: 'row', gap: spacing.sm },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: spacing.md },
+  cardTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700', marginBottom: spacing.md },
   chartHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   chartHeadActions: { flexDirection: 'row', gap: spacing.sm },
   chartChipsRow: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
@@ -470,17 +471,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   configureActions: { flexDirection: 'row', gap: spacing.sm },
   mockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  mockHint: { fontSize: 12 },
+  mockHint: { fontSize: 12, letterSpacing: trackingFor(12) },
   breakdown: { alignItems: 'center', gap: spacing.lg },
-  insightIntro: { fontSize: 13, lineHeight: 18, marginTop: 2 },
-  insightText: { fontSize: 13.5, lineHeight: 19 },
-  insightTip: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  insightError: { fontSize: 12.5, fontWeight: '600', marginTop: spacing.sm },
+  insightIntro: { fontSize: 13, letterSpacing: trackingFor(13), lineHeight: 18, marginTop: 2 },
+  insightText: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 19 },
+  insightTip: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600', lineHeight: 18 },
+  insightError: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600', marginTop: spacing.sm },
   legend: { width: '100%', gap: 8 },
-  legendItem: { fontSize: 13 },
+  legendItem: { fontSize: 13, letterSpacing: trackingFor(13) },
   dayHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',

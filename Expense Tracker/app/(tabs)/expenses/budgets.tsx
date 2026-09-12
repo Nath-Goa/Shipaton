@@ -11,6 +11,7 @@ import { Text } from '@/components/ui/Text';
 import { badgeInfo } from '@/constants/badges';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useBudgetStore } from '@/store/useBudgetStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
@@ -177,12 +178,12 @@ export default function BudgetsScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
-  intro: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
-  sectionTitle: { fontSize: 15.5, fontWeight: '700' },
+  intro: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, textAlign: 'center' },
+  sectionTitle: { fontSize: 15.5, letterSpacing: trackingFor(15.5), fontWeight: '700' },
   row: { gap: spacing.sm },
   rowHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
-  rowLabel: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
-  rowValue: { fontSize: 13, fontWeight: '600' },
+  rowLabel: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600', flexShrink: 1 },
+  rowValue: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   input: {
     width: 100,
@@ -191,6 +192,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
     textAlign: 'right',
   },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.lg },

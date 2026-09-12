@@ -14,6 +14,8 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { TopBar } from '@/components/ui/TopBar';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import * as duelsApi from '@/services/social/duels';
 import * as familiesApi from '@/services/social/families';
@@ -40,11 +42,32 @@ export default function SocialScreen() {
   const { colors } = useTheme();
   const session = useAuthStore((s) => s.session);
   const initializing = useAuthStore((s) => s.initializing);
+  const agePermissions = useAgePermissions();
   const [section, setSection] = useState<Section>('friends');
 
+  // Not even initialized for a minor: this is the one store in the app that
+  // talks to a real backend, and an under-18 account is never created.
   useEffect(() => {
+    if (!agePermissions.socialAccounts) return;
     useAuthStore.getState().init();
-  }, []);
+  }, [agePermissions]);
+
+  // Checked ahead of the Supabase-configured branch below, because this is
+  // the stricter rule — a properly configured project still must not sign a
+  // minor up. SocialAuthGate carries the same check, so no other route into
+  // the sign-up form can get around this one.
+  if (!agePermissions.socialAccounts) {
+    return (
+      <Screen edges={['left', 'right', 'bottom']}>
+        <TopBar title="Friends & Family" />
+        <EmptyState
+          icon="🔒"
+          title="Not available on your account"
+          message="Friends, families and duels are the one part of Markva that needs a real account, and an account means storing your email address. Markva does not create accounts for under-18s, so this stays off. Everything else in the app works exactly the same."
+        />
+      </Screen>
+    );
+  }
 
   if (!isSupabaseConfigured()) {
     return (
@@ -421,8 +444,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   switchWrap: { paddingHorizontal: spacing.xl, marginBottom: spacing.md },
   content: { padding: spacing.xl, paddingTop: 0, gap: spacing.lg, paddingBottom: spacing.xxl },
-  sectionTitle: { fontSize: 15, fontWeight: '700' },
-  muted: { fontSize: 12, marginTop: 2 },
+  sectionTitle: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700' },
+  muted: { fontSize: 12, letterSpacing: trackingFor(12), marginTop: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   input: {
     flex: 1,
@@ -431,6 +454,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
   listRowPress: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },

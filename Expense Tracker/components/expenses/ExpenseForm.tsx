@@ -11,9 +11,11 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { CATEGORIES, type CategoryId } from '@/constants/categories';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { useAiQuota } from '@/hooks/useAiQuota';
 import { useHasApiKey } from '@/hooks/useHasApiKey';
+import { useAgePermissions } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
 import { extractReceiptFromImage } from '@/services/ai/client';
 import { describeAiError } from '@/services/ai/errorMessage';
@@ -50,6 +52,7 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const { colors } = useTheme();
   const tier = useSettingsStore((s) => s.tier);
   const features = TIER_FEATURES[tier];
+  const agePermissions = useAgePermissions();
   const { hasKey } = useHasApiKey();
   const { locked: aiLocked } = useAiQuota();
 
@@ -71,7 +74,10 @@ export function ExpenseForm({ initial, submitLabel, onSubmit, onDelete }: Props)
   const [autoFilling, setAutoFilling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canAutoFill = features.receiptAutoFill && (hasKey === true || !aiLocked);
+  // Only the AI auto-fill is age-gated, not the photo itself — attaching a
+  // receipt image stays entirely on the device, it is sending it to a third
+  // party that a minor's account disallows.
+  const canAutoFill = agePermissions.aiPhotoUpload && features.receiptAutoFill && (hasKey === true || !aiLocked);
 
   // Backstop for a captured-but-never-submitted photo (e.g. the user backs
   // out of the form): clean it up on unmount unless the form was submitted.
@@ -287,6 +293,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 11,
     fontSize: 14,
+    letterSpacing: trackingFor(14),
   },
   dateInput: { justifyContent: 'center' },
   row2: { flexDirection: 'row', gap: spacing.md },
@@ -299,8 +306,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     gap: 6,
   },
-  photoBtnText: { fontSize: 12.5, fontWeight: '600' },
+  photoBtnText: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600' },
   photoRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   photoPreview: { width: 84, height: 84, borderRadius: radius.sm },
-  error: { fontSize: 13, fontWeight: '600' },
+  error: { fontSize: 13, letterSpacing: trackingFor(13), fontWeight: '600' },
 });

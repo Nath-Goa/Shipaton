@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { ShareCardModal, shareCardStyles } from '@/components/ui/ShareCardModal';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { money, signedMoney, signedPct } from '@/utils/money';
 
@@ -59,9 +60,9 @@ export function ResultsCardModal({
 
 const styles = StyleSheet.create({
   brand: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: spacing.lg },
-  name: { fontSize: 14, fontWeight: '600' },
+  name: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '600' },
   netWorth: { fontSize: 34, fontWeight: '700', marginTop: spacing.xs, letterSpacing: -0.6 },
-  pnl: { fontSize: 15, fontWeight: '700', marginTop: 4 },
+  pnl: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700', marginTop: 4 },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.xxl,
@@ -73,5 +74,5 @@ const styles = StyleSheet.create({
   },
   stat: { alignItems: 'center' },
   statLabel: { fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  statValue: { fontSize: 15, fontWeight: '700', marginTop: 2 },
+  statValue: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700', marginTop: 2 },
 });

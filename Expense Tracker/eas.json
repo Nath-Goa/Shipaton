@@ -7,12 +7,27 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "environment": "development"
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "development"
+      }
     },
     "preview": {
       "distribution": "internal",
       "environment": "preview",
       "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "development",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "judge": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "judge",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "android": {
@@ -23,6 +38,7 @@
       "autoIncrement": true,
       "environment": "production",
       "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "production",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }

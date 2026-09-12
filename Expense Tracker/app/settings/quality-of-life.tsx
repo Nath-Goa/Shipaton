@@ -7,6 +7,7 @@ import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useQolStore, type LoadingGame } from '@/store/useQolStore';
 
@@ -26,7 +27,7 @@ export default function QualityOfLifeScreen() {
         <Text style={[styles.intro, { color: colors.text3 }]}>Tune the small interactions that make Markva feel like yours.</Text>
         <ToggleCard label="Haptic feedback" description="Vibrate gently for taps, success, and warnings." value={settings.hapticsEnabled} onChange={settings.setHapticsEnabled} />
         <ToggleCard label="Interface sounds" description="Play short sounds for navigation and actions." value={settings.soundsEnabled} onChange={settings.setSoundsEnabled} />
-        <ToggleCard label="Reduced motion" description="Use faster, quieter transitions without bounce." value={settings.reducedMotion} onChange={settings.setReducedMotion} />
+        <ToggleCard label="Reduced motion" description="Skip slides, springs and bounces app-wide. Buttons still respond, and dragging still follows your finger." value={settings.reducedMotion} onChange={settings.setReducedMotion} />
         <ToggleCard label="Hide balances" description="Mask money values on Home when privacy matters." value={settings.hideBalances} onChange={settings.setHideBalances} />
         <ToggleCard label="Games while waiting" description="Show an optional mini-game during longer AI waits." value={settings.loadingGamesEnabled} onChange={settings.setLoadingGamesEnabled} />
         {settings.loadingGamesEnabled ? (
@@ -59,9 +60,9 @@ function ToggleCard({ label, description, value, onChange }: { label: string; de
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.md, paddingBottom: spacing.xxl },
-  intro: { fontSize: 13, lineHeight: 18, marginBottom: spacing.xs },
+  intro: { fontSize: 13, letterSpacing: trackingFor(13), lineHeight: 18, marginBottom: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  label: { fontSize: 14, fontWeight: '700' },
-  description: { fontSize: 12, lineHeight: 16, marginTop: 2 },
+  label: { fontSize: 14, letterSpacing: trackingFor(14), fontWeight: '700' },
+  description: { fontSize: 12, letterSpacing: trackingFor(12), lineHeight: 16, marginTop: 2 },
 });
 

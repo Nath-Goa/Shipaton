@@ -9,6 +9,8 @@ import Animated, {
 
 import { springs, triggerFeedback } from '@/constants/animations';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 
 type Props = {
@@ -22,6 +24,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function ChatComposer({ onSend, disabled, loading, placeholder = 'Ask a question…' }: Props) {
   const { colors } = useTheme();
+  const reducedMotion = useReducedMotion();
   const [text, setText] = useState('');
   const scale = useSharedValue(1);
 
@@ -29,12 +32,12 @@ export function ChatComposer({ onSend, disabled, loading, placeholder = 'Ask a q
 
   const handlePressIn = useCallback(() => {
     if (!canSubmit) return;
-    scale.value = withSpring(0.88, springs.snappy);
+    scale.value = reducedMotion ? 1 : withSpring(0.88, springs.tap);
     triggerFeedback('primary');
-  }, [canSubmit, scale]);
+  }, [canSubmit, scale, reducedMotion]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, springs.snappy);
+    scale.value = withSpring(1, springs.tap);
   }, [scale]);
 
   function submit() {
@@ -92,6 +95,6 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
     paddingVertical: spacing.sm,
   },
-  input: { flex: 1, maxHeight: 100, fontSize: 14.5, paddingVertical: 6 },
+  input: { flex: 1, maxHeight: 100, fontSize: 14.5, letterSpacing: trackingFor(14.5), paddingVertical: 6 },
   sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
 });

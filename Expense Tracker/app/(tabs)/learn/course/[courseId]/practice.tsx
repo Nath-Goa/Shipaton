@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { courseOf } from '@/constants/courses';
 import { radius, spacing } from '@/constants/theme';
+import { trackingFor } from '@/constants/typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useCourseStore } from '@/store/useCourseStore';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
@@ -97,10 +98,10 @@ export default function PracticeScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg },
-  title: { fontSize: 20, fontWeight: '700' },
-  instruction: { fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
+  title: { fontSize: 20, fontWeight: '700', letterSpacing: trackingFor(20) },
+  instruction: { fontSize: 14, lineHeight: 20, marginTop: spacing.sm, letterSpacing: trackingFor(14) },
   ctaCard: { alignItems: 'stretch' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  statusText: { fontSize: 13, fontWeight: '600' },
-  manualNote: { fontSize: 12.5, lineHeight: 17 },
+  statusText: { fontSize: 13, fontWeight: '600', letterSpacing: trackingFor(13) },
+  manualNote: { fontSize: 12.5, lineHeight: 17, letterSpacing: trackingFor(12.5) },
 });
