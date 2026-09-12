@@ -112,6 +112,8 @@ function BirthDateStep() {
 
   const oldest = new Date();
   oldest.setFullYear(oldest.getFullYear() - 120);
+  const earliestBirthDate = toDateStr(oldest);
+  const latestBirthDate = toDateStr(new Date());
 
   return (
     <GateShell>
@@ -141,11 +143,29 @@ function BirthDateStep() {
               type: 'date',
               'aria-label': 'Date of birth',
               value: picked ?? '',
-              min: toDateStr(oldest),
-              max: toDateStr(new Date()),
+              min: earliestBirthDate,
+              max: latestBirthDate,
+              maxLength: 10,
               autoFocus: true,
+              onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+                if ((event.key === 'Backspace' || event.key === 'Delete') && picked) {
+                  event.preventDefault();
+                  setPicked(null);
+                }
+              },
               onChange: (event: { currentTarget: { value: string } }) => {
-                if (event.currentTarget.value) setPicked(event.currentTarget.value);
+                const nextDate = event.currentTarget.value;
+                if (!nextDate) {
+                  setPicked(null);
+                  return;
+                }
+
+                // Keep the browser input strictly bounded to one complete
+                // YYYY-MM-DD value. Some browsers otherwise allow a fifth
+                // year digit to be typed after an already valid date.
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) return;
+                if (nextDate < earliestBirthDate || nextDate > latestBirthDate) return;
+                setPicked(nextDate);
               },
               style: {
                 width: '100%',
