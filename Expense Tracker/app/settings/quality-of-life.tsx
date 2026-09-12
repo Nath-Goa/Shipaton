@@ -27,7 +27,7 @@ export default function QualityOfLifeScreen() {
         <Text style={[styles.intro, { color: colors.text3 }]}>Tune the small interactions that make Markva feel like yours.</Text>
         <ToggleCard label="Haptic feedback" description="Vibrate gently for taps, success, and warnings." value={settings.hapticsEnabled} onChange={settings.setHapticsEnabled} />
         <ToggleCard label="Interface sounds" description="Play short sounds for navigation and actions." value={settings.soundsEnabled} onChange={settings.setSoundsEnabled} />
-        <ToggleCard label="Reduced motion" description="Use faster, quieter transitions without bounce." value={settings.reducedMotion} onChange={settings.setReducedMotion} />
+        <ToggleCard label="Reduced motion" description="Skip slides, springs and bounces app-wide. Buttons still respond, and dragging still follows your finger." value={settings.reducedMotion} onChange={settings.setReducedMotion} />
         <ToggleCard label="Hide balances" description="Mask money values on Home when privacy matters." value={settings.hideBalances} onChange={settings.setHideBalances} />
         <ToggleCard label="Games while waiting" description="Show an optional mini-game during longer AI waits." value={settings.loadingGamesEnabled} onChange={settings.setLoadingGamesEnabled} />
         {settings.loadingGamesEnabled ? (

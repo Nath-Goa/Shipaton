@@ -244,6 +244,9 @@ function SlidingTabNavigator({
 
   const progress = useSharedValue(index);
   const gestureStartProgress = useSharedValue(index);
+  // The translation already accumulated by the time the pan activates — see
+  // swipeGesture.onStart below.
+  const gestureAnchorX = useSharedValue(0);
   const quickMenuProgress = useSharedValue(0);
   const previousIndexRef = useRef(index);
   const longPressHandledRef = useRef<number | null>(null);
@@ -427,8 +430,18 @@ function SlidingTabNavigator({
       gestureStartProgress.value = progress.value;
       runOnJS(prewarmNeighbors)();
     })
+    .onStart((e) => {
+      // The pan doesn't activate until the finger has already travelled
+      // SWIPE_ACTIVE_OFFSET px, so translationX is ~±32 by the time tracking
+      // begins. Subtracting that activation offset below is what keeps the
+      // row glued to the finger from its current position; without it the
+      // row jumps a tab-fraction the instant the swipe takes hold, which
+      // reads as the content slipping out from under the touch
+      // (apple-design §2 — respect the offset from where they grabbed it).
+      gestureAnchorX.value = e.translationX;
+    })
     .onUpdate((e) => {
-      const raw = gestureStartProgress.value - e.translationX / width;
+      const raw = gestureStartProgress.value - (e.translationX - gestureAnchorX.value) / width;
       progress.value =
         raw < 0
           ? -rubberband(-raw, 1, RUBBERBAND_CONSTANT)
@@ -438,9 +451,22 @@ function SlidingTabNavigator({
     })
     .onEnd((e) => {
       const velocityInProgressUnits = -e.velocityX / width;
-      const target = reducedMotion
+      // One swipe moves at most one tab. Momentum projection decides
+      // *whether* the flick carries far enough to commit (so a short fast
+      // flick still counts, which position alone would miss), but not how
+      // far: a tab is a full screen wide, and at 0.998 deceleration an
+      // ordinary 1500px/s flick projects roughly two tabs and a hard one
+      // three or four. Letting that stand would make a single swipe skip
+      // past tabs the user never asked for — and past ones prewarmNeighbors
+      // hasn't mounted — where every platform pager, and this navigator
+      // before the gesture rework, moves exactly one. Same reasoning as the
+      // swipeable list rows: project the intent, then snap to the adjacent
+      // stop, not to wherever the projection lands.
+      const startIndex = Math.round(gestureStartProgress.value);
+      const projected = reducedMotion
         ? Math.round(Math.min(maxIndex, Math.max(0, progress.value)))
         : projectedSnapIndex(progress.value, velocityInProgressUnits, maxIndex);
+      const target = Math.max(startIndex - 1, Math.min(startIndex + 1, projected));
 
       progress.value = reducedMotion
         ? withTiming(target, { duration: 90, easing: SLIDE_EASING })

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -37,6 +38,7 @@ import {
   subscribeTierChanges,
 } from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
+import { useQolStore } from '@/store/useQolStore';
 import { computeUpcomingRecurring, useExpenseStore } from '@/store/useExpenseStore';
 import { usePortfolioStore } from '@/store/usePortfolioStore';
 import { usePredictorStore } from '@/store/usePredictorStore';
@@ -60,6 +62,10 @@ initSentry();
 
 function RootLayout() {
   const [fontsLoaded, fontsError] = useFonts(CUSTOM_FONTS_TO_LOAD);
+  // Deliberately the raw toggle rather than useReducedMotion(): the OS half
+  // of that hook is already what Reanimated defaults to, so forcing it here
+  // too would be redundant — see the ReducedMotionConfig comment below.
+  const manualReducedMotion = useQolStore((s) => s.reducedMotion);
   const setTier = useSettingsStore((s) => s.setTier);
   const tier = useSettingsStore((s) => s.tier);
   const learningRewardExpiresAt = useSettingsStore((s) => s.learningRewardExpiresAt);
@@ -296,6 +302,25 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Makes the in-app "Reduced motion" toggle reach the ~60 `entering=`
+          layout animations that don't read useReducedMotion() themselves,
+          plus anything added later. Reanimated already resolves every
+          animation against the *device's* reduce-motion setting on its own
+          (ReduceMotion.System is the default), so this only ever forces it
+          on — which is why it's mounted conditionally rather than being
+          handed the merged value: rendering it with System would override
+          nothing and would fire Reanimated's dev-only "setting overwritten"
+          warning on every launch, and unmounting it restores whatever the
+          device setting said.
+
+          useReducedMotion() stays the right tool wherever a component picks
+          a *different* animation under reduced motion (SlidingTabs' 90ms
+          cut, the swipe's no-momentum snap) — this can only remove motion,
+          not substitute for it. Live gesture tracking is unaffected either
+          way, since a drag assigns its shared value directly rather than
+          animating to it: reduced motion drops the travel the user didn't
+          ask for, never the feedback they did. */}
+      {manualReducedMotion ? <ReducedMotionConfig mode={ReduceMotion.Always} /> : null}
       <SafeAreaProvider>
         <RootLayoutNav ready={settingsHydrated && ageHydrated} />
       </SafeAreaProvider>
