@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
 import { TIER_LABELS, type Tier } from '@/constants/subscription';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
@@ -22,47 +22,59 @@ export function useUpgradeToTier() {
   const isJudge = useIsJudgeMode();
   const grantJudgeAccess = useAgeStore((s) => s.grantJudgeAccess);
   const offerJudgeOfflineFallback = useAgeStore((s) => s.offerJudgeOfflineFallback);
+  // Callers like UpgradeBanner have no loading state of their own around
+  // this call, so a double-tap while a paywall/Test-Store round trip is
+  // still in flight (up to ~1.2s with paywallUI.ts's post-purchase retry)
+  // could fire a second one concurrently. One in-flight guard here covers
+  // every call site at once rather than pushing a loading flag onto each.
+  const pendingRef = useRef(false);
 
   return useCallback(
     async (tier: Exclude<Tier, 'free'>) => {
-      // TEMPORARY, hackathon judging only (constants/judgeMode.ts). Shows the
-      // real RevenueCat Test Store paywall, then requires its simulated
-      // purchase to produce the expected entitlement before access unlocks.
-      if (isJudge) {
-        const outcome = await presentPaywallAsJudge(tier);
-        if (outcome.status === 'activated') {
-          grantJudgeAccess(outcome.tier, 'test_store');
-          setTier(outcome.tier);
-          showToast(`${TIER_LABELS[outcome.tier]} unlocked through RevenueCat Test Store.`);
-        } else if (outcome.status === 'cancelled') {
-          showToast('Test purchase cancelled — your plan was not changed.');
-        } else {
-          offerJudgeOfflineFallback();
-          showToast(outcome.message);
-          router.push('/settings/upgrade');
+      if (pendingRef.current) return;
+      pendingRef.current = true;
+      try {
+        // TEMPORARY, hackathon judging only (constants/judgeMode.ts). Shows the
+        // real RevenueCat Test Store paywall, then requires its simulated
+        // purchase to produce the expected entitlement before access unlocks.
+        if (isJudge) {
+          const outcome = await presentPaywallAsJudge(tier);
+          if (outcome.status === 'activated') {
+            grantJudgeAccess(outcome.tier, 'test_store');
+            setTier(outcome.tier);
+            showToast(`${TIER_LABELS[outcome.tier]} unlocked through RevenueCat Test Store.`);
+          } else if (outcome.status === 'cancelled') {
+            showToast('Test purchase cancelled — your plan was not changed.');
+          } else {
+            offerJudgeOfflineFallback();
+            showToast(outcome.message);
+            router.push('/settings/upgrade');
+          }
+          return;
         }
-        return;
+        // Because every upgrade CTA in the app routes through here, one check
+        // covers all of them — no paywall is ever presented to a minor, and
+        // no purchase flow starts.
+        if (!agePermissions.purchases) {
+          showToast('Subscriptions are only available on accounts aged 18 and over.');
+          return;
+        }
+        const outcome = await presentPaywallIfNeededForTier(tier);
+        if (!outcome.shown) {
+          // Demo mode has a real destination — the plan comparison screen.
+          // A genuine paywall failure doesn't, and routing there would show
+          // demo-mode copy to someone whose keys are working fine.
+          if (outcome.reason === 'not_configured') router.push('/settings/upgrade');
+          else showToast(outcome.message);
+          return;
+        }
+        // NOT_PRESENTED here means they already hold the tier — adopt it, so a
+        // local tier that had drifted from the store (a reinstall, a
+        // subscription bought on another device) corrects itself on the tap.
+        if (outcome.tier) setTier(outcome.tier);
+      } finally {
+        pendingRef.current = false;
       }
-      // Because every upgrade CTA in the app routes through here, one check
-      // covers all of them — no paywall is ever presented to a minor, and
-      // no purchase flow starts.
-      if (!agePermissions.purchases) {
-        showToast('Subscriptions are only available on accounts aged 18 and over.');
-        return;
-      }
-      const outcome = await presentPaywallIfNeededForTier(tier);
-      if (!outcome.shown) {
-        // Demo mode has a real destination — the plan comparison screen.
-        // A genuine paywall failure doesn't, and routing there would show
-        // demo-mode copy to someone whose keys are working fine.
-        if (outcome.reason === 'not_configured') router.push('/settings/upgrade');
-        else showToast(outcome.message);
-        return;
-      }
-      // NOT_PRESENTED here means they already hold the tier — adopt it, so a
-      // local tier that had drifted from the store (a reinstall, a
-      // subscription bought on another device) corrects itself on the tap.
-      if (outcome.tier) setTier(outcome.tier);
     },
     [setTier, showToast, agePermissions, isJudge, grantJudgeAccess, offerJudgeOfflineFallback]
   );

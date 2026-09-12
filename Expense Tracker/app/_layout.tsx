@@ -88,6 +88,7 @@ function RootLayout() {
   // the first frame and an already-verified user is flashed the age gate.
   const [ageHydrated, setAgeHydrated] = useState(useAgeStore.persist.hasHydrated());
   const judgeAccessTier = useAgeStore((s) => s.judgeAccessTier);
+  const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
   const agePermissions = useAgePermissions();
   const isJudge = useIsJudgeMode();
 
@@ -259,6 +260,19 @@ function RootLayout() {
   // still powers every displayed paywall, but it must not revoke a judge's
   // free preview on launch simply because no purchase was made.
   useEffect(() => {
+    // Judge and production builds share one Android package (no native
+    // build-flavor split — constants/judgeMode.ts), so a device that ran a
+    // judge build and unlocked a tier through it can carry that grant
+    // straight into a production install via AsyncStorage, entirely outside
+    // RevenueCat. isJudge is already false here whenever JUDGE_MODE_ENABLED
+    // is false, but the persisted tier itself doesn't self-correct until
+    // RevenueCat successfully reports back below — which never happens in
+    // demo mode (no key configured). A leftover judgeAccessTier is the only
+    // signal this device ever ran a judge build, so revoke it before that.
+    if (!isJudge && judgeAccessTier) {
+      clearJudgeAccess();
+      setTier('free');
+    }
     if (isJudge) setTier(judgeAccessTier ?? 'free');
     // Configure unconditionally, even for a "regular" user on the judge
     // build — apiKeyForPlatform() already always resolves to the Test Store
@@ -304,7 +318,7 @@ function RootLayout() {
       alive = false;
       unsubscribe();
     };
-  }, [setTier, isJudge, judgeAccessTier]);
+  }, [setTier, isJudge, judgeAccessTier, clearJudgeAccess]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

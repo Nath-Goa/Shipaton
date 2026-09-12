@@ -26,7 +26,19 @@ async function resolveOutcome(result: PAYWALL_RESULT): Promise<PresentPaywallOut
   if (result !== PAYWALL_RESULT.PURCHASED && result !== PAYWALL_RESULT.RESTORED) {
     return { shown: true, result };
   }
-  const tier = await fetchCurrentTier();
+  // RevenueCat's own SDK cache is normally already updated by the time
+  // PURCHASED/RESTORED resolves, but a transient hiccup fetching it here
+  // shouldn't read as "the purchase didn't grant anything" — that's the
+  // difference between a real user seeing "still syncing, try Restore" and
+  // a judge being dropped straight to the offline fallback moments after a
+  // real Test Store purchase actually succeeded. A couple of short retries
+  // costs under a second and removes most of that false negative.
+  let tier: Tier | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    tier = await fetchCurrentTier();
+    if (tier && tier !== 'free') break;
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 400));
+  }
   return { shown: true, result, tier: tier ?? undefined };
 }
 
