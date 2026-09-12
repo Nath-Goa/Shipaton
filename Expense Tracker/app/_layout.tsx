@@ -260,14 +260,20 @@ function RootLayout() {
   // free preview on launch simply because no purchase was made.
   useEffect(() => {
     if (isJudge) setTier(judgeAccessTier ?? 'free');
+    // Configure unconditionally, even for a "regular" user on the judge
+    // build — apiKeyForPlatform() already always resolves to the Test Store
+    // key on this variant, so this just makes the real paywall available
+    // to them too instead of silently falling back to the local demo-mode
+    // buttons (see services/purchases/revenuecat.ts).
+    if (!configurePurchases()) return;
     // On a judge build, once the user isn't in judge mode (never opted in,
     // or explicitly exited via Settings › Privacy & age), RevenueCat must
-    // never drive tier — Purchases stays configured against the Test Store
-    // key for the process lifetime, and a still-active simulated
+    // never drive tier from this listener — a still-active simulated
     // entitlement would otherwise silently re-apply a paid tier moments
-    // after "Exit judging mode" set it back to Free.
+    // after "Exit judging mode" set it back to Free. A genuine purchase made
+    // through the paywall still applies immediately via its own caller
+    // (useUpgradeToTier / settings/upgrade.tsx), independent of this effect.
     if (APP_VARIANT === 'judge' && !isJudge) return;
-    if (!configurePurchases()) return;
     let alive = true;
 
     function applyTier(next: Tier) {

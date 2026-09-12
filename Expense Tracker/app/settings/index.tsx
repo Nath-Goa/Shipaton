@@ -20,6 +20,7 @@ import { Text } from '@/components/ui/Text';
 import { TEEN_RESTRICTIONS } from '@/constants/ageCompliance';
 import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
+import { JUDGE_MODE_ENABLED } from '@/constants/judgeMode';
 import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS, type Tier } from '@/constants/subscription';
 import { trackingFor } from '@/constants/typography';
@@ -573,22 +574,44 @@ function PrivacyAgeSection() {
     );
   }
 
+  // TEMPORARY, hackathon judging only — constants/judgeMode.ts. The initial
+  // "Are you a judge?" prompt is the only other place judge mode can be
+  // turned on, so without this a mis-tapped "No" is only recoverable by
+  // reinstalling the app. Shown regardless of age band; gated on
+  // JUDGE_MODE_ENABLED so it's dead code outside a judge-variant build.
+  const judgeRecovery = JUDGE_MODE_ENABLED ? (
+    <Card>
+      <Text style={[styles.notifLabel, { color: colors.text }]}>Shipaton judge?</Text>
+      <Text style={[styles.notifSub, { color: colors.text3, marginTop: 6 }]}>
+        This is a judge build. If you meant to answer “yes” at the first prompt, you can turn on judging mode here
+        instead of reinstalling.
+      </Text>
+      <View style={{ marginTop: spacing.md }}>
+        <Button label="Enable judging mode" variant="ghost" onPress={() => setJudgeMode(true)} />
+      </View>
+    </Card>
+  ) : null;
+
   if (permissions.band === 'adult') {
     return (
-      <Card style={styles.notifRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.notifLabel, { color: colors.text }]}>Adult account</Text>
-          <Text style={[styles.notifSub, { color: colors.text3 }]}>
-            No age restrictions apply to this account. What the app sends where is set out in full in the privacy
-            policy.
-          </Text>
-        </View>
-      </Card>
+      <View style={{ gap: spacing.md }}>
+        {judgeRecovery}
+        <Card style={styles.notifRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.notifLabel, { color: colors.text }]}>Adult account</Text>
+            <Text style={[styles.notifSub, { color: colors.text3 }]}>
+              No age restrictions apply to this account. What the app sends where is set out in full in the privacy
+              policy.
+            </Text>
+          </View>
+        </Card>
+      </View>
     );
   }
 
   return (
     <View style={{ gap: spacing.md }}>
+      {judgeRecovery}
       <Card style={styles.notifRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.notifLabel, { color: colors.text }]}>AI features</Text>
