@@ -53,6 +53,19 @@ export const TICKERS: Ticker[] = [
   { symbol: 'ORCL', name: 'Oracle Corp.', sector: 'Technology', basePrice: 195.3, volatility: 0.023, dividendYield: 0.009 },
   { symbol: 'JNJ', name: 'Johnson & Johnson', sector: 'Healthcare', basePrice: 158.2, volatility: 0.011, dividendYield: 0.03 },
   { symbol: 'PFE', name: 'Pfizer Inc.', sector: 'Healthcare', basePrice: 27.8, volatility: 0.017, dividendYield: 0.065 },
+  { symbol: 'MA', name: 'Mastercard Inc.', sector: 'Financials', basePrice: 525.0, volatility: 0.014, dividendYield: 0.006 },
+  { symbol: 'BAC', name: 'Bank of America Corp.', sector: 'Financials', basePrice: 48.0, volatility: 0.019, dividendYield: 0.024 },
+  { symbol: 'GS', name: 'The Goldman Sachs Group Inc.', sector: 'Financials', basePrice: 610.0, volatility: 0.018, dividendYield: 0.017 },
+  { symbol: 'T', name: 'AT&T Inc.', sector: 'Communication', basePrice: 24.0, volatility: 0.014, dividendYield: 0.049 },
+  { symbol: 'CMCSA', name: 'Comcast Corp.', sector: 'Communication', basePrice: 35.0, volatility: 0.016, dividendYield: 0.032 },
+  { symbol: 'COST', name: 'Costco Wholesale Corp.', sector: 'Consumer Staples', basePrice: 980.0, volatility: 0.014, dividendYield: 0.005 },
+  { symbol: 'MCD', name: "McDonald's Corp.", sector: 'Consumer Staples', basePrice: 295.0, volatility: 0.012, dividendYield: 0.023 },
+  { symbol: 'CVX', name: 'Chevron Corp.', sector: 'Energy', basePrice: 160.0, volatility: 0.016, dividendYield: 0.038 },
+  { symbol: 'CAT', name: 'Caterpillar Inc.', sector: 'Industrials', basePrice: 400.0, volatility: 0.021, dividendYield: 0.014 },
+  { symbol: 'HON', name: 'Honeywell International Inc.', sector: 'Industrials', basePrice: 210.0, volatility: 0.015, dividendYield: 0.019 },
+  { symbol: 'UNH', name: 'UnitedHealth Group Inc.', sector: 'Healthcare', basePrice: 330.0, volatility: 0.021, dividendYield: 0.028 },
+  { symbol: 'ABBV', name: 'AbbVie Inc.', sector: 'Healthcare', basePrice: 190.0, volatility: 0.015, dividendYield: 0.034 },
+  { symbol: 'MRK', name: 'Merck & Co. Inc.', sector: 'Healthcare', basePrice: 85.0, volatility: 0.017, dividendYield: 0.038 },
 ];
 
 const TICKER_MAP = new Map(TICKERS.map((t) => [t.symbol, t]));
