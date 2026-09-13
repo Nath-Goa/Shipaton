@@ -103,12 +103,10 @@ function BirthDateStep() {
   const [picked, setPicked] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
 
-  // A neutral starting position for the spinner: old enough not to read as a
-  // suggestion to claim adulthood, recent enough not to make every teen
-  // scroll a decade. It is only ever a starting position — nothing is
+  // The spinner opens on today's date, matching how a native date picker
+  // normally starts. It is only ever a starting position — nothing is
   // committed unless the user actually picks.
   const initialDate = new Date();
-  initialDate.setFullYear(initialDate.getFullYear() - 20);
 
   const oldest = new Date();
   oldest.setFullYear(oldest.getFullYear() - 120);
