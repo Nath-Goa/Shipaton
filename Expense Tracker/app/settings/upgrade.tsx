@@ -231,7 +231,9 @@ export default function UpgradeScreen() {
                 : 'Judging mode is active, but this APK has no RevenueCat Test Store key. Try a plan to reveal the clearly labeled offline preview fallback.'
               : configured
                 ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
-                : 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'}
+                : __DEV__
+                  ? 'Demo mode — RevenueCat has no API key configured yet, so switching plans here is local to this device and doesn’t charge anything. See .env.example.'
+                  : 'Subscriptions aren’t available yet on this build. Check back soon.'}
           </Text>
         </Animated.View>
 
@@ -289,8 +291,19 @@ export default function UpgradeScreen() {
                     fullWidth
                     onPress={() => handleChoose(t)}
                   />
-                ) : (
+                ) : __DEV__ ? (
+                  // __DEV__-gated for the same reason as the Settings title's
+                  // hidden 9-tap gesture (app/settings/index.tsx): without a
+                  // RevenueCat key, this button used to grant a paid tier for
+                  // free to anyone on any build, not only in development —
+                  // the real free-upgrade hole this whole screen exists to
+                  // avoid. A production build with no key configured yet now
+                  // shows the same "not available" state as a real paywall
+                  // failure, and the only free-grant path left is that gated
+                  // developer gesture.
                   <Button label={`Choose ${TIER_LABELS[t]} (Demo)`} fullWidth onPress={() => chooseDemo(t)} />
+                ) : (
+                  <Button label="Not available yet" variant="ghost" disabled fullWidth />
                 )}
               </Card>
             </Animated.View>
