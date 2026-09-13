@@ -30,6 +30,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    // The title next to this pill is large/bold (27px, weight 800) with no
+    // explicit lineHeight, so its line box has asymmetric leading above the
+    // glyphs — `alignItems: 'center'` on the row centers box heights, not
+    // visual glyph centers, which reads as this pill floating too high.
+    // Nudge down to land on the title's optical center instead.
+    marginTop: 4,
     gap: 3,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
