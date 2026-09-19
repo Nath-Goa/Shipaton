@@ -6,6 +6,7 @@ const baseConfig = appJson.expo as ExpoConfig;
 
 export default function appConfig({ config }: ConfigContext): ExpoConfig {
   const judgeBuild = process.env.EXPO_PUBLIC_APP_VARIANT === 'judge';
+  const easProjectId = process.env.EAS_PROJECT_ID;
   const plugins = [...(baseConfig.plugins ?? [])];
 
   if (judgeBuild) {
@@ -23,6 +24,7 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
     extra: {
       ...baseConfig.extra,
       appVariant: judgeBuild ? 'judge' : process.env.EXPO_PUBLIC_APP_VARIANT ?? 'development',
+      ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
     },
     plugins,
   };
