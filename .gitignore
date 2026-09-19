@@ -1,0 +1,8 @@
+# local build outputs, synced via OneDrive to deliver to the user's phone — never commit
+/builds/
+
+# Claude Code / Codex local tool config, skills, and worktrees — machine-local,
+# not app content. Worktrees in particular contain nested .git checkouts that
+# must never be swept into a commit.
+/.claude/
+/.agents/

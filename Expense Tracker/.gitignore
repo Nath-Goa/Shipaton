@@ -42,3 +42,6 @@ yarn-error.*
 /ios
 /android
 .cache/
+
+# personal Claude Code overrides
+.claude/settings.local.json
