@@ -19,9 +19,9 @@ import { ENTITLEMENT_APP, ENTITLEMENT_MAX, ENTITLEMENT_PRO, type Tier } from '@/
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
 const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
 const TEST_STORE_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY;
-// Development-only fallback for projects that have not split iOS/Android
-// keys yet. Judge builds exclusively use TEST_STORE_API_KEY; production
-// builds exclusively use their platform key.
+// Fallback for projects that have not split iOS/Android keys yet. The
+// RevenueCat public SDK key is safe to ship; Judge builds still exclusively
+// use TEST_STORE_API_KEY.
 const SHARED_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY;
 
 let configured = false;
@@ -36,9 +36,8 @@ export function getPurchasesEnvironment(): PurchasesEnvironment {
 
 function apiKeyForPlatform(): string | undefined {
   if (APP_VARIANT === 'judge') return TEST_STORE_API_KEY;
-  const developmentFallback = APP_VARIANT === 'development' && __DEV__ ? SHARED_API_KEY : undefined;
-  if (Platform.OS === 'ios') return IOS_API_KEY ?? developmentFallback;
-  if (Platform.OS === 'android') return ANDROID_API_KEY ?? developmentFallback;
+  if (Platform.OS === 'ios') return IOS_API_KEY ?? SHARED_API_KEY;
+  if (Platform.OS === 'android') return ANDROID_API_KEY ?? SHARED_API_KEY;
   return undefined; // RevenueCat's native SDK has no web target.
 }
 

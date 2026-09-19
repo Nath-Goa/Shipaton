@@ -149,11 +149,6 @@ export default function SettingsScreen() {
   const TITLE_TAP_WINDOW_MS = 1500;
 
   function handleTitleTap() {
-    // __DEV__-only, matching app/settings/debug.tsx's own gate — this was
-    // shipping ungated, which meant any production user could tap their way
-    // to a free Max tier with no RevenueCat purchase at all. That's the
-    // exact hole this line closes; do not remove it.
-    if (!__DEV__) return;
     const now = Date.now();
     if (now - lastTitleTapAtRef.current > TITLE_TAP_WINDOW_MS) titleTapCountRef.current = 0;
     lastTitleTapAtRef.current = now;
