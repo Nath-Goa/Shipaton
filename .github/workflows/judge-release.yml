@@ -1,0 +1,39 @@
+name: Update judge release
+
+# Copies Markva-Judge.apk from a finished "Judge APK (Android)" build
+# (a judge-build-N pre-release) onto the judge-v1 release, replacing the APK
+# judges download. No rebuild: it takes a minute.
+#
+# judge-v1 is the release the README's releases/latest/download link and any
+# direct judge-v1 link both point at, so replacing its file (rather than
+# publishing a new "latest" release) keeps every link judges may have working.
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: "Tested build to hand to judges, e.g. judge-build-1"
+        required: true
+        type: string
+
+concurrency:
+  group: judge-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download the build's APK
+        run: gh release download "${{ inputs.source_tag }}" --pattern Markva-Judge.apk --dir apk
+
+      - name: Replace the APK on judge-v1
+        run: |
+          ls -lh apk/Markva-Judge.apk
+          gh release upload judge-v1 apk/Markva-Judge.apk --clobber
+          gh release view judge-v1 --json assets --jq '.assets[] | "\(.name) \(.size) bytes, updated \(.updatedAt)"'

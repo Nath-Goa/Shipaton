@@ -11,14 +11,15 @@ name: Judge APK (Android)
 # nothing new has to be added to the repo's secrets.
 #
 # Every run publishes the APK as a GitHub pre-release, which can be downloaded
-# straight onto a phone for testing. Judges keep getting the current "latest"
-# release (the README's releases/latest/download/Markva-Judge.apk link) until
-# a run is started with "publish_for_judges" turned on.
+# straight onto a phone for testing. Judges download the APK on the judge-v1
+# release; a run started with "publish_for_judges" on also replaces that file.
+# A build that's already finished can be handed to judges without rebuilding
+# through the "Update judge release" workflow (judge-release.yml).
 on:
   workflow_dispatch:
     inputs:
       publish_for_judges:
-        description: "Make this the latest release, so the README link hands it to judges"
+        description: "Also replace the APK on judge-v1, the one judges download"
         required: true
         default: false
         type: boolean
@@ -126,7 +127,15 @@ jobs:
           name: Markva judge build ${{ github.run_number }}
           body: |
             Judge APK built from ${{ github.sha }} by the "Judge APK (Android)" workflow.
-            ${{ inputs.publish_for_judges && 'This is the latest release, so the README link now serves it to judges.' || 'Pre-release for testing. Judges still get the current latest release.' }}
+            ${{ inputs.publish_for_judges && 'This APK also replaced the one on judge-v1, which judges download.' || 'Pre-release for testing. Judges still get the APK on judge-v1.' }}
           files: judge-apk/Markva-Judge.apk
-          prerelease: ${{ !inputs.publish_for_judges }}
-          make_latest: ${{ inputs.publish_for_judges && 'true' || 'false' }}
+          prerelease: true
+          make_latest: "false"
+
+      - name: Replace the APK on judge-v1
+        if: ${{ inputs.publish_for_judges }}
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload judge-v1 judge-apk/Markva-Judge.apk --clobber
