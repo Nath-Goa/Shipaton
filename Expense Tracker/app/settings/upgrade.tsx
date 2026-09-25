@@ -26,11 +26,13 @@ import {
   presentPaywallAsJudge,
   presentPaywallForTier,
 } from '@/services/purchases/paywallUI';
+import { showPlanChangeScreen } from '@/services/purchases/planChangeScreens';
 import {
   fetchTierPrice,
   getPurchasesEnvironment,
   isPurchasesConfigured,
   restorePurchases,
+  tierSatisfies,
 } from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -98,6 +100,7 @@ export default function UpgradeScreen() {
       chooseAsJudge(t);
       return;
     }
+    const from = tier;
     setBusyTier(t);
     const outcome = await presentPaywallForTier(t);
     setBusyTier(null);
@@ -114,7 +117,14 @@ export default function UpgradeScreen() {
       case PAYWALL_RESULT.PURCHASED:
         if (outcome.tier && outcome.tier !== 'free') {
           setTier(outcome.tier);
-          celebratePurchase(outcome.tier);
+          if (announcePlanChange(from, outcome.tier)) return;
+          // The plan didn't move. A store can keep a higher plan active
+          // after a lower one is bought, so say that rather than celebrate.
+          showToast(
+            outcome.tier !== t && tierSatisfies(outcome.tier, t)
+              ? `Purchase complete. Your ${TIER_LABELS[outcome.tier]} access is still active, so you stay on ${TIER_LABELS[outcome.tier]} for now.`
+              : `You're on ${TIER_LABELS[outcome.tier]}.`
+          );
         } else {
           showToast('Purchase completed, but access is still syncing. Try Restore purchases in a moment.');
         }
@@ -169,11 +179,14 @@ export default function UpgradeScreen() {
   // paywall first, then requires RevenueCat Test Store's simulated purchase
   // to return the expected entitlement. Downgrading to Free needs no paywall.
   async function chooseAsJudge(next: Tier) {
+    const from = tier;
     if (next === 'free') {
       clearJudgeAccess();
       setTier('free');
-      showToast("You're now on Free.");
-      router.back();
+      if (!announcePlanChange(from, 'free')) {
+        showToast("You're now on Free.");
+        router.back();
+      }
       return;
     }
     setBusyTier(next);
@@ -182,7 +195,10 @@ export default function UpgradeScreen() {
     if (outcome.status === 'activated') {
       grantJudgeAccess(outcome.tier, 'test_store');
       setTier(outcome.tier);
-      celebratePurchase(outcome.tier);
+      if (!announcePlanChange(from, outcome.tier)) {
+        showToast(`You're on ${TIER_LABELS[outcome.tier]}.`);
+        router.back();
+      }
       return;
     }
     if (outcome.status === 'cancelled') {
@@ -201,20 +217,21 @@ export default function UpgradeScreen() {
   }
 
   function chooseDemo(next: Tier) {
+    const from = tier;
     setTier(next);
-    if (next !== 'free') {
-      celebratePurchase(next);
-      return;
-    }
+    if (announcePlanChange(from, next)) return;
     showToast(`You're now on ${TIER_LABELS[next]}. (Demo mode — no charge.)`);
     router.back();
   }
 
-  // Closes this plan screen first, so backing out of the celebration lands
-  // on whatever opened it rather than on a plan list that's now stale.
-  function celebratePurchase(purchased: Exclude<Tier, 'free'>) {
+  // Closes this plan screen first, so backing out of the celebration (or
+  // the goodbye) lands on whatever opened it rather than on a plan list
+  // that's now stale. False when the plan didn't actually change.
+  function announcePlanChange(from: Tier, to: Tier): boolean {
+    if (from === to) return false;
     router.back();
-    router.push({ pathname: '/purchase-success', params: { tier: purchased } });
+    showPlanChangeScreen(from, to);
+    return true;
   }
 
   // This screen is reachable directly from Settings, not only through

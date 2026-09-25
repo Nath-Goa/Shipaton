@@ -32,9 +32,10 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
-// Shown once, right after a purchase actually lands (useUpgradeToTier and
-// settings/upgrade.tsx push it only on a confirmed paid tier, never on a
-// restore or a cancelled paywall). A fullScreenModal with a fade animation
+// Shown once, right after a plan change actually lands on Pro or Max
+// (services/purchases/planChangeScreens.ts decides, never on a restore or a
+// cancelled paywall; a step down to Free gets app/plan-goodbye.tsx
+// instead). A fullScreenModal with a fade animation
 // in app/_layout.tsx, so the exit transitions below can end on a solid
 // app-background color and let the fade reveal the destination seamlessly.
 //
@@ -88,7 +89,7 @@ export default function PurchaseSuccessScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
-  const params = useLocalSearchParams<{ tier?: string }>();
+  const params = useLocalSearchParams<{ tier?: string; from?: string }>();
   const storeTier = useSettingsStore((s) => s.tier);
   // TEMPORARY (constants/judgeMode.ts). This screen replaced the toast that
   // told judges the unlock came through RevenueCat Test Store, so it has to
@@ -98,6 +99,10 @@ export default function PurchaseSuccessScreen() {
   // Read once: the celebration is for the purchase that opened this screen,
   // and shouldn't swap its whole look if the tier listener lands mid-visit.
   const [tier] = useState<PaidTier>(() => parseTier(params.tier, storeTier));
+  // Set when this is a step down from Max to Pro rather than an upgrade
+  // (services/purchases/planChangeScreens.ts). Same celebration, but it
+  // opens by acknowledging the plan they left, and the perks aren't "new".
+  const [leftMax] = useState(() => tier === 'pro' && params.from === 'max');
   const theme = TIER_THEME[tier];
   const [sections] = useState(() => benefitSectionsFor(tier));
 
@@ -177,6 +182,13 @@ export default function PurchaseSuccessScreen() {
           styles.content,
           { paddingTop: insets.top + spacing.sm, paddingBottom: footerHeight + spacing.xl },
         ]}>
+        {leftMax ? (
+          <Animated.View entering={FadeInDown.delay(150).duration(520).easing(Easing.out(Easing.cubic))} style={styles.farewell}>
+            <Text style={styles.farewellSad}>It's sad to see you leave Max...</Text>
+            <Text style={styles.farewellHope}>We hope you enjoy Pro!!</Text>
+          </Animated.View>
+        ) : null}
+
         <CelebrationHero gradient={theme.emblem} reducedMotion={reducedMotion} onEmblemPress={celebrateAgain} />
 
         <Animated.View entering={FadeInDown.delay(320).duration(520).easing(Easing.out(Easing.cubic))}>
@@ -186,7 +198,7 @@ export default function PurchaseSuccessScreen() {
           <View style={styles.tierPill}>
             <Ionicons name="diamond" size={13} color="#ffffff" />
             <Text style={styles.tierPillText} numberOfLines={1}>
-              {TIER_LABELS[tier].toUpperCase()} UNLOCKED
+              {leftMax ? `NOW ON ${TIER_LABELS[tier].toUpperCase()}` : `${TIER_LABELS[tier].toUpperCase()} UNLOCKED`}
             </Text>
           </View>
           <Text style={styles.subtitle}>
@@ -194,13 +206,17 @@ export default function PurchaseSuccessScreen() {
           </Text>
           {isJudge && judgeAccessSource === 'test_store' ? (
             <Text style={styles.sourceNote}>Unlocked through RevenueCat Test Store. Nothing was charged.</Text>
+          ) : isJudge && judgeAccessSource === 'offline_preview' ? (
+            <Text style={styles.sourceNote}>Switched with the judge shortcut. RevenueCat was not used.</Text>
           ) : null}
         </Animated.View>
 
         {sections.map((section, sectionIndex) => (
           <View key={section.title} style={styles.section}>
             <Animated.View entering={FadeInDown.delay(600 + sectionIndex * 120).duration(480)}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={styles.sectionTitle}>
+                {leftMax && sectionIndex === 0 ? `Your ${TIER_LABELS[tier]} perks` : section.title}
+              </Text>
               {sectionIndex === 0 ? (
                 <Text style={styles.sectionHint}>Tap any perk to jump straight in and try it.</Text>
               ) : null}
@@ -479,6 +495,18 @@ const styles = StyleSheet.create({
   },
   tierPillText: { flexShrink: 1, color: '#ffffff', fontSize: 12, fontWeight: '800', letterSpacing: 1.6 },
   subtitle: { color: 'rgba(255,255,255,0.92)', fontSize: 16, lineHeight: 23, textAlign: 'center' },
+  farewell: {
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 22,
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+  },
+  farewellSad: { color: 'rgba(255,255,255,0.82)', fontSize: 15, fontStyle: 'italic', textAlign: 'center' },
+  farewellHope: { color: '#ffffff', fontSize: 19, letterSpacing: trackingFor(19), fontWeight: '800', textAlign: 'center' },
   sourceNote: { color: 'rgba(255,255,255,0.75)', fontSize: 12, textAlign: 'center' },
   section: { marginTop: spacing.xxl, gap: spacing.md },
   sectionTitle: { color: '#ffffff', fontSize: 21, letterSpacing: trackingFor(21), fontWeight: '800' },

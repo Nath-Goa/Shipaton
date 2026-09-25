@@ -295,17 +295,13 @@ function RootLayout() {
 
     function applyTier(next: Tier) {
       if (isJudge) {
-        if (judgeAccessTier) {
-          if (judgeAccessTier === 'max' || next === 'free') {
-            setTier(judgeAccessTier);
-            return;
-          }
-          // A live Max Test Store entitlement may supersede a persisted Pro
-          // demonstration, but RevenueCat can never downgrade judge access.
-          setTier(next);
-          return;
-        }
-        setTier(next);
+        // Once a judge has picked a paid tier (paywall purchase, restore or
+        // the Settings shortcut all record it), RevenueCat can't move it
+        // either way: a Max test entitlement that is still active after a
+        // switch down to Pro must not pull the judge back up to Max, and an
+        // expired one can't drop them to Free. With nothing recorded, the
+        // live entitlement applies, as it always has.
+        setTier(judgeAccessTier ?? next);
         return;
       }
       setTier(next);
@@ -430,11 +426,17 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
                 progress bar and close button (app/recap.tsx), so it needs
                 zero native chrome to render underneath. */}
             <Stack.Screen name="recap" options={{ presentation: 'fullScreenModal', headerShown: false }} />
-            {/* Fades rather than slides: its exit wipes end on the app
-                background color, so a fade makes the hand-off to the
-                destination seamless (app/purchase-success.tsx). */}
+            {/* Both fade rather than slide: the celebration's exit wipes end
+                on the app background color, so a fade makes the hand-off to
+                the destination seamless (app/purchase-success.tsx), and the
+                quiet goodbye after dropping to Free (app/plan-goodbye.tsx)
+                shouldn't whoosh in. */}
             <Stack.Screen
               name="purchase-success"
+              options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade', gestureEnabled: false }}
+            />
+            <Stack.Screen
+              name="plan-goodbye"
               options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade', gestureEnabled: false }}
             />
           </Stack>

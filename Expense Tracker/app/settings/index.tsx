@@ -37,6 +37,7 @@ import {
   getBiometricCapabilities,
   type BiometricCapabilities,
 } from '@/services/security/appLock';
+import { showPlanChangeScreen } from '@/services/purchases/planChangeScreens';
 import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
@@ -167,7 +168,12 @@ export default function SettingsScreen() {
       if (next === 'free') clearJudgeAccess();
       else grantJudgeAccess(next, 'offline_preview');
       setTier(next);
-      showToast(`Judge override — you're now on ${TIER_LABELS[next]}.`);
+      // The same screens a real plan change gets: the celebration going up
+      // (it says the switch came from this shortcut, not RevenueCat) and
+      // the goodbye going back to Free. The countdown toast would otherwise
+      // sit on top of either screen until it timed out.
+      useToastStore.getState().hide();
+      showPlanChangeScreen(tier, next);
       return;
     }
     // Count down the last few taps the way Android's own developer-options

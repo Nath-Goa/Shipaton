@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { useCallback, useRef } from 'react';
 
-import type { Tier } from '@/constants/subscription';
+import { TIER_LABELS, type Tier } from '@/constants/subscription';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { PAYWALL_RESULT, presentPaywallAsJudge, presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
+import { showPlanChangeScreen } from '@/services/purchases/planChangeScreens';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -33,6 +34,9 @@ export function useUpgradeToTier() {
     async (tier: Exclude<Tier, 'free'>) => {
       if (pendingRef.current) return;
       pendingRef.current = true;
+      // Read before the paywall, so the screen that follows knows which way
+      // the plan moved.
+      const from = useSettingsStore.getState().tier;
       try {
         // TEMPORARY, hackathon judging only (constants/judgeMode.ts). Shows the
         // real RevenueCat Test Store paywall, then requires its simulated
@@ -42,7 +46,7 @@ export function useUpgradeToTier() {
           if (outcome.status === 'activated') {
             grantJudgeAccess(outcome.tier, 'test_store');
             setTier(outcome.tier);
-            router.push({ pathname: '/purchase-success', params: { tier: outcome.tier } });
+            if (!showPlanChangeScreen(from, outcome.tier)) showToast(`You're on ${TIER_LABELS[outcome.tier]}.`);
           } else if (outcome.status === 'cancelled') {
             showToast('Test purchase cancelled — your plan was not changed.');
           } else {
@@ -75,7 +79,7 @@ export function useUpgradeToTier() {
         // Only a purchase that actually granted a paid tier gets the
         // celebration; a restore or an already-held tier doesn't.
         if (outcome.result === PAYWALL_RESULT.PURCHASED && outcome.tier && outcome.tier !== 'free') {
-          router.push({ pathname: '/purchase-success', params: { tier: outcome.tier } });
+          showPlanChangeScreen(from, outcome.tier);
         }
       } finally {
         pendingRef.current = false;

@@ -131,7 +131,11 @@ export async function presentPaywallAsJudge(
       message: `The test purchase finished, but RevenueCat did not return the ${tier === 'pro' ? 'Pro' : 'Max'} entitlement.`,
     };
   }
-  return { status: 'activated', tier: outcome.tier };
+  // The tier the judge just bought, not the highest one RevenueCat reports.
+  // Buying Pro while a Max test entitlement is still active is a switch down
+  // to Pro, and judge access follows the latest purchase (the tier listener
+  // in app/_layout.tsx keeps it there too).
+  return { status: 'activated', tier };
 }
 
 export async function presentCustomerCenter(): Promise<{ ok: boolean; message?: string }> {
