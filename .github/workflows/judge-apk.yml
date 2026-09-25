@@ -1,0 +1,132 @@
+name: Judge APK (Android)
+
+# Builds the Shipaton judge APK on GitHub's own runner, the same way
+# CLAUDE.md §5.11's local Windows recipe does: expo prebuild with
+# EXPO_PUBLIC_APP_VARIANT=judge, then Gradle's :app:assembleJudge (the
+# debuggable build type from plugins/withJudgeBuildType.js, which RevenueCat
+# requires for a Test Store key). No EAS cloud build credit is used.
+#
+# The app's keys (RevenueCat Test Store, Supabase, shared AI keys) are pulled
+# from the EAS "preview" environment with the existing EXPO_TOKEN secret, so
+# nothing new has to be added to the repo's secrets.
+#
+# Every run publishes the APK as a GitHub pre-release, which can be downloaded
+# straight onto a phone for testing. Judges keep getting the current "latest"
+# release (the README's releases/latest/download/Markva-Judge.apk link) until
+# a run is started with "publish_for_judges" turned on.
+on:
+  workflow_dispatch:
+    inputs:
+      publish_for_judges:
+        description: "Make this the latest release, so the README link hands it to judges"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: judge-apk
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: "Expense Tracker"
+    env:
+      EXPO_PUBLIC_APP_VARIANT: judge
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # app.config.ts reads the EAS project id from here rather than app.json.
+      # An identifier, not a secret.
+      EAS_PROJECT_ID: c8bfbcb2-eccd-4587-8d77-0bb0a541b05c
+    steps:
+      - uses: actions/checkout@v4
+
+      # The earlier eas-build.yml runs stalled for ~55 minutes inside the
+      # native C++ compile and were then killed by the runner, the pattern of
+      # a runner out of memory. Swap plus a single ABI and fewer Gradle
+      # workers keeps this build well inside the runner's 16GB.
+      - name: Add swap
+        working-directory: .
+        run: |
+          sudo fallocate -l 8G /swapfile2
+          sudo chmod 600 /swapfile2
+          sudo mkswap /swapfile2
+          sudo swapon /swapfile2
+          free -h
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: "Expense Tracker/package-lock.json"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pull app keys from EAS (preview environment)
+        run: |
+          npx --yes eas-cli@latest env:pull --environment preview --non-interactive --path .env.local
+          # A judge APK without the Test Store key can only offer the offline
+          # fallback, so stop here rather than publish one.
+          if ! grep -Eq '^EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY=.+' .env.local; then
+            echo "::error::EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY is missing from the EAS preview environment."
+            exit 1
+          fi
+          echo "Pulled variables:"
+          sed -E 's/=.*/=<set>/' .env.local
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --clean --no-install
+
+      # User-level gradle.properties outranks the one prebuild generates.
+      - name: Set Gradle JVM heap
+        working-directory: .
+        run: |
+          mkdir -p ~/.gradle
+          echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g' >> ~/.gradle/gradle.properties
+
+      - name: Build judge APK
+        working-directory: "Expense Tracker/android"
+        run: >
+          ./gradlew :app:assembleJudge
+          -PreactNativeArchitectures=arm64-v8a
+          --max-workers=2
+          --no-daemon
+
+      - name: Collect APK
+        run: |
+          apk=$(ls android/app/build/outputs/apk/judge/*.apk | head -n 1)
+          test -n "$apk"
+          mkdir -p ../judge-apk
+          cp "$apk" ../judge-apk/Markva-Judge.apk
+          ls -lh ../judge-apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Markva-Judge
+          path: judge-apk/Markva-Judge.apk
+          retention-days: 30
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: judge-build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: Markva judge build ${{ github.run_number }}
+          body: |
+            Judge APK built from ${{ github.sha }} by the "Judge APK (Android)" workflow.
+            ${{ inputs.publish_for_judges && 'This is the latest release, so the README link now serves it to judges.' || 'Pre-release for testing. Judges still get the current latest release.' }}
+          files: judge-apk/Markva-Judge.apk
+          prerelease: ${{ !inputs.publish_for_judges }}
+          make_latest: ${{ inputs.publish_for_judges && 'true' || 'false' }}
