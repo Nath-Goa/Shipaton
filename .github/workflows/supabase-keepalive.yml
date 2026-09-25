@@ -1,7 +1,7 @@
 # Free-tier Supabase projects pause after 7 days without API traffic, which
 # would silently break Friends/Family/Duels for anyone installing the app
 # later. One call a day to the no-op public.keepalive() function (see
-supabase/schema.sql) keeps the project awake.
+# supabase/schema.sql) keeps the project awake.
 # SUPABASE_URL / SUPABASE_ANON_KEY are repo Actions secrets (the same public
 # URL + anon key the app ships with).
 name: Supabase keep-alive
