@@ -64,7 +64,8 @@
     "eval:predictor": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/evaluate-predictor.ts",
     "sweep:predictor": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/sweep-predictor.ts",
     "test:news": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/test-news.ts",
-    "test:apis": "node scripts/smoke-apis.mjs"
+    "test:apis": "node scripts/smoke-apis.mjs",
+    "judge": "node scripts/start-judge.mjs"
   },
   "private": true
 }

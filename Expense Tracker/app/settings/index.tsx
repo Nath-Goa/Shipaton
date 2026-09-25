@@ -128,6 +128,9 @@ export default function SettingsScreen() {
 
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
   const badgeCount = useStreakStore((s) => s.badges.length);
+  const isJudge = useIsJudgeMode();
+  const grantJudgeAccess = useAgeStore((s) => s.grantJudgeAccess);
+  const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
   const getSuggestedHour = useUsageStore((s) => s.getSuggestedHour);
   const showToast = useToastStore((s) => s.show);
   const features = TIER_FEATURES[tier];
@@ -138,7 +141,7 @@ export default function SettingsScreen() {
   const [biometricCaps, setBiometricCaps] = useState<BiometricCapabilities | null>(null);
   const [testingNotif, setTestingNotif] = useState(false);
 
-  // Hidden developer gesture: tap anywhere on the top bar 9 times to cycle
+  // Hidden judge-only gesture: tap anywhere on the top bar 9 times to cycle
   // free → pro → max → free. The gap between taps only has to stay under
   // this window, which is deliberately well above the ~500ms a deliberate,
   // unhurried tapping pace lands at — you shouldn't have to drum on it.
@@ -149,6 +152,9 @@ export default function SettingsScreen() {
   const TITLE_TAP_WINDOW_MS = 1500;
 
   function handleTitleTap() {
+    // TEMPORARY (constants/judgeMode.ts): judges only. Ungated, this handed
+    // any user on any build a free Max tier with no RevenueCat purchase.
+    if (!isJudge) return;
     const now = Date.now();
     if (now - lastTitleTapAtRef.current > TITLE_TAP_WINDOW_MS) titleTapCountRef.current = 0;
     lastTitleTapAtRef.current = now;
@@ -156,8 +162,12 @@ export default function SettingsScreen() {
     if (titleTapCountRef.current >= TITLE_TAP_THRESHOLD) {
       titleTapCountRef.current = 0;
       const next = DEV_TIER_CYCLE[tier];
+      // Recorded as judge access too — app/_layout.tsx resets a judge's tier
+      // to judgeAccessTier on every launch, so a bare setTier wouldn't stick.
+      if (next === 'free') clearJudgeAccess();
+      else grantJudgeAccess(next, 'offline_preview');
       setTier(next);
-      showToast(`Developer override — you're now on ${TIER_LABELS[next]}.`);
+      showToast(`Judge override — you're now on ${TIER_LABELS[next]}.`);
       return;
     }
     // Count down the last few taps the way Android's own developer-options

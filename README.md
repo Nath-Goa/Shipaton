@@ -38,6 +38,17 @@ npm install
 npx expo start
 ```
 
+### For Shipaton judges — unlocking Pro/Max
+
+```bash
+cd "Expense Tracker"
+npm install
+npx expo run:android   # first time only: builds + installs the development build
+npm run judge          # restart the dev server in judge mode
+```
+
+On first launch, answer **"Yes, I'm a judge"**. Then open Settings → Upgrade (or tap any locked feature) and pick Pro or Max. The plan screen shows the regular prices. With `EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY` in `.env`, tapping a plan opens the real RevenueCat paywall on the Test Store — choose **"Simulate successful purchase"** and the entitlement unlocks through RevenueCat exactly as a paid one would, with no card and no charge. Without that key, the plan screen offers a clearly labeled offline Max preview instead. Tapping the Settings title bar 9 times also cycles Free → Pro → Max (judge mode only).
+
 The app is fully functional with **zero environment variables set** — every integration (RevenueCat, live market data, AI providers, Supabase, Sentry) degrades gracefully to a local/demo mode without a key. See [`Expense Tracker/.env.example`](<./Expense%20Tracker/.env.example>) for what each optional variable unlocks.
 
 ## Privacy
