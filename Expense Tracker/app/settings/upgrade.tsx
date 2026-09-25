@@ -64,7 +64,7 @@ export default function UpgradeScreen() {
   const [livePrice, setLivePrice] = useState<Partial<Record<Exclude<Tier, 'free'>, string>>>({});
 
   useEffect(() => {
-    if (!configured) return;
+    if (!configured || isJudge) return;
     let alive = true;
     Promise.all([fetchTierPrice('pro'), fetchTierPrice('max')]).then(([pro, max]) => {
       if (!alive) return;
@@ -73,12 +73,16 @@ export default function UpgradeScreen() {
     return () => {
       alive = false;
     };
-  }, [configured]);
+  }, [configured, isJudge]);
 
   function priceLabel(t: Tier): string {
     if (t === 'free') return TIER_PRICE.free;
-    if (isJudge) return purchasesEnvironment === 'test_store' ? 'Simulated · no charge' : 'Offline preview available';
-    if (!configured) return `From ${TIER_PRICE[t]}`;
+    // TEMPORARY (constants/judgeMode.ts). Judges see the regular prices here
+    // so the plan screen reads exactly as it does for a paying user; the
+    // Test Store products behind the RevenueCat paywall are priced at $0, so
+    // RevenueCat's own sheet is where the free checkout shows. Never the live
+    // Test Store price here — that would just print $0.00 on every card.
+    if (isJudge || !configured) return `From ${TIER_PRICE[t]}`;
     const live = livePrice[t];
     return live ? `From ${live}` : 'See pricing →';
   }
@@ -227,7 +231,7 @@ export default function UpgradeScreen() {
           <Text style={[styles.intro, { color: colors.text3 }]}>
             {isJudge
               ? purchasesEnvironment === 'test_store'
-                ? 'Judging mode — open a plan and choose “Simulate successful purchase” in RevenueCat Test Store. The real paywall and entitlement flow run, but no money or card is involved.'
+                ? 'Judging mode — pick a plan and buy it through the RevenueCat paywall, then choose “Simulate successful purchase”. It runs through RevenueCat Test Store, so no card is needed and nothing is charged.'
                 : 'Judging mode is active, but this APK has no RevenueCat Test Store key. Try a plan to reveal the clearly labeled offline preview fallback.'
               : configured
                 ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'
@@ -279,7 +283,7 @@ export default function UpgradeScreen() {
                   <Button label="Current plan" variant="ghost" disabled fullWidth />
                 ) : isJudge ? (
                   <Button
-                    label={`Test ${TIER_LABELS[t]} purchase — free`}
+                    label={`View ${TIER_LABELS[t]} plan`}
                     loading={busyTier === t}
                     fullWidth
                     onPress={() => chooseAsJudge(t)}
