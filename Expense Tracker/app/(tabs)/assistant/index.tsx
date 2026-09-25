@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
 import { ChatBubble } from '@/components/chat/ChatBubble';
@@ -42,6 +43,7 @@ import { uid } from '@/utils/id';
 export default function AssistantScreen() {
   const { symbol: paramSymbol } = useLocalSearchParams<{ symbol?: string }>();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const tier = useSettingsStore((s) => s.tier);
   const tutorPersona = useSettingsStore((s) => s.tutorPersona);
   const aiProvider = useSettingsStore((s) => s.aiProvider);
@@ -125,17 +127,19 @@ export default function AssistantScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        // Android's window already resizes when the keyboard opens
-        // (app.json's android.softwareKeyboardLayoutMode: "resize"), so a
-        // 'height'/'padding' behavior here shrinks the layout by the
-        // keyboard height a SECOND time on top of an already-shrunk window
-        // — that double compensation is what was leaving the composer
-        // partially behind the keyboard instead of pushed cleanly above it.
-        // `undefined` makes this a no-op flex View on Android and lets the
-        // OS resize handle everything; iOS has no such OS-level resize, so
-        // it still needs the manual 'padding' behavior.
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+        // 'padding' on both platforms. This used to be `undefined` on
+        // Android, relying on softwareKeyboardLayoutMode "resize" to shrink
+        // the window — but builds are edge-to-edge now (gradle.properties'
+        // edgeToEdgeEnabled, enforced from Android 15), and an edge-to-edge
+        // window is never resized for the keyboard. With nothing moving it,
+        // the composer sat entirely hidden behind the keyboard (found on an
+        // Android 15 device). No double compensation is possible any more,
+        // since the OS no longer resizes anything itself. On Android the
+        // keyboard's reported top edge doesn't account for the navigation
+        // bar in an edge-to-edge window, which left the composer half
+        // covered by exactly that bar's height — the bottom inset corrects it.
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : insets.bottom}>
         <View style={styles.flex}>
         <FlatList
           ref={messageListRef}

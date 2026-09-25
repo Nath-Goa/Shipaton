@@ -31,6 +31,7 @@ import { TIER_FEATURES } from '@/constants/subscription';
 import { radius, spacing } from '@/constants/theme';
 import { tickerOf } from '@/constants/tickers';
 import { trackingFor } from '@/constants/typography';
+import { useBarsVersion } from '@/hooks/useBarsVersion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
@@ -136,8 +137,13 @@ export default function StockDetailScreen() {
   }, [quote?.price, priceFlashOpacity]);
 
   const ticker = tickerOf(symbol);
-  const bars = useMemo(() => getHistory(symbol, range), [symbol, range]);
-  const fullHistory = useMemo(() => getFullHistory(symbol), [symbol]);
+  // Not referenced inside the memos — it's there so they re-read once live
+  // bars replace the mock ones the first read returned (see useBarsVersion).
+  const barsVersion = useBarsVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const bars = useMemo(() => getHistory(symbol, range), [symbol, range, barsVersion]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fullHistory = useMemo(() => getFullHistory(symbol), [symbol, barsVersion]);
   const directionCall = useMemo(() => computeDirectionCall(symbol, fullHistory), [symbol, fullHistory]);
   const forecast = useMemo(() => computeForecastBand(fullHistory, 7), [symbol, fullHistory]);
   const sentiment = useMemo(() => computeSentiment(symbol, fullHistory), [symbol, fullHistory]);

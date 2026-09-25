@@ -46,6 +46,31 @@ const quoteCache = new Map<string, Quote>();
 // independently when Twelve Data isn't configured.
 const quoteFetchedAt = new Map<string, number>();
 
+// Bumped whenever barsCache changes (a fetch landing, or the persisted copy
+// loading at startup). Reads are synchronous and return mock bars until
+// real ones exist, so a screen that memoizes history on the symbol alone
+// would keep showing mock-derived numbers next to a live price — the stock
+// detail's forecast band read ~$227 beside a $335 AAPL quote. Screens
+// subscribe through useBarsVersion() and re-read when this moves.
+let barsVersion = 0;
+const barsListeners = new Set<() => void>();
+
+function notifyBarsChanged(): void {
+  barsVersion++;
+  barsListeners.forEach((listener) => listener());
+}
+
+export function getBarsVersion(): number {
+  return barsVersion;
+}
+
+export function subscribeBarsChanged(listener: () => void): () => void {
+  barsListeners.add(listener);
+  return () => {
+    barsListeners.delete(listener);
+  };
+}
+
 let hydrated = false;
 AsyncStorage.getItem(STORAGE_KEY)
   .then((raw) => {
@@ -70,6 +95,10 @@ AsyncStorage.getItem(STORAGE_KEY)
   .catch(() => undefined)
   .finally(() => {
     hydrated = true;
+    // Also re-triggers any read made before hydration, which returned mock
+    // bars without scheduling a fetch (getFullHistory only fetches once
+    // hydrated).
+    notifyBarsChanged();
   });
 
 // The whole cache is re-serialized on every write, so a refresh sweep that
@@ -200,6 +229,7 @@ function applyBars(symbol: string, bars: PriceBar[]): void {
   barsCache.set(symbol, bars);
   barsFetchedAt.set(symbol, Date.now());
   persistBars();
+  notifyBarsChanged();
 }
 
 function applyQuote(symbol: string, quote: LiveQuote): void {

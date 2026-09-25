@@ -58,7 +58,17 @@ export default function WeeklyRecapScreen() {
     music.volume = 0.34;
     music.seekTo(0);
     music.play();
-    return () => music.pause();
+    return () => {
+      // On unmount useAudioPlayer's own cleanup runs first and releases the
+      // native player (which also stops playback). pause() on a released
+      // player throws "Cannot use shared object that was already released",
+      // which took the whole screen down every time the recap closed.
+      try {
+        music.pause();
+      } catch {
+        // Already released — nothing left to stop.
+      }
+    };
   }, [music]);
 
   useEffect(() => {

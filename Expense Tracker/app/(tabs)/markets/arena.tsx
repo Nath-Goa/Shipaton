@@ -389,11 +389,15 @@ export default function ArenaScreen() {
         </View>
 
         <View style={styles.speedRow}>
-          <SegmentedControl
-            options={SPEED_OPTIONS.map((s) => ({ value: String(s), label: `${s}x` }))}
-            value={String(speed)}
-            onChange={(v) => setSpeed(Number(v) as 1 | 2 | 5 | 10)}
-          />
+          {/* flex:1 wrapper — on its own the control claims the full row
+              width and pushed "Skip ahead" off the right edge of the screen. */}
+          <View style={styles.speedControl}>
+            <SegmentedControl
+              options={SPEED_OPTIONS.map((s) => ({ value: String(s), label: `${s}x` }))}
+              value={String(speed)}
+              onChange={(v) => setSpeed(Number(v) as 1 | 2 | 5 | 10)}
+            />
+          </View>
           <Button label="Skip ahead" variant="ghost" onPress={skipAhead} />
         </View>
 
@@ -466,6 +470,7 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%' },
   statsRow: { flexDirection: 'row', gap: spacing.md },
   speedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  speedControl: { flex: 1 },
   symbolRow: { flexGrow: 0 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
   qtyInput: {

@@ -164,7 +164,12 @@ const styles = StyleSheet.create({
   main: { flex: 1, minWidth: 0 },
   symbol: { fontSize: 14.5, fontWeight: '700' },
   name: { fontSize: 12.5, marginTop: 1 },
-  priceWrap: { alignItems: 'flex-end' },
-  price: { fontSize: 14.5, fontWeight: '600' },
-  change: { fontSize: 12.5, fontWeight: '600', marginTop: 1 },
+  // Not alignItems:'flex-end': a column that hugs each Text's measured width
+  // clipped the last glyph of gains on Android ("+3.88%" drew as "+3.88"),
+  // since semibold text can render a hair wider than it measures and '+' is
+  // wider than '-'. Texts now stretch across a column with headroom and
+  // right-align inside it (CLAUDE.md §7 rule #9).
+  priceWrap: { minWidth: 92 },
+  price: { fontSize: 14.5, fontWeight: '600', textAlign: 'right' },
+  change: { fontSize: 12.5, fontWeight: '600', marginTop: 1, textAlign: 'right' },
 });

@@ -11,12 +11,16 @@ type Props = {
   title: string;
   subtitle?: string;
   right?: ReactNode;
+  // Puts `right` on its own row under the title. For screens with more
+  // actions than fit beside it — Portfolio's five squeezed "Portfolio" down
+  // to "P…".
+  actionsBelow?: boolean;
 };
 
-export function TopBar({ title, subtitle, right }: Props) {
+export function TopBar({ title, subtitle, right, actionsBelow = false }: Props) {
   const { colors } = useTheme();
   return (
-    <View style={styles.row}>
+    <View style={actionsBelow ? styles.stacked : styles.row}>
       <View style={styles.titleWrap}>
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
@@ -30,7 +34,7 @@ export function TopBar({ title, subtitle, right }: Props) {
           </Text>
         ) : null}
       </View>
-      {right ? <View style={styles.actions}>{right}</View> : null}
+      {right ? <View style={[styles.actions, actionsBelow && styles.actionsBelow]}>{right}</View> : null}
     </View>
   );
 }
@@ -45,9 +49,16 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     gap: spacing.md,
   },
+  stacked: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+  },
   titleWrap: { flexShrink: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title: { fontSize: 27, fontWeight: '800', letterSpacing: -0.7, flexShrink: 1 },
   subtitle: { fontSize: 13.5, letterSpacing: trackingFor(13.5), lineHeight: 19, marginTop: 3 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  actionsBelow: { justifyContent: 'flex-end' },
 });

@@ -11,6 +11,7 @@ import { StatTile } from '@/components/ui/StatTile';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/constants/theme';
 import { trackingFor } from '@/constants/typography';
+import { useBarsVersion } from '@/hooks/useBarsVersion';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { useActivePortfolio } from '@/store/usePortfolioStore';
@@ -31,7 +32,10 @@ export default function NetWorthScreen() {
   const goalsSaved = useMemo(() => goals.reduce((sum, g) => sum + g.currentAmount, 0), [goals]);
   const goalsReached = useMemo(() => goals.filter((g) => g.completedAt).length, [goals]);
 
-  const history = useMemo(() => computeNetWorthHistory(portfolio, 90), [portfolio]);
+  // barsVersion: recompute once live history replaces the first-paint mock bars.
+  const barsVersion = useBarsVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const history = useMemo(() => computeNetWorthHistory(portfolio, 90), [portfolio, barsVersion]);
   const bars: PriceBar[] = useMemo(
     () => history.map((h) => ({ date: h.date, open: h.netWorth, high: h.netWorth, low: h.netWorth, close: h.netWorth })),
     [history]

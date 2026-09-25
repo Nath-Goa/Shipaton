@@ -1,4 +1,4 @@
-import { DEFAULT_AI_MODEL } from '@/constants/aiModels';
+import { DEFAULT_AI_MODEL, GEMINI_FALLBACK_MODELS } from '@/constants/aiModels';
 import {
   buildCompanyIdentificationPrompt,
   buildReceiptExtractionPrompt,
@@ -30,13 +30,18 @@ function isKeyError(status: number, body: any): boolean {
   return status === 403 && !message;
 }
 
-async function callGenerate(
+// 429 (rate limit) and 5xx (Google's "model is currently experiencing high
+// demand") are about that one model's capacity, not the request — worth
+// retrying on a different model. Everything else would fail the same way.
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+async function callModel(
   systemPrompt: string,
   contents: Content[],
   apiKey: string,
-  model?: string
-): Promise<AiResult<any>> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || DEFAULT_AI_MODEL.gemini}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  model: string
+): Promise<{ result: AiResult<any>; retryable: boolean }> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
   try {
     const res = await fetchWithTimeout(url, {
       method: 'POST',
@@ -46,7 +51,8 @@ async function callGenerate(
         contents,
       }),
     });
-    if (res.status === 429) return { ok: false, error: { type: 'rate_limited' } };
+    const retryable = RETRYABLE_STATUS.has(res.status);
+    if (res.status === 429) return { result: { ok: false, error: { type: 'rate_limited' } }, retryable };
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       const body = (() => {
@@ -57,15 +63,34 @@ async function callGenerate(
         }
       })();
       if ((res.status === 400 || res.status === 403) && isKeyError(res.status, body)) {
-        return { ok: false, error: { type: 'invalid_key' } };
+        return { result: { ok: false, error: { type: 'invalid_key' } }, retryable: false };
       }
       const message = body?.error?.message || text || `Request failed (${res.status}).`;
-      return { ok: false, error: { type: 'unknown', message } };
+      return { result: { ok: false, error: { type: 'unknown', message } }, retryable };
     }
-    return { ok: true, data: await res.json() };
+    return { result: { ok: true, data: await res.json() }, retryable: false };
   } catch {
-    return { ok: false, error: { type: 'network', message: 'Could not reach the Gemini API.' } };
+    return { result: { ok: false, error: { type: 'network', message: 'Could not reach the Gemini API.' } }, retryable: false };
   }
+}
+
+// An explicit model (a user's own override) is used as-is. The default model
+// falls through GEMINI_FALLBACK_MODELS when it's overloaded or rate-limited,
+// so a busy moment on Google's side doesn't surface as a broken AI feature.
+async function callGenerate(
+  systemPrompt: string,
+  contents: Content[],
+  apiKey: string,
+  model?: string
+): Promise<AiResult<any>> {
+  const models = model ? [model] : [DEFAULT_AI_MODEL.gemini, ...GEMINI_FALLBACK_MODELS];
+  let last: AiResult<any> = { ok: false, error: { type: 'unknown', message: 'No Gemini model available.' } };
+  for (const m of models) {
+    const { result, retryable } = await callModel(systemPrompt, contents, apiKey, m);
+    if (result.ok || !retryable) return result;
+    last = result;
+  }
+  return last;
 }
 
 function extractText(data: any): string {

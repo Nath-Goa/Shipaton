@@ -136,11 +136,24 @@ function barsFromChart(result: ChartResult): PriceBar[] | null {
   return bars.length > 0 ? bars : null;
 }
 
+// Never meta.chartPreviousClose: that's the close before the *requested
+// range* starts, not the previous session. On the 2y history fetch it made
+// AAPL's "today" +48.8% (its price two years ago as the baseline), and on
+// the 5d quote fetch every change was a 5-day change. Yahoo no longer sends
+// meta.previousClose for these requests, so yesterday's close comes from
+// the series itself: the session before the latest one (barsFromChart has
+// already dropped today's all-null placeholder bar before the open).
+function previousSessionClose(result: ChartResult): number | undefined {
+  if (Number.isFinite(result.meta?.previousClose)) return result.meta!.previousClose;
+  const bars = barsFromChart(result);
+  return bars && bars.length >= 2 ? bars[bars.length - 2].close : undefined;
+}
+
 function quoteFromChart(result: ChartResult): LiveQuote | null {
   const meta = result.meta;
   const price = meta?.regularMarketPrice;
   if (!Number.isFinite(price)) return null;
-  const prevClose = meta?.previousClose ?? meta?.chartPreviousClose;
+  const prevClose = previousSessionClose(result);
   const changeAbs = Number.isFinite(prevClose) ? price! - prevClose! : 0;
   return {
     price: price!,

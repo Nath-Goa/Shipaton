@@ -25,6 +25,7 @@ import { springs, triggerFeedback } from '@/constants/animations';
 import { spacing } from '@/constants/theme';
 import { SECTOR_COLORS, tickerOf } from '@/constants/tickers';
 import { trackingFor } from '@/constants/typography';
+import { useBarsVersion } from '@/hooks/useBarsVersion';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useTheme } from '@/hooks/useTheme';
 import { sharePortfolioSummary } from '@/services/export/exportData';
@@ -131,7 +132,10 @@ export default function PortfolioScreen() {
   const summary = useMemo(() => summarizePortfolio(cash, holdings, quotes), [cash, holdings, quotes]);
   const holdingList = useMemo(() => Object.values(holdings).sort((a, b) => a.symbol.localeCompare(b.symbol)), [holdings]);
   const dividendTotal = useMemo(() => dividends.reduce((s, d) => s + d.amount, 0), [dividends]);
-  const benchmarkPoints = useMemo(() => computePortfolioVsBenchmark(activePortfolio, 90), [activePortfolio]);
+  // barsVersion: recompute once live history replaces the first-paint mock bars.
+  const barsVersion = useBarsVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const benchmarkPoints = useMemo(() => computePortfolioVsBenchmark(activePortfolio, 90), [activePortfolio, barsVersion]);
 
   const sectorBreakdown = useMemo(() => {
     const bySector = new Map<string, number>();
@@ -183,6 +187,7 @@ export default function PortfolioScreen() {
       <TopBar
         title="Portfolio"
         subtitle={portfolioCount > 1 ? name : 'Paper trading — no real money involved'}
+        actionsBelow
         right={
           <>
             <IconButton name="image-outline" onPress={() => setResultsCardOpen(true)} />
@@ -406,11 +411,13 @@ const styles = StyleSheet.create({
   moveBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
   moveBannerText: { flex: 1, fontSize: 12.5, letterSpacing: trackingFor(12.5), lineHeight: 17 },
   holdingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 2, gap: spacing.md },
-  holdingRight: { alignItems: 'flex-end' },
+  // Stretch + right-align rather than hugging with flex-end, which clipped
+  // the tail of gain labels on Android (same fix as StockListItem's priceWrap).
+  holdingRight: { minWidth: 92 },
   symbol: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '700' },
   meta: { fontSize: 12.5, letterSpacing: trackingFor(12.5), marginTop: 1 },
-  value: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '600' },
-  pnl: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600', marginTop: 1 },
+  value: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '600', textAlign: 'right' },
+  pnl: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '600', marginTop: 1, textAlign: 'right' },
   tradeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: spacing.md },
   sideBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
   diversificationCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },

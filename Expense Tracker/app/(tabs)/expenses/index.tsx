@@ -244,6 +244,7 @@ export default function ExpensesScreen() {
       <TopBar
         title="Expenses"
         subtitle="Track spending — snap a receipt or add manually"
+        actionsBelow
         right={
           <>
             <IconButton name="flag-outline" onPress={() => router.push('/expenses/goals')} />

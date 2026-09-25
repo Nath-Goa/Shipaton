@@ -38,6 +38,14 @@ export function subscribeLiveQuote(symbol: string, onQuote: (q: Quote) => void):
   return engine.subscribeLiveQuote(symbol, onQuote);
 }
 
+export function getBarsVersion(): number {
+  return engine.getBarsVersion();
+}
+
+export function subscribeBarsChanged(listener: () => void): () => void {
+  return engine.subscribeBarsChanged(listener);
+}
+
 export function resetMarketCache(): void {
   engine.resetMarketCache();
 }
