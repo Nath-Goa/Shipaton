@@ -322,15 +322,12 @@ export default function UpgradeScreen() {
                     onPress={() => handleChoose(t)}
                   />
                 ) : __DEV__ ? (
-                  // __DEV__-gated for the same reason as the Settings title's
-                  // hidden 9-tap gesture (app/settings/index.tsx): without a
-                  // RevenueCat key, this button used to grant a paid tier for
-                  // free to anyone on any build, not only in development —
-                  // the real free-upgrade hole this whole screen exists to
-                  // avoid. A production build with no key configured yet now
-                  // shows the same "not available" state as a real paywall
-                  // failure, and the only free-grant path left is that gated
-                  // developer gesture.
+                  // __DEV__-gated: without a RevenueCat key, this button
+                  // used to grant a paid tier for free to anyone on any
+                  // build, not only in development — the real free-upgrade
+                  // hole this whole screen exists to avoid. A production
+                  // build with no key configured yet now shows the same
+                  // "not available" state as a real paywall failure.
                   <Button label={`Choose ${TIER_LABELS[t]} (Demo)`} fullWidth onPress={() => chooseDemo(t)} />
                 ) : (
                   <Button label="Not available yet" variant="ghost" disabled fullWidth />

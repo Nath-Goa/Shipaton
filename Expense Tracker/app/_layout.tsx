@@ -295,8 +295,8 @@ function RootLayout() {
 
     function applyTier(next: Tier) {
       if (isJudge) {
-        // Once a judge has picked a paid tier (paywall purchase, restore or
-        // the Settings shortcut all record it), RevenueCat can't move it
+        // Once a judge has picked a paid tier (a Test Store purchase, a
+        // restore or the offline fallback records it), RevenueCat can't move it
         // either way: a Max test entitlement that is still active after a
         // switch down to Pro must not pull the judge back up to Max, and an
         // expired one can't drop them to Free. With nothing recorded, the

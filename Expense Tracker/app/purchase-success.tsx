@@ -206,8 +206,6 @@ export default function PurchaseSuccessScreen() {
           </Text>
           {isJudge && judgeAccessSource === 'test_store' ? (
             <Text style={styles.sourceNote}>Unlocked through RevenueCat Test Store. Nothing was charged.</Text>
-          ) : isJudge && judgeAccessSource === 'offline_preview' ? (
-            <Text style={styles.sourceNote}>Switched with the judge shortcut. RevenueCat was not used.</Text>
           ) : null}
         </Animated.View>
 

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useShallow } from 'zustand/react/shallow';
@@ -22,7 +22,7 @@ import { BADGE_INFO } from '@/constants/badges';
 import { TEXT_SCALE_OPTIONS, type TextScale } from '@/constants/fonts';
 import { JUDGE_MODE_ENABLED } from '@/constants/judgeMode';
 import { radius, spacing } from '@/constants/theme';
-import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS, type Tier } from '@/constants/subscription';
+import { TIER_FEATURE_COPY, TIER_FEATURES, TIER_LABELS } from '@/constants/subscription';
 import { trackingFor } from '@/constants/typography';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
 import { useTheme } from '@/hooks/useTheme';
@@ -37,7 +37,6 @@ import {
   getBiometricCapabilities,
   type BiometricCapabilities,
 } from '@/services/security/appLock';
-import { showPlanChangeScreen } from '@/services/purchases/planChangeScreens';
 import { fetchSubscriptionSince, isPurchasesConfigured } from '@/services/purchases/revenuecat';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useExpenseStore } from '@/store/useExpenseStore';
@@ -54,12 +53,10 @@ import {
   type TutorPersona,
 } from '@/store/useSettingsStore';
 import { useStreakStore } from '@/store/useStreakStore';
-import { useToastStore } from '@/store/useToastStore';
 import { confirmAction } from '@/utils/confirm';
 
 // Cycles the local tier switcher one step per successful developer login,
 // matching the free → pro → max → free order the founders described.
-const DEV_TIER_CYCLE: Record<Tier, Tier> = { free: 'pro', pro: 'max', max: 'free' };
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -91,7 +88,6 @@ export default function SettingsScreen() {
     accentColor,
     setAccentColor,
     tier,
-    setTier,
     notificationsEnabled,
     setNotificationsEnabled,
     fontOption,
@@ -108,7 +104,7 @@ export default function SettingsScreen() {
     useShallow((s) => ({
       themeMode: s.themeMode, setThemeMode: s.setThemeMode,
       accentColor: s.accentColor, setAccentColor: s.setAccentColor,
-      tier: s.tier, setTier: s.setTier,
+      tier: s.tier,
       notificationsEnabled: s.notificationsEnabled, setNotificationsEnabled: s.setNotificationsEnabled,
       fontOption: s.fontOption, setFontOption: s.setFontOption,
       textScale: s.textScale, setTextScale: s.setTextScale,
@@ -129,11 +125,7 @@ export default function SettingsScreen() {
 
   const resetAllPortfolios = usePortfolioStore((s) => s.resetAllPortfolios);
   const badgeCount = useStreakStore((s) => s.badges.length);
-  const isJudge = useIsJudgeMode();
-  const grantJudgeAccess = useAgeStore((s) => s.grantJudgeAccess);
-  const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
   const getSuggestedHour = useUsageStore((s) => s.getSuggestedHour);
-  const showToast = useToastStore((s) => s.show);
   const features = TIER_FEATURES[tier];
 
   const [planModalOpen, setPlanModalOpen] = useState(false);
@@ -141,48 +133,6 @@ export default function SettingsScreen() {
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [biometricCaps, setBiometricCaps] = useState<BiometricCapabilities | null>(null);
   const [testingNotif, setTestingNotif] = useState(false);
-
-  // Hidden judge-only gesture: tap anywhere on the top bar 9 times to cycle
-  // free → pro → max → free. The gap between taps only has to stay under
-  // this window, which is deliberately well above the ~500ms a deliberate,
-  // unhurried tapping pace lands at — you shouldn't have to drum on it.
-  // Refs (not state) so rapid taps don't fight re-renders.
-  const titleTapCountRef = useRef(0);
-  const lastTitleTapAtRef = useRef(0);
-  const TITLE_TAP_THRESHOLD = 9;
-  const TITLE_TAP_WINDOW_MS = 1500;
-
-  function handleTitleTap() {
-    // TEMPORARY (constants/judgeMode.ts): judges only. Ungated, this handed
-    // any user on any build a free Max tier with no RevenueCat purchase.
-    if (!isJudge) return;
-    const now = Date.now();
-    if (now - lastTitleTapAtRef.current > TITLE_TAP_WINDOW_MS) titleTapCountRef.current = 0;
-    lastTitleTapAtRef.current = now;
-    titleTapCountRef.current += 1;
-    if (titleTapCountRef.current >= TITLE_TAP_THRESHOLD) {
-      titleTapCountRef.current = 0;
-      const next = DEV_TIER_CYCLE[tier];
-      // Recorded as judge access too — app/_layout.tsx resets a judge's tier
-      // to judgeAccessTier on every launch, so a bare setTier wouldn't stick.
-      if (next === 'free') clearJudgeAccess();
-      else grantJudgeAccess(next, 'offline_preview');
-      setTier(next);
-      // The same screens a real plan change gets: the celebration going up
-      // (it says the switch came from this shortcut, not RevenueCat) and
-      // the goodbye going back to Free. The countdown toast would otherwise
-      // sit on top of either screen until it timed out.
-      useToastStore.getState().hide();
-      showPlanChangeScreen(tier, next);
-      return;
-    }
-    // Count down the last few taps the way Android's own developer-options
-    // gesture does. Without it there's no way to tell a tap that didn't
-    // register from a gesture that isn't working at all — which is exactly
-    // how this read while the tap target was only the title text.
-    const remaining = TITLE_TAP_THRESHOLD - titleTapCountRef.current;
-    if (remaining <= 3) showToast(`${remaining} more tap${remaining === 1 ? '' : 's'} to switch plans.`);
-  }
 
   useEffect(() => {
     getBiometricCapabilities().then(setBiometricCaps);
@@ -312,13 +262,10 @@ export default function SettingsScreen() {
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      {/* The whole bar is one tap target for the hidden tier switcher — the
-          back button sits inside it and wins its own taps, so everything
-          else (title, empty space, the full width) counts toward the 9. */}
-      <Pressable onPress={handleTitleTap} style={[styles.header, { backgroundColor: colors.surface }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <IconButton name="chevron-back" onPress={() => router.back()} />
         <Text style={[styles.headerTitleText, { color: colors.text }]}>Settings</Text>
-      </Pressable>
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInDown.duration(300).springify().damping(16)}>
           <Section title="Plan">

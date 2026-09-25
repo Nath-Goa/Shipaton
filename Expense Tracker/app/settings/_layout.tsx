@@ -13,9 +13,7 @@ export default function SettingsLayout() {
         contentStyle: { backgroundColor: colors.bg },
       }}>
       {/* Settings renders its own top bar (app/settings/index.tsx) instead of
-          the native header: the hidden 9-tap tier switcher has to be hittable
-          anywhere along the bar, and a native header only exposes its title
-          component to touch. */}
+          the native header. */}
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="upgrade" options={{ presentation: 'modal', title: 'Choose your plan' }} />
       <Stack.Screen name="achievements" options={{ presentation: 'modal', title: 'Achievements' }} />

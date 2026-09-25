@@ -4,9 +4,8 @@ import type { Tier } from '@/constants/subscription';
 
 const TIER_RANK: Record<Tier, number> = { free: 0, pro: 1, max: 2 };
 
-// The one place that decides which screen follows a plan change, so every
-// path that switches plans (the paywall hook, the plan screen, the judge
-// shortcut in Settings) agrees:
+// The one place that decides which screen follows a plan change, so both
+// paths that switch plans (the paywall hook and the plan screen) agree:
 //   paid → Free       the quiet goodbye screen (app/plan-goodbye.tsx)
 //   Max → Pro         the Pro celebration, opening with a "sad to see you
 //                     leave Max" note (app/purchase-success.tsx, `from`)
