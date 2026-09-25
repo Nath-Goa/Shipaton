@@ -1,17 +1,18 @@
 name: Update judge release
 
-# Copies Markva-Judge.apk from a finished "Judge APK (Android)" build
-# (a judge-build-N pre-release) onto the judge-v1 release, replacing the APK
-# judges download. No rebuild: it takes a minute.
+# Copies Markva-Judge.apk from a finished "Judge APK (Android)" run onto the
+# judge-v1 release, replacing the APK judges download. No rebuild: it takes a
+# minute. The run id is the number at the end of the run's URL
+# (github.com/Nath-Goa/Shipaton/actions/runs/<run id>).
 #
-# judge-v1 is the release the README's releases/latest/download link and any
-# direct judge-v1 link both point at, so replacing its file (rather than
-# publishing a new "latest" release) keeps every link judges may have working.
+# judge-v1 is what the README's releases/latest/download link and any direct
+# judge-v1 link both point at, so replacing its file keeps every link judges
+# may have working.
 on:
   workflow_dispatch:
     inputs:
-      source_tag:
-        description: "Tested build to hand to judges, e.g. judge-build-1"
+      run_id:
+        description: "Run id of a successful Judge APK (Android) build"
         required: true
         type: string
 
@@ -21,6 +22,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   update:
@@ -30,7 +32,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Download the build's APK
-        run: gh release download "${{ inputs.source_tag }}" --pattern Markva-Judge.apk --dir apk
+        run: gh run download "${{ inputs.run_id }}" --name Markva-Judge --dir apk
 
       - name: Replace the APK on judge-v1
         run: |

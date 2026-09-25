@@ -10,11 +10,14 @@ name: Judge APK (Android)
 # from the EAS "preview" environment with the existing EXPO_TOKEN secret, so
 # nothing new has to be added to the repo's secrets.
 #
-# Every run publishes the APK as a GitHub pre-release, which can be downloaded
-# straight onto a phone for testing. Judges download the APK on the judge-v1
-# release; a run started with "publish_for_judges" on also replaces that file.
-# A build that's already finished can be handed to judges without rebuilding
-# through the "Update judge release" workflow (judge-release.yml).
+# Every run keeps the APK as the run's "Markva-Judge" artifact for 30 days.
+# Judges download the APK on the judge-v1 release; a run started with
+# "publish_for_judges" on also replaces that file. A build that's already
+# finished can be handed to judges without rebuilding through the "Update
+# judge release" workflow (judge-release.yml), given this run's id.
+#
+# It doesn't create a release per build: GitHub refused that with a 403
+# ("Resource not accessible by integration") even with contents: write.
 on:
   workflow_dispatch:
     inputs:
@@ -118,19 +121,6 @@ jobs:
           name: Markva-Judge
           path: judge-apk/Markva-Judge.apk
           retention-days: 30
-
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: judge-build-${{ github.run_number }}
-          target_commitish: ${{ github.sha }}
-          name: Markva judge build ${{ github.run_number }}
-          body: |
-            Judge APK built from ${{ github.sha }} by the "Judge APK (Android)" workflow.
-            ${{ inputs.publish_for_judges && 'This APK also replaced the one on judge-v1, which judges download.' || 'Pre-release for testing. Judges still get the APK on judge-v1.' }}
-          files: judge-apk/Markva-Judge.apk
-          prerelease: true
-          make_latest: "false"
 
       - name: Replace the APK on judge-v1
         if: ${{ inputs.publish_for_judges }}
