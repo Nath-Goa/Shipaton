@@ -53,7 +53,7 @@ export default function UpgradeScreen() {
   const judgeOfflineFallbackAvailable = useAgeStore((s) => s.judgeOfflineFallbackAvailable);
   const grantJudgeAccess = useAgeStore((s) => s.grantJudgeAccess);
   const offerJudgeOfflineFallback = useAgeStore((s) => s.offerJudgeOfflineFallback);
-  const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
+  const chooseJudgeFree = useAgeStore((s) => s.chooseJudgeFree);
 
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -181,7 +181,10 @@ export default function UpgradeScreen() {
   async function chooseAsJudge(next: Tier) {
     const from = tier;
     if (next === 'free') {
-      clearJudgeAccess();
+      // Remembered, not just cleared: the Test Store purchase is still
+      // active in RevenueCat, and the tier listener would otherwise put
+      // the judge straight back on it.
+      chooseJudgeFree();
       setTier('free');
       if (!announcePlanChange(from, 'free')) {
         showToast("You're now on Free.");
@@ -295,11 +298,7 @@ export default function UpgradeScreen() {
                   isCurrent ? (
                     <Button label="Current plan" variant="ghost" disabled fullWidth />
                   ) : isJudge ? (
-                    judgeAccessSource === 'offline_preview' ? (
-                      <Button label="End offline preview" variant="ghost" fullWidth onPress={() => chooseAsJudge(t)} />
-                    ) : (
-                      <Button label="Test Store entitlement active" variant="ghost" disabled fullWidth />
-                    )
+                    <Button label="Switch to Free" variant="ghost" fullWidth onPress={() => chooseAsJudge(t)} />
                   ) : configured ? (
                     <Button label="Manage subscription" variant="ghost" loading={openingCenter} fullWidth onPress={handleManage} />
                   ) : (

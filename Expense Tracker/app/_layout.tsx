@@ -90,6 +90,7 @@ function RootLayout() {
   const [ageHydrated, setAgeHydrated] = useState(useAgeStore.persist.hasHydrated());
   const judgeAccessTier = useAgeStore((s) => s.judgeAccessTier);
   const clearJudgeAccess = useAgeStore((s) => s.clearJudgeAccess);
+  const judgeChoseFree = useAgeStore((s) => s.judgeChoseFree);
   const agePermissions = useAgePermissions();
   const isJudge = useIsJudgeMode();
 
@@ -295,13 +296,13 @@ function RootLayout() {
 
     function applyTier(next: Tier) {
       if (isJudge) {
-        // Once a judge has picked a paid tier (a Test Store purchase, a
-        // restore or the offline fallback records it), RevenueCat can't move it
-        // either way: a Max test entitlement that is still active after a
-        // switch down to Pro must not pull the judge back up to Max, and an
-        // expired one can't drop them to Free. With nothing recorded, the
-        // live entitlement applies, as it always has.
-        setTier(judgeAccessTier ?? next);
+        // Once a judge has picked a plan (a Test Store purchase, a restore,
+        // the offline fallback or "Switch to Free" records it), RevenueCat
+        // can't move it: a Max test entitlement that is still active after
+        // a switch down to Pro or Free must not pull the judge back up, and
+        // an expired one can't drop them to Free. With nothing recorded,
+        // the live entitlement applies, as it always has.
+        setTier(judgeAccessTier ?? (judgeChoseFree ? 'free' : next));
         return;
       }
       setTier(next);
@@ -317,7 +318,7 @@ function RootLayout() {
       alive = false;
       unsubscribe();
     };
-  }, [setTier, isJudge, judgeAccessTier, clearJudgeAccess]);
+  }, [setTier, isJudge, judgeAccessTier, judgeChoseFree, clearJudgeAccess]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

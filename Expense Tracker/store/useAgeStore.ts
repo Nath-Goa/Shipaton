@@ -38,12 +38,20 @@ type AgeState = {
   judgeAccessTier: Exclude<Tier, 'free'> | null;
   judgeAccessSource: 'test_store' | 'offline_preview' | null;
   judgeOfflineFallbackAvailable: boolean;
+  /**
+   * TEMPORARY (constants/judgeMode.ts). The judge switched to Free on the
+   * plan screen. A Test Store purchase stays active in RevenueCat after
+   * that, so without this the tier listener in app/_layout.tsx would put
+   * them straight back on the plan they left. Cleared by any new grant.
+   */
+  judgeChoseFree: boolean;
   setBirthDate: (birthDate: string) => void;
   setAiDataConsent: (granted: boolean) => void;
   setJudgeMode: (isJudge: boolean) => void;
   grantJudgeAccess: (tier: Exclude<Tier, 'free'>, source: 'test_store' | 'offline_preview') => void;
   offerJudgeOfflineFallback: () => void;
   clearJudgeAccess: () => void;
+  chooseJudgeFree: () => void;
 };
 
 export const useAgeStore = create<AgeState>()(
@@ -56,6 +64,7 @@ export const useAgeStore = create<AgeState>()(
       judgeAccessTier: null,
       judgeAccessSource: null,
       judgeOfflineFallbackAvailable: false,
+      judgeChoseFree: false,
       setBirthDate: (birthDate) => {
         set({ birthDate, verifiedAt: Date.now() });
         // Privacy by default: on-device behavioural training starts off for a
@@ -78,13 +87,16 @@ export const useAgeStore = create<AgeState>()(
                 judgeAccessTier: null,
                 judgeAccessSource: null,
                 judgeOfflineFallbackAvailable: false,
+                judgeChoseFree: false,
               }
         ),
       grantJudgeAccess: (judgeAccessTier, judgeAccessSource) =>
-        set({ judgeAccessTier, judgeAccessSource, judgeOfflineFallbackAvailable: false }),
+        set({ judgeAccessTier, judgeAccessSource, judgeOfflineFallbackAvailable: false, judgeChoseFree: false }),
       offerJudgeOfflineFallback: () => set({ judgeOfflineFallbackAvailable: true }),
       clearJudgeAccess: () =>
-        set({ judgeAccessTier: null, judgeAccessSource: null, judgeOfflineFallbackAvailable: false }),
+        set({ judgeAccessTier: null, judgeAccessSource: null, judgeOfflineFallbackAvailable: false, judgeChoseFree: false }),
+      chooseJudgeFree: () =>
+        set({ judgeAccessTier: null, judgeAccessSource: null, judgeOfflineFallbackAvailable: false, judgeChoseFree: true }),
     }),
     {
       name: 'age-store',
