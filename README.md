@@ -4,6 +4,16 @@ Built for the **RevenueCat Shipaton** by **Nathan Kumtakar** and **Arya Kakani**
 
 Markva is a combined "financial life" app: **mock/paper stock trading** + a **personal expense tracker**, wrapped in one app so a RevenueCat subscription has enough real feature surface to gate meaningfully. Everything financial is simulated — no real brokerage, no real bank connection, no real money at risk. The pitch is educational: practice trading and budgeting with zero real-world downside, while learning the underlying concepts through a full Learn tab (lessons, flashcards, quizzes, daily trivia).
 
+## For Shipaton judges — try it in two minutes
+
+**[⬇ Download Markva-Judge.apk](https://github.com/Nath-Goa/Shipaton/releases/latest/download/Markva-Judge.apk)** and install it on any Android phone (allow installs from unknown sources when asked). No account, no keys, no setup.
+
+1. Open the app and tap **"Yes, I'm a judge"**.
+2. Go to Settings → Upgrade (or tap any locked feature) and pick **Pro** or **Max**.
+3. The real RevenueCat paywall opens at the regular prices. Tap the purchase button, then **"Test valid purchase"** in the RevenueCat Test Store sheet.
+
+That's RevenueCat's Test Store, so no card is needed and nothing is charged, but the entitlement comes from RevenueCat exactly as it would for a paying customer. The app installs as "Markva Judge", alongside any other copy.
+
 > App code lives in [`Expense Tracker/`](./Expense%20Tracker) — that's the actual Expo project root. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for a full map of the repo, and [`CLAUDE.md`](./CLAUDE.md) for the complete build history and design rationale behind every feature.
 
 ## RevenueCat integration
@@ -13,7 +23,7 @@ RevenueCat gates a real three-tier subscription (**Free / Pro / Max**) across th
 - `react-native-purchases` + `react-native-purchases-ui` for native paywalls, entitlement checks, and customer-info sync (`services/purchases/`).
 - Handles the real-world gap between RevenueCat's default umbrella entitlement and a per-tier `"pro"`/`"max"` check, rather than trusting the SDK's own `presentPaywallIfNeeded` to match tier-for-tier.
 - Distinguishes a genuinely unconfigured project (falls back to a local dev-mode tier switcher) from a *configured but failing* paywall (surfaces the real RevenueCat error instead of misdirecting the user).
-- **Judge mode**: a dedicated internal build variant shows "Are you a judge?" on first launch. Yes routes every subscribe button through RevenueCat's real **Test Store** — the actual paywall UI, resolved against a real Offering, unlocked only once a judge taps "Simulate successful purchase" inside RevenueCat's own Test Store UI (a real `CustomerInfo`/entitlement, no Play Billing, no card). This exists specifically so the RevenueCat integration is reviewable exactly as a paying user would experience it. See [`constants/judgeMode.ts`](<./Expense%20Tracker/constants/judgeMode.ts>) and CLAUDE.md §5.11 for the full design.
+- **Judge mode**: a dedicated internal build variant shows "Are you a judge?" on first launch. Yes routes every subscribe button through RevenueCat's real **Test Store** — the actual paywall UI, resolved against a real Offering, unlocked only once a judge taps "Test valid purchase" inside RevenueCat's own Test Store UI (a real `CustomerInfo`/entitlement, no Play Billing, no card). This exists specifically so the RevenueCat integration is reviewable exactly as a paying user would experience it. See [`constants/judgeMode.ts`](<./Expense%20Tracker/constants/judgeMode.ts>) and CLAUDE.md §5.11 for the full design.
 
 ## Feature tour
 
@@ -38,16 +48,7 @@ npm install
 npx expo start
 ```
 
-### For Shipaton judges — unlocking Pro/Max
-
-```bash
-cd "Expense Tracker"
-npm install
-npx expo run:android   # first time only: builds + installs the development build
-npm run judge          # restart the dev server in judge mode
-```
-
-On first launch, answer **"Yes, I'm a judge"**. Then open Settings → Upgrade (or tap any locked feature) and pick Pro or Max. The plan screen shows the regular prices. With `EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY` in `.env`, tapping a plan opens the real RevenueCat paywall on the Test Store — choose **"Simulate successful purchase"** and the entitlement unlocks through RevenueCat exactly as a paid one would, with no card and no charge. Without that key, the plan screen offers a clearly labeled offline Max preview instead. Tapping the Settings title bar 9 times also cycles Free → Pro → Max (judge mode only).
+To run judge mode from source instead of the APK, use `npm run judge` (needs `EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY` in `.env` for the Test Store paywall; without it, the plan screen offers a labeled offline Max preview).
 
 The app is fully functional with **zero environment variables set** — every integration (RevenueCat, live market data, AI providers, Supabase, Sentry) degrades gracefully to a local/demo mode without a key. See [`Expense Tracker/.env.example`](<./Expense%20Tracker/.env.example>) for what each optional variable unlocks.
 

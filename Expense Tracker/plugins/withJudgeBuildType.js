@@ -14,6 +14,16 @@ android {
             debuggable true
             signingConfig signingConfigs.debug
             matchingFallbacks = ['release']
+            // debuggable makes AGP compile the app's own C++ (autolinked
+            // codegen) as CMake Debug, but matchingFallbacks links it against
+            // release react-android, which lacks the debug-only symbols
+            // (Sealable, DebugStringConvertible). NDEBUG keeps them in step.
+            externalNativeBuild {
+                cmake {
+                    cFlags "-DNDEBUG"
+                    cppFlags "-DNDEBUG"
+                }
+            }
         }
     }
 }

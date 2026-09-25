@@ -31,7 +31,7 @@
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "android": {
-        "buildType": "apk"
+        "gradleCommand": ":app:assembleJudge"
       }
     },
     "production": {

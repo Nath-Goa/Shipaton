@@ -231,7 +231,7 @@ export default function UpgradeScreen() {
           <Text style={[styles.intro, { color: colors.text3 }]}>
             {isJudge
               ? purchasesEnvironment === 'test_store'
-                ? 'Judging mode — pick a plan and buy it through the RevenueCat paywall, then choose “Simulate successful purchase”. It runs through RevenueCat Test Store, so no card is needed and nothing is charged.'
+                ? 'Judging mode — pick a plan and buy it through the RevenueCat paywall, then tap “Test valid purchase”. It runs through RevenueCat Test Store, so no card is needed and nothing is charged.'
                 : 'Judging mode is active, but this APK has no RevenueCat Test Store key. Try a plan to reveal the clearly labeled offline preview fallback.'
               : configured
                 ? 'Purchases are processed by the App Store / Google Play, at the price shown for your region. Billing periods and any intro offers are on the next screen.'

@@ -34,7 +34,7 @@ export const JUDGE_MODE_ENABLED = IS_JUDGE_BUILD;
 // made to a judge and the behaviour implemented below cannot drift apart.
 export const JUDGE_MODE_PROMISE: string[] = [
   'Tapping a plan opens the real RevenueCat paywall, so you can review the integration exactly as a paying user would see it',
-  'Choose “Simulate successful purchase” in RevenueCat Test Store to unlock it — no card or real payment is involved',
+  'Tap “Test valid purchase” in RevenueCat Test Store to unlock it — no card or real payment is involved',
   'You will not be asked your date of birth; the account is treated as 18+ so nothing is age-restricted',
   'Nothing else changes. Every feature, screen and number behaves exactly as it does for a normal user',
 ];
