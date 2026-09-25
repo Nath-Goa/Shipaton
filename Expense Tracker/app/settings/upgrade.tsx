@@ -114,8 +114,7 @@ export default function UpgradeScreen() {
       case PAYWALL_RESULT.PURCHASED:
         if (outcome.tier && outcome.tier !== 'free') {
           setTier(outcome.tier);
-          showToast(`You're now on ${TIER_LABELS[outcome.tier]}.`);
-          router.back();
+          celebratePurchase(outcome.tier);
         } else {
           showToast('Purchase completed, but access is still syncing. Try Restore purchases in a moment.');
         }
@@ -183,8 +182,7 @@ export default function UpgradeScreen() {
     if (outcome.status === 'activated') {
       grantJudgeAccess(outcome.tier, 'test_store');
       setTier(outcome.tier);
-      showToast(`${TIER_LABELS[outcome.tier]} unlocked through RevenueCat Test Store.`);
-      router.back();
+      celebratePurchase(outcome.tier);
       return;
     }
     if (outcome.status === 'cancelled') {
@@ -204,8 +202,19 @@ export default function UpgradeScreen() {
 
   function chooseDemo(next: Tier) {
     setTier(next);
+    if (next !== 'free') {
+      celebratePurchase(next);
+      return;
+    }
     showToast(`You're now on ${TIER_LABELS[next]}. (Demo mode — no charge.)`);
     router.back();
+  }
+
+  // Closes this plan screen first, so backing out of the celebration lands
+  // on whatever opened it rather than on a plan list that's now stale.
+  function celebratePurchase(purchased: Exclude<Tier, 'free'>) {
+    router.back();
+    router.push({ pathname: '/purchase-success', params: { tier: purchased } });
   }
 
   // This screen is reachable directly from Settings, not only through

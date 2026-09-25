@@ -430,6 +430,13 @@ function RootLayoutNav({ ready }: { ready: boolean }) {
                 progress bar and close button (app/recap.tsx), so it needs
                 zero native chrome to render underneath. */}
             <Stack.Screen name="recap" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+            {/* Fades rather than slides: its exit wipes end on the app
+                background color, so a fade makes the hand-off to the
+                destination seamless (app/purchase-success.tsx). */}
+            <Stack.Screen
+              name="purchase-success"
+              options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade', gestureEnabled: false }}
+            />
           </Stack>
         </AppLockGate>
       ) : (

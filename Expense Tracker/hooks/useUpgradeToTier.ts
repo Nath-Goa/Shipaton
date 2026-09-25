@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { useCallback, useRef } from 'react';
 
-import { TIER_LABELS, type Tier } from '@/constants/subscription';
+import type { Tier } from '@/constants/subscription';
 import { useAgePermissions, useIsJudgeMode } from '@/hooks/useAgePermissions';
-import { presentPaywallAsJudge, presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
+import { PAYWALL_RESULT, presentPaywallAsJudge, presentPaywallIfNeededForTier } from '@/services/purchases/paywallUI';
 import { useAgeStore } from '@/store/useAgeStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useToastStore } from '@/store/useToastStore';
@@ -42,7 +42,7 @@ export function useUpgradeToTier() {
           if (outcome.status === 'activated') {
             grantJudgeAccess(outcome.tier, 'test_store');
             setTier(outcome.tier);
-            showToast(`${TIER_LABELS[outcome.tier]} unlocked through RevenueCat Test Store.`);
+            router.push({ pathname: '/purchase-success', params: { tier: outcome.tier } });
           } else if (outcome.status === 'cancelled') {
             showToast('Test purchase cancelled — your plan was not changed.');
           } else {
@@ -72,6 +72,11 @@ export function useUpgradeToTier() {
         // local tier that had drifted from the store (a reinstall, a
         // subscription bought on another device) corrects itself on the tap.
         if (outcome.tier) setTier(outcome.tier);
+        // Only a purchase that actually granted a paid tier gets the
+        // celebration; a restore or an already-held tier doesn't.
+        if (outcome.result === PAYWALL_RESULT.PURCHASED && outcome.tier && outcome.tier !== 'free') {
+          router.push({ pathname: '/purchase-success', params: { tier: outcome.tier } });
+        }
       } finally {
         pendingRef.current = false;
       }
