@@ -55,7 +55,8 @@ export async function joinFamily(familyId: string): Promise<Result> {
   const { error } = await supabase.from('family_members').insert({ family_id: familyId.trim(), user_id: me });
   if (error) {
     if (error.code === '23505') return { ok: false, message: "You're already in that family." };
-    if (error.code === '23503') return { ok: false, message: "That invite code doesn't match a family." };
+    // 23503: no family with that id. 22P02: not a uuid at all (a typo).
+    if (error.code === '23503' || error.code === '22P02') return { ok: false, message: "That invite code doesn't match a family." };
     return { ok: false, message: errorMessage(error) };
   }
   return { ok: true };

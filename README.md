@@ -14,6 +14,8 @@ Markva is a combined "financial life" app: **mock/paper stock trading** + a **pe
 
 That's RevenueCat's Test Store, so no card is needed and nothing is charged, but the entitlement comes from RevenueCat exactly as it would for a paying customer. The app installs as "Markva Judge", alongside any other copy.
 
+**Friends & duels:** Markets → Portfolio → people icon → create an account (any email, no verification). **Markva Bot** has already sent you a friend request; accept it, tap Challenge, and the duel starts right away. You can also add a friend by email, or create a family and share its invite code.
+
 > App code lives in [`Expense Tracker/`](./Expense%20Tracker) — that's the actual Expo project root. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for a full map of the repo, and [`CLAUDE.md`](./CLAUDE.md) for the complete build history and design rationale behind every feature.
 
 ## RevenueCat integration

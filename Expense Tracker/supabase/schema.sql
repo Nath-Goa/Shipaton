@@ -1,8 +1,33 @@
 -- Paste this whole file into Supabase Dashboard > SQL Editor > New query, then Run.
--- Covers: profiles (auto-created on signup), families, friendships, duels.
+-- Covers: profiles (auto-created on signup), friendships, families, duels,
+-- plus the "Markva Bot" demo opponent. Safe to re-run: every object is
+-- created with IF NOT EXISTS / CREATE OR REPLACE / DROP ... IF EXISTS.
+--
 -- Every table has Row Level Security ON with policies scoping access to the
 -- caller's own rows/relationships — the anon key shipped in the app can only
--- ever do what these policies allow, regardless of what a client sends.
+-- ever do what these policies (and the column grants below) allow,
+-- regardless of what a client sends.
+
+-- 0. APP CONFIG ---------------------------------------------------------------
+-- Server-side settings the functions below read (currently just the demo
+-- bot's user id). RLS on with no policies: clients can't read or write it,
+-- only SECURITY DEFINER functions can.
+create table if not exists public.app_config (
+  key text primary key,
+  value text not null
+);
+
+alter table public.app_config enable row level security;
+
+create or replace function public.bot_user_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select value::uuid from public.app_config where key = 'bot_user_id';
+$$;
 
 -- 1. PROFILES ---------------------------------------------------------------
 create table if not exists public.profiles (
@@ -11,48 +36,31 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+-- Stashes the email so "add a friend by email" has something to search
+-- against — never exposed through a direct SELECT; see the column-privilege
+-- lockdown and find_profile_by_email() below.
+alter table public.profiles add column if not exists email text;
+
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles are readable by any signed-in user" on public.profiles;
 create policy "profiles are readable by any signed-in user"
   on public.profiles for select
   using (auth.uid() is not null);
 
+drop policy if exists "a user can update only their own profile" on public.profiles;
 create policy "a user can update only their own profile"
   on public.profiles for update
-  using (auth.uid() = id);
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
 
--- Auto-create a profile row the moment someone confirms signup, using the
--- part before @ in their email as a default display name. Also stashes the
--- email itself (added below) so "add a friend by email" has something to
--- search against — never exposed through the open SELECT policy above; see
--- the column-privilege lockdown and find_profile_by_email() further down.
-alter table public.profiles add column if not exists email text;
-
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, display_name, email)
-  values (new.id, split_part(new.email, '@', 1), lower(trim(new.email)))
-  on conflict (id) do update set email = excluded.email;
-  return new;
-end;
-$$ language plpgsql security definer;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
-
--- RLS is row-level, not column-level — the broad "readable by any signed-in
--- user" policy above would otherwise let any client SELECT the new email
--- column directly (e.g. `supabase.from('profiles').select('email')`),
--- silently defeating the whole point of routing lookups through a function.
--- Locking column privileges down to what the UI actually needs (id,
--- display_name) closes that, while find_profile_by_email() below — a
--- SECURITY DEFINER function — can still read email internally to do the
--- match, and only ever returns id/display_name, never the email back out.
-revoke select on public.profiles from authenticated;
+-- RLS is row-level, not column-level. Without these grants any signed-in
+-- client could SELECT everyone's email, or UPDATE its own email to someone
+-- else's and hijack find_profile_by_email(). Clients only ever need to read
+-- id/display_name and rename themselves.
+revoke select, update on public.profiles from anon, authenticated;
 grant select (id, display_name, created_at) on public.profiles to authenticated;
+grant update (display_name) on public.profiles to authenticated;
 
 create or replace function public.find_profile_by_email(lookup_email text)
 returns table (id uuid, display_name text)
@@ -79,20 +87,31 @@ create table if not exists public.friendships (
 
 alter table public.friendships enable row level security;
 
+drop policy if exists "a user can see friendships they're part of" on public.friendships;
 create policy "a user can see friendships they're part of"
   on public.friendships for select
   using (auth.uid() = requester_id or auth.uid() = addressee_id);
 
+drop policy if exists "a user can request a friendship as themselves" on public.friendships;
 create policy "a user can request a friendship as themselves"
   on public.friendships for insert
-  with check (auth.uid() = requester_id);
+  with check (auth.uid() = requester_id and requester_id <> addressee_id and status = 'pending');
 
-create policy "either side can update a friendship they're part of"
+-- Only the person who RECEIVED a request can accept it — the requester
+-- accepting their own request would make anyone anyone's friend.
+drop policy if exists "either side can update a friendship they're part of" on public.friendships;
+drop policy if exists "the addressee can accept a request" on public.friendships;
+create policy "the addressee can accept a request"
   on public.friendships for update
-  using (auth.uid() = requester_id or auth.uid() = addressee_id);
+  using (auth.uid() = addressee_id)
+  with check (auth.uid() = addressee_id and status = 'accepted');
+
+revoke update on public.friendships from anon, authenticated;
+grant update (status) on public.friendships to authenticated;
 
 -- Covers both declining a pending request and unfriending an accepted one —
 -- one row, one action, no separate "declined" status needed.
+drop policy if exists "either side can delete a friendship they're part of" on public.friendships;
 create policy "either side can delete a friendship they're part of"
   on public.friendships for delete
   using (auth.uid() = requester_id or auth.uid() = addressee_id);
@@ -116,25 +135,74 @@ create table if not exists public.family_members (
 alter table public.families enable row level security;
 alter table public.family_members enable row level security;
 
+-- A family_members policy that queries family_members directly makes
+-- Postgres fail every read with "infinite recursion detected in policy".
+-- Membership is checked through this SECURITY DEFINER function instead,
+-- which reads the table without re-entering its own policy.
+create or replace function public.is_family_member(p_family_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.family_members
+    where family_id = p_family_id and user_id = auth.uid()
+  );
+$$;
+
+grant execute on function public.is_family_member(uuid) to authenticated;
+
+-- The owner clause matters on creation: the app inserts the family and
+-- reads its id back before the owner's membership row exists.
+drop policy if exists "a member can see their own family" on public.families;
 create policy "a member can see their own family"
   on public.families for select
-  using (id in (select family_id from public.family_members where user_id = auth.uid()));
+  using (owner_id = auth.uid() or public.is_family_member(id));
 
+drop policy if exists "a signed-in user can create a family (becoming its owner)" on public.families;
 create policy "a signed-in user can create a family (becoming its owner)"
   on public.families for insert
   with check (auth.uid() = owner_id);
 
+drop policy if exists "a member can see other members of their own family" on public.family_members;
 create policy "a member can see other members of their own family"
   on public.family_members for select
-  using (family_id in (select family_id from public.family_members where user_id = auth.uid()));
+  using (public.is_family_member(family_id));
 
+-- A family's id doubles as its invite code, so anyone holding it may join —
+-- but only as a plain member. Joining as 'owner' requires actually owning it.
+drop policy if exists "a user can add themself to a family" on public.family_members;
 create policy "a user can add themself to a family"
   on public.family_members for insert
-  with check (auth.uid() = user_id);
+  with check (
+    auth.uid() = user_id
+    and (
+      role = 'member'
+      or exists (select 1 from public.families f where f.id = family_id and f.owner_id = auth.uid())
+    )
+  );
 
+drop policy if exists "a user can remove themself from a family" on public.family_members;
 create policy "a user can remove themself from a family"
   on public.family_members for delete
   using (auth.uid() = user_id);
+
+-- Challenging another family needs its owner's id, but families are only
+-- visible to their own members. This resolves an invite code to exactly
+-- that one field and nothing else.
+create or replace function public.family_owner_for_invite(p_family_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select owner_id from public.families where id = p_family_id;
+$$;
+
+grant execute on function public.family_owner_for_invite(uuid) to authenticated;
 
 -- 4. DUELS ----------------------------------------------------------------------
 -- A duel doesn't run its own market — it scores each participant's EXISTING
@@ -152,24 +220,26 @@ create table if not exists public.duels (
   -- Exactly two entries today for both kinds — the app currently scores a
   -- family duel as owner/representative vs. owner/representative rather
   -- than a full-roster aggregate (see services/social/duels.ts's
-  -- challengeFamily for why: a true aggregate needs every member's own
-  -- device to individually report a baseline). The schema doesn't assume
-  -- exactly two, though — kept as a plain array rather than a join table,
-  -- so a future full-roster mode is just a client-side change, not a
-  -- migration. A duel's roster never changes after it starts either way.
+  -- challengeFamily for why). Kept as a plain array rather than a join
+  -- table, so a future full-roster mode is a policy change, not a migration.
   participant_ids uuid[] not null,
-  -- "No time-skipping unless every participant agrees" — reframed here as
-  -- ending the duel early rather than fast-forwarding a simulated clock
-  -- (see the comment above on why there isn't one): a unanimous vote here
-  -- ends the duel at the current scores instead of waiting for ends_at.
+  -- "No time-skipping unless every participant agrees" — reframed as
+  -- ending the duel early rather than fast-forwarding a simulated clock: a
+  -- unanimous vote ends the duel at the current scores instead of ends_at.
   time_skip_votes uuid[] not null default '{}',
   baseline_net_worths jsonb not null default '{}'::jsonb,
   live_net_worths jsonb not null default '{}'::jsonb,
   starting_cash numeric not null default 100000,
-  winner_id uuid references public.profiles(id),
+  winner_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   ends_at timestamptz
 );
+
+-- Re-applied so databases created before `on delete set null` was added get
+-- it too; without it, deleting any account that ever won a duel fails.
+alter table public.duels drop constraint if exists duels_winner_id_fkey;
+alter table public.duels
+  add constraint duels_winner_id_fkey foreign key (winner_id) references public.profiles(id) on delete set null;
 
 alter table public.duels enable row level security;
 
@@ -178,24 +248,41 @@ create policy "a participant can see a duel they're in"
   on public.duels for select
   using (auth.uid() = any(participant_ids));
 
+-- A new duel must start clean: pending, no winner, no votes, two distinct
+-- people, and only the challenger's own net worth filled in.
 drop policy if exists "a participant can create a duel that includes themself" on public.duels;
 create policy "a participant can create a duel that includes themself"
   on public.duels for insert
-  with check (auth.uid() = any(participant_ids));
+  with check (
+    auth.uid() = any(participant_ids)
+    and status = 'pending'
+    and winner_id is null
+    and cardinality(time_skip_votes) = 0
+    and cardinality(participant_ids) = 2
+    and participant_ids[1] <> participant_ids[2]
+    and (baseline_net_worths - auth.uid()::text) = '{}'::jsonb
+    and (live_net_worths - auth.uid()::text) = '{}'::jsonb
+  );
 
+-- The only direct write a client may make is declining a pending duel.
+-- Scores, votes and results all go through the functions below.
 drop policy if exists "a participant can update a duel they're in (e.g. casting a time-skip vote)" on public.duels;
-create policy "a participant can update a duel they're in (e.g. declining it)"
+drop policy if exists "a participant can update a duel they're in (e.g. declining it)" on public.duels;
+drop policy if exists "a participant can decline a pending duel" on public.duels;
+create policy "a participant can decline a pending duel"
   on public.duels for update
-  using (auth.uid() = any(participant_ids));
+  using (auth.uid() = any(participant_ids) and status = 'pending')
+  with check (status = 'declined');
+
+revoke update on public.duels from anon, authenticated;
+grant update (status) on public.duels to authenticated;
 
 -- Every write to baseline/live net worth and every time-skip vote goes
--- through these two functions rather than a plain client-side .update() —
--- a read-modify-write from the client on a shared jsonb/array column would
--- race the other participant's device writing at the same moment. Both are
--- SECURITY DEFINER so they can do the read+write atomically inside one
--- statement, but each still re-checks auth.uid() = any(participant_ids)
--- itself rather than trusting RLS alone, since the row-level UPDATE policy
--- above doesn't know which jsonb key is being touched.
+-- through these functions rather than a plain client-side .update() — a
+-- read-modify-write from the client on a shared jsonb/array column would
+-- race the other participant's device writing at the same moment. Each is
+-- SECURITY DEFINER so it can do the read+write atomically in one statement,
+-- and each re-checks auth.uid() = any(participant_ids) itself.
 
 create or replace function public.report_duel_net_worth(p_duel_id uuid, p_net_worth numeric, p_is_baseline boolean default false)
 returns void
@@ -208,28 +295,37 @@ declare
   all_have_baseline boolean;
 begin
   if p_is_baseline then
+    -- A baseline is set once, while the duel is still pending. Re-reporting
+    -- one mid-duel would let a participant reset their own starting point.
     update public.duels
-    set baseline_net_worths = jsonb_set(baseline_net_worths, array[auth.uid()::text], to_jsonb(p_net_worth))
-    where id = p_duel_id and auth.uid() = any(participant_ids)
+    set baseline_net_worths = jsonb_set(baseline_net_worths, array[auth.uid()::text], to_jsonb(p_net_worth)),
+        live_net_worths = jsonb_set(live_net_worths, array[auth.uid()::text], to_jsonb(p_net_worth))
+    where id = p_duel_id
+      and status = 'pending'
+      and auth.uid() = any(participant_ids)
+      and not (baseline_net_worths ? auth.uid()::text)
     returning * into d;
 
     if d.id is null then
       return;
     end if;
 
-    -- Once every participant has a baseline in, the duel is no longer
-    -- "pending a response" — it's on. A friend duel goes active the moment
-    -- the challenged side accepts (accepting IS reporting a baseline).
+    -- Once every participant has a baseline in, the duel is on. The window
+    -- starts now rather than at challenge time, so a late accept doesn't
+    -- shorten it.
     select bool_and(d.baseline_net_worths ? pid::text) into all_have_baseline
     from unnest(d.participant_ids) as pid;
 
-    if all_have_baseline and d.status = 'pending' then
-      update public.duels set status = 'active' where id = p_duel_id;
+    if all_have_baseline then
+      update public.duels
+      set status = 'active',
+          ends_at = case when ends_at is null then null else now() + (ends_at - created_at) end
+      where id = p_duel_id;
     end if;
   else
     update public.duels
     set live_net_worths = jsonb_set(live_net_worths, array[auth.uid()::text], to_jsonb(p_net_worth))
-    where id = p_duel_id and auth.uid() = any(participant_ids);
+    where id = p_duel_id and status = 'active' and auth.uid() = any(participant_ids);
   end if;
 end;
 $$;
@@ -242,6 +338,8 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  bot uuid := public.bot_user_id();
 begin
   update public.duels
   set time_skip_votes = array_append(time_skip_votes, auth.uid())
@@ -249,6 +347,17 @@ begin
     and status = 'active'
     and auth.uid() = any(participant_ids)
     and not (auth.uid() = any(time_skip_votes));
+
+  -- The demo bot always agrees to end early, so a judge duelling it can see
+  -- a duel finish without waiting out the whole window.
+  if bot is not null then
+    update public.duels
+    set time_skip_votes = array_append(time_skip_votes, bot)
+    where id = p_duel_id
+      and status = 'active'
+      and bot = any(participant_ids)
+      and not (bot = any(time_skip_votes));
+  end if;
 end;
 $$;
 
@@ -281,10 +390,9 @@ begin
     return;
   end if;
 
-  unanimous := array_length(d.time_skip_votes, 1) is not null
-    and array_length(d.time_skip_votes, 1) >= array_length(d.participant_ids, 1);
+  unanimous := (select bool_and(p = any(d.time_skip_votes)) from unnest(d.participant_ids) as p);
   expired := d.ends_at is not null and now() >= d.ends_at;
-  if not (unanimous or expired) then
+  if not (coalesce(unanimous, false) or expired) then
     return;
   end if;
 
@@ -308,10 +416,135 @@ $$;
 
 grant execute on function public.finalize_duel_if_ready(uuid) to authenticated;
 
--- MANUAL DASHBOARD STEP — not something this file's SQL can turn on safely
--- from here (publication membership behaves inconsistently with a plain
--- IF NOT EXISTS across Postgres versions): open Database > Replication in
--- the Supabase dashboard and toggle "duels" on for the supabase_realtime
--- publication. Without this, everything above still works — duels.ts's
--- subscribeToDuel() just never fires, so live score updates only appear on
--- the next manual refresh/reopen instead of pushing immediately.
+-- Live score pushes (services/social/duels.ts's subscribeToDuel). Guarded so
+-- re-running never errors on a table that's already in the publication.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'duels'
+     ) then
+    alter publication supabase_realtime add table public.duels;
+  end if;
+end;
+$$;
+
+-- 5. SIGN-UP HOOK -------------------------------------------------------------
+-- Creates the profile row the moment someone signs up (display name = the
+-- part of their email before @), and has the demo bot send them a friend
+-- request so there's someone to duel straight away.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  bot uuid := public.bot_user_id();
+begin
+  insert into public.profiles (id, display_name, email)
+  values (new.id, split_part(new.email, '@', 1), lower(trim(new.email)))
+  on conflict (id) do update set email = excluded.email;
+
+  if bot is not null and bot <> new.id then
+    insert into public.friendships (requester_id, addressee_id)
+    values (bot, new.id)
+    on conflict do nothing;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- 5b. FUNCTION PRIVILEGES -----------------------------------------------------
+-- Postgres lets PUBLIC (and Supabase's `anon` role) execute new functions by
+-- default. Every function above is for signed-in users only — left open,
+-- find_profile_by_email would let anyone probe which emails have accounts.
+revoke execute on function public.bot_user_id() from public, anon, authenticated;
+revoke execute on function public.find_profile_by_email(text) from public, anon;
+revoke execute on function public.is_family_member(uuid) from public, anon;
+revoke execute on function public.family_owner_for_invite(uuid) from public, anon;
+revoke execute on function public.report_duel_net_worth(uuid, numeric, boolean) from public, anon;
+revoke execute on function public.cast_duel_time_skip_vote(uuid) from public, anon;
+revoke execute on function public.finalize_duel_if_ready(uuid) from public, anon;
+
+-- The one thing anon may call: a no-op the daily GitHub Actions keep-alive
+-- (.github/workflows/supabase-keepalive.yml) hits so the free-tier project
+-- never auto-pauses. Touches no data.
+create or replace function public.keepalive()
+returns integer
+language sql
+stable
+as $$
+  select 1;
+$$;
+
+grant execute on function public.keepalive() to anon;
+
+-- 6. DEMO BOT -----------------------------------------------------------------
+-- "Markva Bot" lets a single person try friends and duels without a second
+-- account: it accepts every friend request and every duel it's sent. It
+-- holds $100k in cash, so it always scores 0% — beatable, and honest about
+-- being a bot. Both triggers are no-ops until app_config has a bot id.
+create or replace function public.bot_auto_accept_friendship()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status = 'pending' and new.addressee_id = public.bot_user_id() then
+    update public.friendships set status = 'accepted' where id = new.id;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists bot_auto_accept_friendship on public.friendships;
+create trigger bot_auto_accept_friendship
+  after insert on public.friendships
+  for each row execute function public.bot_auto_accept_friendship();
+
+create or replace function public.bot_auto_accept_duel()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  bot uuid := public.bot_user_id();
+begin
+  if bot is null or not (bot = any(new.participant_ids)) or new.status <> 'pending'
+     or new.baseline_net_worths ? bot::text then
+    return null;
+  end if;
+
+  update public.duels
+  set baseline_net_worths = baseline_net_worths || jsonb_build_object(bot::text, 100000),
+      live_net_worths = live_net_worths || jsonb_build_object(bot::text, 100000),
+      status = 'active',
+      ends_at = case when ends_at is null then null else now() + (ends_at - created_at) end
+  where id = new.id;
+  return null;
+end;
+$$;
+
+drop trigger if exists bot_auto_accept_duel on public.duels;
+create trigger bot_auto_accept_duel
+  after insert on public.duels
+  for each row execute function public.bot_auto_accept_duel();
+
+-- Registers the bot once its auth account exists (create it under
+-- Authentication > Users as bot@markva.app, auto-confirmed). Does nothing if
+-- that account doesn't exist yet, so this file can always be re-run.
+insert into public.app_config (key, value)
+select 'bot_user_id', id::text from auth.users where email = 'bot@markva.app'
+on conflict (key) do update set value = excluded.value;
+
+update public.profiles set display_name = 'Markva Bot' where email = 'bot@markva.app';

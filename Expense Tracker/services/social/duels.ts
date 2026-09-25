@@ -122,10 +122,13 @@ export async function challengeFriend(opponentId: string, durationDays: number):
 export async function challengeFamily(opponentFamilyId: string, durationDays: number): Promise<Result & { id?: string }> {
   const me = currentUserId();
   if (!me) return { ok: false, message: 'Sign in first.' };
-  const { data: opponentFamily } = await supabase.from('families').select('owner_id').eq('id', opponentFamilyId.trim()).maybeSingle();
-  if (!opponentFamily) return { ok: false, message: "That invite code doesn't match a family." };
-  if (opponentFamily.owner_id === me) return { ok: false, message: "That's your own family." };
-  return createDuel('family', [me, opponentFamily.owner_id], durationDays);
+  // Another family's row is invisible under RLS (members only), so its owner
+  // is resolved through a SECURITY DEFINER function that returns just that
+  // one id. A malformed code errors (not a uuid) — same answer as unknown.
+  const { data: ownerId, error } = await supabase.rpc('family_owner_for_invite', { p_family_id: opponentFamilyId.trim() });
+  if (error || !ownerId) return { ok: false, message: "That invite code doesn't match a family." };
+  if (ownerId === me) return { ok: false, message: "That's your own family." };
+  return createDuel('family', [me, ownerId as string], durationDays);
 }
 
 export async function acceptDuel(duelId: string): Promise<Result> {

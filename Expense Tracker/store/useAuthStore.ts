@@ -18,7 +18,6 @@ type AuthState = {
   signUp: (email: string, password: string) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<AuthResult>;
 };
 
 function errorMessage(e: unknown): string {
@@ -66,17 +65,5 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
-  },
-
-  // Emails a reset link (Supabase's password-recovery flow is link-based,
-  // not code-based, even with the OTP signup template enabled) that deep-
-  // links back into the app via mockstocktrainer:// (app.json's existing
-  // scheme) to app/auth/reset-password.tsx.
-  requestPasswordReset: async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: 'mockstocktrainer://auth/reset-password',
-    });
-    if (error) return { ok: false, message: errorMessage(error) };
-    return { ok: true };
   },
 }));

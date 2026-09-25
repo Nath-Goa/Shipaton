@@ -58,7 +58,7 @@ export default function SocialScreen() {
   // the sign-up form can get around this one.
   if (!agePermissions.socialAccounts) {
     return (
-      <Screen edges={['left', 'right', 'bottom']}>
+      <Screen>
         <TopBar title="Friends & Family" />
         <EmptyState
           icon="🔒"
@@ -71,7 +71,7 @@ export default function SocialScreen() {
 
   if (!isSupabaseConfigured()) {
     return (
-      <Screen edges={['left', 'right', 'bottom']}>
+      <Screen>
         <TopBar title="Friends & Family" />
         <EmptyState
           icon="🔒"
@@ -83,7 +83,7 @@ export default function SocialScreen() {
   }
 
   return (
-    <Screen edges={['left', 'right', 'bottom']}>
+    <Screen>
       <TopBar
         title="Friends & Family"
         subtitle={session ? 'Challenge someone to a duel' : 'Sign in to connect with others'}
@@ -232,7 +232,7 @@ function FriendsSection() {
           {friends === null ? (
             <ActivityIndicator style={{ margin: spacing.lg }} color={colors.text3} />
           ) : friends.length === 0 ? (
-            <EmptyState icon="👋" title="No friends yet" message="Add someone by email to start a duel with them." />
+            <EmptyState icon="👋" title="No friends yet" message="Add someone by email to start a duel with them — or add bot@markva.app to practise against Markva Bot." />
           ) : (
             friends.map((f, i) => (
               <View
