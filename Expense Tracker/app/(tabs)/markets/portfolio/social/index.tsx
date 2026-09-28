@@ -300,7 +300,8 @@ function FamilySection() {
   }
 
   function handleChallengeFamily() {
-    router.push({ pathname: '/markets/portfolio/social/new-duel', params: { kind: 'family' } });
+    if (!family) return;
+    router.push({ pathname: '/markets/portfolio/social/new-duel', params: { kind: 'family', myFamilyId: family.family.id } });
   }
 
   if (family === undefined) {
@@ -410,10 +411,17 @@ function DuelsSection() {
     <ScrollView contentContainerStyle={styles.content}>
       <Card style={{ padding: 0 }}>
         {rows.map(({ duel, names, myId }, i) => {
-          const opponents = duel.participantIds.filter((id) => id !== myId).map((id) => names.get(id) ?? '…');
-          const myNw = duel.liveNetWorths[myId] ?? duel.baselineNetWorths[myId];
-          const myBase = duel.baselineNetWorths[myId];
-          const myPct = myBase ? ((myNw - myBase) / myBase) * 100 : 0;
+          const myFamilyId = duel.familyIds ? duel.teams[myId] : undefined;
+          const standings = duelsApi.familyStandings(duel);
+          const mine = standings.find((t) => t.familyId === myFamilyId);
+          const theirs = standings.find((t) => t.familyId !== myFamilyId);
+          const title = mine && theirs
+            ? `${mine.name} vs ${theirs.name}`
+            : `vs ${duel.participantIds.filter((id) => id !== myId).map((id) => names.get(id) ?? '…').join(', ')}`;
+          // A family duel shows your family's score, which exists as soon as
+          // anyone in it has joined, even if you haven't.
+          const myPct = mine ? mine.pct : duelsApi.participantPct(duel, myId);
+          const needsMyJoin = !!mine && !(myId in duel.baselineNetWorths) && duel.status === 'active';
           return (
             <Pressable
               feedbackCategory="navigation"
@@ -421,13 +429,23 @@ function DuelsSection() {
               style={[styles.listRowPress, i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}
               onPress={() => router.push(`/markets/portfolio/social/duel/${duel.id}`)}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>vs {opponents.join(', ')}</Text>
+                <Text style={{ color: colors.text, fontWeight: '600' }}>{title}</Text>
                 <Text style={[styles.muted, { color: colors.text3 }]}>
-                  {duel.status === 'pending' ? 'Awaiting response' : duel.status === 'completed' ? 'Completed' : duel.status === 'declined' ? 'Declined' : 'Active'}
+                  {duel.status === 'pending'
+                    ? 'Awaiting response'
+                    : duel.status === 'completed'
+                      ? 'Completed'
+                      : duel.status === 'declined'
+                        ? 'Declined'
+                        : needsMyJoin
+                          ? "Active — you haven't joined yet"
+                          : 'Active'}
                 </Text>
               </View>
               {duel.status === 'active' || duel.status === 'completed' ? (
-                <Text style={{ color: myPct >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>{signedPct(myPct)}</Text>
+                myPct !== null ? (
+                  <Text style={{ color: myPct >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>{signedPct(myPct)}</Text>
+                ) : null
               ) : (
                 <PillBadge label={duel.status} />
               )}

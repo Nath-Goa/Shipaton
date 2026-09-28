@@ -27,6 +27,7 @@ export default function NewDuelScreen() {
     kind: 'friend' | 'family';
     opponentId?: string;
     opponentName?: string;
+    myFamilyId?: string;
   }>();
 
   const [duration, setDuration] = useState('7');
@@ -47,7 +48,11 @@ export default function NewDuelScreen() {
       }
       result = await duelsApi.challengeFriend(params.opponentId, days);
     } else {
-      result = await duelsApi.challengeFamily(opponentCode.trim(), days);
+      if (!params.myFamilyId) {
+        setBusy(false);
+        return;
+      }
+      result = await duelsApi.challengeFamily(params.myFamilyId, opponentCode.trim(), days);
     }
     setBusy(false);
     if (!result.ok) {
@@ -57,7 +62,7 @@ export default function NewDuelScreen() {
     router.replace(`/markets/portfolio/social/duel/${result.id}`);
   }
 
-  const ready = params.kind === 'friend' ? !!params.opponentId : opponentCode.trim().length > 0;
+  const ready = params.kind === 'friend' ? !!params.opponentId : !!params.myFamilyId && opponentCode.trim().length > 0;
 
   return (
     <Screen edges={['left', 'right', 'bottom']}>
@@ -67,8 +72,9 @@ export default function NewDuelScreen() {
             {params.kind === 'friend' ? `Challenge ${params.opponentName}` : 'Challenge another family'}
           </Text>
           <Text style={[styles.body, { color: colors.text2 }]}>
-            Whoever grows their portfolio's net worth the most, in percentage terms, over the duel window wins. Everyone
-            keeps trading in their normal Portfolio tab — nothing else changes.
+            {params.kind === 'friend'
+              ? "Whoever grows their portfolio's net worth the most, in percentage terms, over the duel window wins. Everyone keeps trading in their normal Portfolio tab — nothing else changes."
+              : "Every member of both families can join from their own phone. Each member's score is their net worth's % change from when they joined, and a family's score is the average of its members who joined. Everyone keeps trading in their normal Portfolio tab — nothing else changes."}
           </Text>
 
           {params.kind === 'family' ? (

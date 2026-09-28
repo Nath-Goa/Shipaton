@@ -26,7 +26,17 @@ export type Duel = {
   winnerId: string | null;
   createdAt: string;
   endsAt: string | null;
+  /** Family duels: [challenging family, challenged family]. Null for friend duels and old owner-vs-owner family duels. */
+  familyIds: [string, string] | null;
+  /** Participant id -> their family id, snapshotted when the challenge was made. */
+  teams: Record<string, string>;
+  /** Family id -> family name, snapshotted with the rosters (the other family isn't readable directly). */
+  teamNames: Record<string, string>;
+  winnerFamilyId: string | null;
 };
+
+export type TeamMember = { id: string; joined: boolean; pct: number | null; liveNetWorth: number | null };
+export type TeamStanding = { familyId: string; name: string; members: TeamMember[]; joinedCount: number; pct: number | null };
 
 type Result = { ok: true } | { ok: false; message: string };
 
@@ -72,7 +82,40 @@ function fromRow(row: Record<string, unknown>): Duel {
     winnerId: (row.winner_id as string | null) ?? null,
     createdAt: row.created_at as string,
     endsAt: (row.ends_at as string | null) ?? null,
+    familyIds: (row.family_ids as [string, string] | null) ?? null,
+    teams: (row.teams as Record<string, string>) ?? {},
+    teamNames: (row.team_names as Record<string, string>) ?? {},
+    winnerFamilyId: (row.winner_family_id as string | null) ?? null,
   };
+}
+
+/** A participant's % change since they joined, or null if they haven't. */
+export function participantPct(duel: Duel, id: string): number | null {
+  const base = duel.baselineNetWorths[id];
+  if (!base) return null;
+  const live = duel.liveNetWorths[id] ?? base;
+  return ((live - base) / base) * 100;
+}
+
+/**
+ * Both families in a family duel, challenger first. A family's score is the
+ * average % change of the members who joined — the same rule
+ * finalize_duel_if_ready uses to pick the winner, so what's on screen is
+ * what gets scored.
+ */
+export function familyStandings(duel: Duel): TeamStanding[] {
+  if (!duel.familyIds) return [];
+  return duel.familyIds.map((familyId) => {
+    const members = duel.participantIds
+      .filter((id) => duel.teams[id] === familyId)
+      .map((id) => {
+        const pct = participantPct(duel, id);
+        return { id, joined: pct !== null, pct, liveNetWorth: duel.liveNetWorths[id] ?? null };
+      });
+    const joined = members.filter((m) => m.pct !== null);
+    const pct = joined.length ? joined.reduce((sum, m) => sum + (m.pct as number), 0) / joined.length : null;
+    return { familyId, name: duel.teamNames[familyId] ?? 'Family', members, joinedCount: joined.length, pct };
+  });
 }
 
 export async function listDuels(): Promise<Duel[]> {
@@ -88,14 +131,14 @@ export async function getDuel(duelId: string): Promise<Duel | null> {
   return data ? fromRow(data) : null;
 }
 
-async function createDuel(kind: 'friend' | 'family', participantIds: string[], durationDays: number): Promise<Result & { id?: string }> {
+async function createDuel(participantIds: string[], durationDays: number): Promise<Result & { id?: string }> {
   const me = currentUserId();
   if (!me) return { ok: false, message: 'Sign in first.' };
   const endsAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('duels')
     .insert({
-      kind,
+      kind: 'friend',
       participant_ids: participantIds,
       baseline_net_worths: { [me]: computeMyNetWorth() },
       live_net_worths: { [me]: computeMyNetWorth() },
@@ -110,27 +153,28 @@ async function createDuel(kind: 'friend' | 'family', participantIds: string[], d
 export async function challengeFriend(opponentId: string, durationDays: number): Promise<Result & { id?: string }> {
   const me = currentUserId();
   if (!me) return { ok: false, message: 'Sign in first.' };
-  return createDuel('friend', [me, opponentId], durationDays);
+  return createDuel([me, opponentId], durationDays);
 }
 
-// A family duel is scored as representative vs. representative — whoever
-// taps "Challenge another family" stands in for their whole family, matched
-// against the other family's owner. Every member's own device would need to
-// individually report a baseline for a true full-roster aggregate, which
-// needs its own per-member join flow; scoped down to two net worths for
-// now, same mechanics as a friend duel, just framed as families.
-export async function challengeFamily(opponentFamilyId: string, durationDays: number): Promise<Result & { id?: string }> {
-  const me = currentUserId();
-  if (!me) return { ok: false, message: 'Sign in first.' };
-  // Another family's row is invisible under RLS (members only), so its owner
-  // is resolved through a SECURITY DEFINER function that returns just that
-  // one id. A malformed code errors (not a uuid) — same answer as unknown.
-  const { data: ownerId, error } = await supabase.rpc('family_owner_for_invite', { p_family_id: opponentFamilyId.trim() });
-  if (error || !ownerId) return { ok: false, message: "That invite code doesn't match a family." };
-  if (ownerId === me) return { ok: false, message: "That's your own family." };
-  return createDuel('family', [me, ownerId as string], durationDays);
+// Every member of both families is in a family duel, and each one joins from
+// their own device, which captures their own baseline. Built server-side by
+// create_family_duel because the other family's roster is invisible to us
+// under RLS. The challenger joins by sending it.
+export async function challengeFamily(myFamilyId: string, opponentFamilyId: string, durationDays: number): Promise<Result & { id?: string }> {
+  if (!currentUserId()) return { ok: false, message: 'Sign in first.' };
+  const { data, error } = await supabase.rpc('create_family_duel', {
+    p_my_family_id: myFamilyId,
+    p_opponent_family_id: opponentFamilyId.trim(),
+    p_duration_days: durationDays,
+    p_net_worth: computeMyNetWorth(),
+  });
+  // 22P02: the code isn't a uuid at all (a typo).
+  if (error?.code === '22P02') return { ok: false, message: "That invite code doesn't match a family." };
+  if (error || !data) return { ok: false, message: errorMessage(error) };
+  return { ok: true, id: data as string };
 }
 
+/** Accepting a challenge, or joining a family duel as one more member — both report this device's baseline. */
 export async function acceptDuel(duelId: string): Promise<Result> {
   const { error } = await supabase.rpc('report_duel_net_worth', {
     p_duel_id: duelId,

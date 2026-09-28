@@ -189,9 +189,11 @@ create policy "a user can remove themself from a family"
   on public.family_members for delete
   using (auth.uid() = user_id);
 
--- Challenging another family needs its owner's id, but families are only
--- visible to their own members. This resolves an invite code to exactly
--- that one field and nothing else.
+-- Only for app builds from before full-roster family duels, which challenged
+-- the other family's owner one-on-one and needed this to find them. Current
+-- builds use create_family_duel() below instead. Delete this, and the
+-- family_ids-null insert allowance on duels, once no such build is in use
+-- (the judge APK from 2026-09-25 is one).
 create or replace function public.family_owner_for_invite(p_family_id uuid)
 returns uuid
 language sql
@@ -217,11 +219,8 @@ create table if not exists public.duels (
   id uuid primary key default gen_random_uuid(),
   kind text not null check (kind in ('friend', 'family')),
   status text not null default 'pending' check (status in ('pending', 'active', 'completed', 'declined')),
-  -- Exactly two entries today for both kinds — the app currently scores a
-  -- family duel as owner/representative vs. owner/representative rather
-  -- than a full-roster aggregate (see services/social/duels.ts's
-  -- challengeFamily for why). Kept as a plain array rather than a join
-  -- table, so a future full-roster mode is a policy change, not a migration.
+  -- Two people for a friend duel. For a family duel, every member of both
+  -- families at the moment of the challenge (see create_family_duel).
   participant_ids uuid[] not null,
   -- "No time-skipping unless every participant agrees" — reframed as
   -- ending the duel early rather than fast-forwarding a simulated clock: a
@@ -241,6 +240,19 @@ alter table public.duels drop constraint if exists duels_winner_id_fkey;
 alter table public.duels
   add constraint duels_winner_id_fkey foreign key (winner_id) references public.profiles(id) on delete set null;
 
+-- Family duels only. family_ids is [challenging family, challenged family];
+-- teams maps each participant id to their family id and team_names each
+-- family id to its name, both snapshotted at challenge time: the other
+-- family's rows are invisible to you under RLS, and someone who joins or
+-- leaves a family mid-duel shouldn't change who's in it. Friend duels leave
+-- all four empty. Duels created before these columns existed are family
+-- duels with family_ids null: the old owner-vs-owner kind, scored like a
+-- friend duel.
+alter table public.duels add column if not exists family_ids uuid[];
+alter table public.duels add column if not exists teams jsonb not null default '{}'::jsonb;
+alter table public.duels add column if not exists team_names jsonb not null default '{}'::jsonb;
+alter table public.duels add column if not exists winner_family_id uuid references public.families(id) on delete set null;
+
 alter table public.duels enable row level security;
 
 drop policy if exists "a participant can see a duel they're in" on public.duels;
@@ -249,12 +261,20 @@ create policy "a participant can see a duel they're in"
   using (auth.uid() = any(participant_ids));
 
 -- A new duel must start clean: pending, no winner, no votes, two distinct
--- people, and only the challenger's own net worth filled in.
+-- people, and only the challenger's own net worth filled in. Full-roster
+-- family duels are only ever created by create_family_duel(), which builds
+-- the rosters itself; a client can only insert a two-person one, which is
+-- the old owner-vs-owner kind older app builds still create (see
+-- family_owner_for_invite).
 drop policy if exists "a participant can create a duel that includes themself" on public.duels;
 create policy "a participant can create a duel that includes themself"
   on public.duels for insert
   with check (
     auth.uid() = any(participant_ids)
+    and family_ids is null
+    and teams = '{}'::jsonb
+    and team_names = '{}'::jsonb
+    and winner_family_id is null
     and status = 'pending'
     and winner_id is null
     and cardinality(time_skip_votes) = 0
@@ -265,13 +285,19 @@ create policy "a participant can create a duel that includes themself"
   );
 
 -- The only direct write a client may make is declining a pending duel.
--- Scores, votes and results all go through the functions below.
+-- Scores, votes and results all go through the functions below. In a
+-- family duel only the challenged family can decline — otherwise one of the
+-- challenger's own teammates could call it off.
 drop policy if exists "a participant can update a duel they're in (e.g. casting a time-skip vote)" on public.duels;
 drop policy if exists "a participant can update a duel they're in (e.g. declining it)" on public.duels;
 drop policy if exists "a participant can decline a pending duel" on public.duels;
 create policy "a participant can decline a pending duel"
   on public.duels for update
-  using (auth.uid() = any(participant_ids) and status = 'pending')
+  using (
+    auth.uid() = any(participant_ids)
+    and status = 'pending'
+    and (family_ids is null or teams ->> auth.uid()::text = family_ids[2]::text)
+  )
   with check (status = 'declined');
 
 revoke update on public.duels from anon, authenticated;
@@ -284,6 +310,78 @@ grant update (status) on public.duels to authenticated;
 -- SECURITY DEFINER so it can do the read+write atomically in one statement,
 -- and each re-checks auth.uid() = any(participant_ids) itself.
 
+-- A family duel's rosters are everyone in each family right now, so it's
+-- built here rather than by a client insert: the other family's members
+-- are invisible to the caller under RLS. The caller's own net worth is
+-- their baseline, same as challenging a friend.
+create or replace function public.create_family_duel(
+  p_my_family_id uuid,
+  p_opponent_family_id uuid,
+  p_duration_days integer,
+  p_net_worth numeric
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  my_name text;
+  their_name text;
+  my_members uuid[];
+  their_members uuid[];
+  new_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in first.';
+  end if;
+  if p_duration_days is null or p_duration_days < 1 or p_duration_days > 90 then
+    raise exception 'A duel lasts between 1 and 90 days.';
+  end if;
+  if not exists (select 1 from public.family_members where family_id = p_my_family_id and user_id = auth.uid()) then
+    raise exception 'You''re not in that family.';
+  end if;
+  if p_opponent_family_id = p_my_family_id then
+    raise exception 'That''s your own family.';
+  end if;
+
+  select name into my_name from public.families where id = p_my_family_id;
+  select name into their_name from public.families where id = p_opponent_family_id;
+  if their_name is null then
+    raise exception 'That invite code doesn''t match a family.';
+  end if;
+
+  select array_agg(user_id) into my_members from public.family_members where family_id = p_my_family_id;
+  select array_agg(user_id) into their_members from public.family_members where family_id = p_opponent_family_id;
+  if their_members is null then
+    raise exception 'That family has no members.';
+  end if;
+  if my_members && their_members then
+    raise exception 'Someone is in both families, so they can''t duel each other.';
+  end if;
+
+  insert into public.duels (kind, participant_ids, family_ids, teams, team_names, baseline_net_worths, live_net_worths, ends_at)
+  values (
+    'family',
+    my_members || their_members,
+    array[p_my_family_id, p_opponent_family_id],
+    (select jsonb_object_agg(m::text, p_my_family_id) from unnest(my_members) as m)
+      || (select jsonb_object_agg(m::text, p_opponent_family_id) from unnest(their_members) as m),
+    jsonb_build_object(p_my_family_id::text, my_name, p_opponent_family_id::text, their_name),
+    jsonb_build_object(auth.uid()::text, p_net_worth),
+    jsonb_build_object(auth.uid()::text, p_net_worth),
+    now() + make_interval(days => p_duration_days)
+  )
+  returning id into new_id;
+
+  return new_id;
+end;
+$$;
+
+grant execute on function public.create_family_duel(uuid, uuid, integer, numeric) to authenticated;
+
+-- Reporting a baseline is how a participant joins. Only participants who
+-- have joined are scored, reported on, or asked to vote.
 create or replace function public.report_duel_net_worth(p_duel_id uuid, p_net_worth numeric, p_is_baseline boolean default false)
 returns void
 language plpgsql
@@ -292,31 +390,47 @@ set search_path = public
 as $$
 declare
   d public.duels;
-  all_have_baseline boolean;
+  ready boolean;
 begin
   if p_is_baseline then
-    -- A baseline is set once, while the duel is still pending. Re-reporting
-    -- one mid-duel would let a participant reset their own starting point.
+    -- A baseline is set once. Re-reporting one mid-duel would let a
+    -- participant reset their own starting point. Friend duels only take
+    -- baselines while pending; a family member may also join a running
+    -- duel, scored from the moment they join, since a whole family can't be
+    -- expected to accept at once.
     update public.duels
     set baseline_net_worths = jsonb_set(baseline_net_worths, array[auth.uid()::text], to_jsonb(p_net_worth)),
         live_net_worths = jsonb_set(live_net_worths, array[auth.uid()::text], to_jsonb(p_net_worth))
     where id = p_duel_id
-      and status = 'pending'
       and auth.uid() = any(participant_ids)
       and not (baseline_net_worths ? auth.uid()::text)
+      and (
+        status = 'pending'
+        or (status = 'active' and family_ids is not null and (ends_at is null or now() < ends_at))
+      )
     returning * into d;
 
-    if d.id is null then
+    if d.id is null or d.status <> 'pending' then
       return;
     end if;
 
-    -- Once every participant has a baseline in, the duel is on. The window
-    -- starts now rather than at challenge time, so a late accept doesn't
-    -- shorten it.
-    select bool_and(d.baseline_net_worths ? pid::text) into all_have_baseline
-    from unnest(d.participant_ids) as pid;
+    -- A friend duel starts once both people are in; a family duel once
+    -- anyone from each family is. The window starts now rather than at
+    -- challenge time, so a late accept doesn't shorten it.
+    if d.family_ids is null then
+      select bool_and(d.baseline_net_worths ? pid::text) into ready
+      from unnest(d.participant_ids) as pid;
+    else
+      ready := not exists (
+        select 1 from unnest(d.family_ids) as fid
+        where not exists (
+          select 1 from jsonb_each_text(d.teams) as t
+          where t.value = fid::text and d.baseline_net_worths ? t.key
+        )
+      );
+    end if;
 
-    if all_have_baseline then
+    if ready then
       update public.duels
       set status = 'active',
           ends_at = case when ends_at is null then null else now() + (ends_at - created_at) end
@@ -325,7 +439,10 @@ begin
   else
     update public.duels
     set live_net_worths = jsonb_set(live_net_worths, array[auth.uid()::text], to_jsonb(p_net_worth))
-    where id = p_duel_id and status = 'active' and auth.uid() = any(participant_ids);
+    where id = p_duel_id
+      and status = 'active'
+      and auth.uid() = any(participant_ids)
+      and baseline_net_worths ? auth.uid()::text;
   end if;
 end;
 $$;
@@ -346,6 +463,7 @@ begin
   where id = p_duel_id
     and status = 'active'
     and auth.uid() = any(participant_ids)
+    and baseline_net_worths ? auth.uid()::text
     and not (auth.uid() = any(time_skip_votes));
 
   -- The demo bot always agrees to end early, so a judge duelling it can see
@@ -367,7 +485,9 @@ grant execute on function public.cast_duel_time_skip_vote(uuid) to authenticated
 -- resolve-on-view pattern — see CLAUDE.md §7 rule #6 — rather than a
 -- server-side cron job): ends the duel and computes the winner, but only
 -- once one of the two real end conditions actually holds. A no-op the rest
--- of the time.
+-- of the time. "Unanimous" means everyone who joined; a family member who
+-- never joined has no say. A family's score is the average % change of its
+-- members who joined, and an exact tie between families has no winner.
 create or replace function public.finalize_duel_if_ready(p_duel_id uuid)
 returns void
 language plpgsql
@@ -377,8 +497,11 @@ as $$
 declare
   d public.duels;
   best_uid uuid;
+  best_fid uuid;
   best_pct numeric;
+  tied boolean := false;
   pid uuid;
+  fid uuid;
   bnw numeric;
   lnw numeric;
   pct numeric;
@@ -390,14 +513,42 @@ begin
     return;
   end if;
 
-  unanimous := (select bool_and(p = any(d.time_skip_votes)) from unnest(d.participant_ids) as p);
+  unanimous := (
+    select bool_and(p = any(d.time_skip_votes))
+    from unnest(d.participant_ids) as p
+    where d.baseline_net_worths ? p::text
+  );
   expired := d.ends_at is not null and now() >= d.ends_at;
   if not (coalesce(unanimous, false) or expired) then
     return;
   end if;
 
-  best_uid := null;
   best_pct := null;
+
+  if d.family_ids is not null then
+    foreach fid in array d.family_ids loop
+      select avg((coalesce((d.live_net_worths ->> t.key)::numeric, b.v) - b.v) / b.v) into pct
+      from jsonb_each_text(d.teams) as t
+      cross join lateral (select (d.baseline_net_worths ->> t.key)::numeric as v) as b
+      where t.value = fid::text and b.v > 0;
+
+      if pct is not null then
+        if best_pct is null or pct > best_pct then
+          best_pct := pct;
+          best_fid := fid;
+          tied := false;
+        elsif pct = best_pct then
+          tied := true;
+        end if;
+      end if;
+    end loop;
+
+    update public.duels
+    set status = 'completed', winner_family_id = case when tied then null else best_fid end
+    where id = p_duel_id;
+    return;
+  end if;
+
   foreach pid in array d.participant_ids loop
     bnw := (d.baseline_net_worths ->> pid::text)::numeric;
     lnw := (d.live_net_worths ->> pid::text)::numeric;
@@ -470,6 +621,7 @@ revoke execute on function public.bot_user_id() from public, anon, authenticated
 revoke execute on function public.find_profile_by_email(text) from public, anon;
 revoke execute on function public.is_family_member(uuid) from public, anon;
 revoke execute on function public.family_owner_for_invite(uuid) from public, anon;
+revoke execute on function public.create_family_duel(uuid, uuid, integer, numeric) from public, anon;
 revoke execute on function public.report_duel_net_worth(uuid, numeric, boolean) from public, anon;
 revoke execute on function public.cast_duel_time_skip_vote(uuid) from public, anon;
 revoke execute on function public.finalize_duel_if_ready(uuid) from public, anon;

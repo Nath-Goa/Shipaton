@@ -122,6 +122,25 @@ export default function DuelDetailScreen() {
     );
   }
 
+  if (duel.familyIds) {
+    return (
+      <Screen edges={['left', 'right', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}>
+          <FamilyDuelView
+            duel={duel}
+            names={names}
+            myId={myId}
+            busy={busy}
+            canVoteToEnd={features.duelTimeSkip}
+            onJoin={handleAccept}
+            onDecline={handleDecline}
+            onVoteEnd={handleVoteEnd}
+          />
+        </ScrollView>
+      </Screen>
+    );
+  }
+
   const opponentIds = duel.participantIds.filter((pid) => pid !== myId);
   const iVoted = duel.timeSkipVotes.includes(myId);
 
@@ -207,10 +226,150 @@ export default function DuelDetailScreen() {
   );
 }
 
+type FamilyDuelViewProps = {
+  duel: duelsApi.Duel;
+  names: Map<string, string>;
+  myId: string;
+  busy: boolean;
+  canVoteToEnd: boolean;
+  onJoin: () => void;
+  onDecline: () => void;
+  onVoteEnd: () => void;
+};
+
+// Every member of both families is in the duel, but each one only counts
+// once they've joined from their own phone — that's what captures their
+// baseline. Joining stays open for the whole duel, scored from the moment
+// someone joins, so a family doesn't have to accept all at once.
+function FamilyDuelView({ duel, names, myId, busy, canVoteToEnd, onJoin, onDecline, onVoteEnd }: FamilyDuelViewProps) {
+  const { colors } = useTheme();
+  const standings = duelsApi.familyStandings(duel);
+  const myFamilyId = duel.teams[myId];
+  const mine = standings.find((t) => t.familyId === myFamilyId);
+  const theirs = standings.find((t) => t.familyId !== myFamilyId);
+  if (!mine || !theirs) return null;
+
+  const iJoined = myId in duel.baselineNetWorths;
+  // Only the challenged family can accept or decline (schema.sql's decline policy).
+  const weWereChallenged = duel.familyIds?.[1] === myFamilyId;
+  const joinedTotal = mine.joinedCount + theirs.joinedCount;
+  const iVoted = duel.timeSkipVotes.includes(myId);
+  const winner = standings.find((t) => t.familyId === duel.winnerFamilyId);
+
+  let pendingBody: string;
+  if (weWereChallenged) {
+    pendingBody = iJoined
+      ? "You've accepted."
+      : 'The duel starts as soon as anyone in your family accepts. Everyone else can join from their own phone after that.';
+  } else {
+    pendingBody = iJoined
+      ? `You're in. This starts once someone from ${theirs.name} accepts.`
+      : `Join now so your portfolio counts from the start. This starts once someone from ${theirs.name} accepts.`;
+  }
+
+  return (
+    <>
+      {duel.status === 'pending' ? (
+        <Card style={{ gap: spacing.sm }}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            {weWereChallenged ? `${theirs.name} challenged ${mine.name}` : `Waiting on ${theirs.name}`}
+          </Text>
+          <Text style={[styles.muted, { color: colors.text3 }]}>{pendingBody}</Text>
+          {!iJoined ? (
+            <View style={styles.row}>
+              <Button label={weWereChallenged ? 'Accept' : `Join for ${mine.name}`} loading={busy} onPress={onJoin} />
+              {weWereChallenged ? <Button label="Decline" variant="ghost" loading={busy} onPress={onDecline} /> : null}
+            </View>
+          ) : null}
+        </Card>
+      ) : duel.status === 'declined' ? (
+        <Card>
+          <Text style={{ color: colors.text }}>{weWereChallenged ? 'Your family declined this duel.' : `${theirs.name} declined this duel.`}</Text>
+        </Card>
+      ) : duel.status === 'completed' ? (
+        <Card style={[styles.banner, { borderColor: colors.accent }]}>
+          <Ionicons name="trophy" size={20} color={colors.accent} />
+          <Text style={{ color: colors.text, fontWeight: '700', flexShrink: 1 }}>
+            {winner ? (winner.familyId === myFamilyId ? `${mine.name} won!` : `${winner.name} won.`) : 'Duel over — no clear winner.'}
+          </Text>
+        </Card>
+      ) : !iJoined ? (
+        <Card style={{ gap: spacing.sm }}>
+          <Text style={[styles.title, { color: colors.text }]}>You haven't joined yet</Text>
+          <Text style={[styles.muted, { color: colors.text3 }]}>
+            Join to count toward {mine.name}'s score. You're scored from the moment you join, so gains from before then don't count.
+          </Text>
+          <View style={styles.row}>
+            <Button label={`Join for ${mine.name}`} loading={busy} onPress={onJoin} />
+          </View>
+        </Card>
+      ) : null}
+
+      {duel.status !== 'declined'
+        ? [mine, theirs].map((team) => (
+            <View key={team.familyId} style={{ gap: spacing.sm }}>
+              <View style={[styles.row, { justifyContent: 'space-between' }]}>
+                <View style={[styles.row, { flexShrink: 1 }]}>
+                  <Text style={[styles.teamName, { color: colors.text }]} numberOfLines={1}>
+                    {team.name}
+                  </Text>
+                  {duel.winnerFamilyId === team.familyId ? <PillBadge label="Winner" /> : null}
+                </View>
+                {team.pct !== null ? (
+                  <Text style={{ color: team.pct >= 0 ? colors.success : colors.danger, fontWeight: '700', fontSize: 16 }}>{signedPct(team.pct)}</Text>
+                ) : null}
+              </View>
+              <Text style={[styles.muted, { color: colors.text3 }]}>
+                {team.joinedCount} of {team.members.length} joined{team.joinedCount > 1 ? ' — the score is their average' : ''}
+              </Text>
+              <Card style={{ padding: 0 }}>
+                {[...team.members]
+                  .sort((a, b) => (b.pct ?? -Infinity) - (a.pct ?? -Infinity))
+                  .map((m, i) => (
+                    <View key={m.id} style={[styles.listRow, i > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontWeight: '600' }}>{m.id === myId ? 'You' : (names.get(m.id) ?? '…')}</Text>
+                        <Text style={[styles.muted, { color: colors.text3 }]}>
+                          {m.liveNetWorth !== null && m.joined ? money(m.liveNetWorth) : "Hasn't joined"}
+                        </Text>
+                      </View>
+                      {m.pct !== null ? (
+                        <Text style={{ color: m.pct >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>{signedPct(m.pct)}</Text>
+                      ) : null}
+                    </View>
+                  ))}
+              </Card>
+            </View>
+          ))
+        : null}
+
+      {duel.status === 'active' ? (
+        <Card style={{ gap: spacing.sm }}>
+          <Text style={[styles.muted, { color: colors.text3 }]}>
+            Ends {duel.endsAt ? new Date(duel.endsAt).toLocaleDateString() : 'when everyone agrees to stop'}
+          </Text>
+          {!iJoined ? null : canVoteToEnd ? (
+            <Button
+              label={iVoted ? `Waiting on others (${duel.timeSkipVotes.length}/${joinedTotal})` : 'Vote to end now'}
+              variant="ghost"
+              disabled={iVoted}
+              loading={busy}
+              onPress={onVoteEnd}
+            />
+          ) : (
+            <Text style={[styles.muted, { color: colors.text3 }]}>Pro/Max can vote to end a duel early once everyone who joined agrees.</Text>
+          )}
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing.xxl },
   title: { fontSize: 17, letterSpacing: trackingFor(17), fontWeight: '700' },
+  teamName: { fontSize: 15, letterSpacing: trackingFor(15), fontWeight: '700', flexShrink: 1 },
   muted: { fontSize: 12.5, letterSpacing: trackingFor(12.5) },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1 },
