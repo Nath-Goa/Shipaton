@@ -200,7 +200,9 @@ export function buildWeeklyRecapCards(): RecapCard[] {
     statSub:
       streak.badges.length > 0
         ? `${streak.badges.length} badge${streak.badges.length === 1 ? '' : 's'} earned · best streak ${streak.bestStreakDays} day${streak.bestStreakDays === 1 ? '' : 's'}`
-        : "Come back tomorrow to start one",
+        : streak.streakDays > 0
+          ? 'Come back tomorrow to keep it going'
+          : "Come back tomorrow to start one",
   });
 
   cards.push({

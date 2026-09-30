@@ -116,7 +116,9 @@ const styles = StyleSheet.create({
   blob: { position: 'absolute', borderRadius: 999 },
   blobTop: { width: 210, height: 210, top: -70, right: -45 },
   blobBottom: { width: 270, height: 270, bottom: -120, left: -80 },
-  inner: { alignItems: 'center' },
+  // Stretched, not hugging: a hug-sized box never bounds its Text's width, so
+  // a long title ("The market this week") clipped instead of wrapping.
+  inner: { alignItems: 'center', alignSelf: 'stretch' },
   iconChip: {
     width: 72,
     height: 72,
@@ -126,7 +128,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   eyebrow: { fontSize: 13, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase', opacity: 0.88 },
-  title: { fontSize: 32, fontWeight: '900', letterSpacing: -1, textAlign: 'center', lineHeight: 37, marginTop: spacing.sm },
+  title: { fontSize: 32, fontWeight: '800', textAlign: 'center', lineHeight: 37, marginTop: spacing.sm },
   stat: { fontSize: 60, lineHeight: 68, fontWeight: '900', letterSpacing: -2.4, marginTop: spacing.md },
   statSub: { fontSize: 14.5, letterSpacing: trackingFor(14.5), fontWeight: '600', textAlign: 'center', opacity: 0.9, marginTop: spacing.sm },
   body: { fontSize: 16, letterSpacing: trackingFor(16), lineHeight: 23, textAlign: 'center', opacity: 0.95, marginTop: spacing.md },
