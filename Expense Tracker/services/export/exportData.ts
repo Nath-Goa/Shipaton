@@ -12,13 +12,11 @@ function csvEscape(value: string): string {
 
 export function buildExpensesCsv(expenses: Expense[]): string {
   const header = ['Date', 'Description', 'Category', 'Amount', 'Recurring'];
-  const rows = expenses.map((e) => [
-    e.date,
-    e.desc || categoryOf(e.category).label,
-    categoryOf(e.category).label,
-    e.amount.toFixed(2),
-    e.recurring ?? '',
-  ]);
+  const rows = expenses.map((e) => {
+    // Same label the expense list shows, so a custom "Other" name survives the export.
+    const category = e.category === 'other' && e.customCategoryLabel ? e.customCategoryLabel : categoryOf(e.category).label;
+    return [e.date, e.desc || category, category, e.amount.toFixed(2), e.recurring ?? ''];
+  });
   return [header, ...rows].map((row) => row.map((v) => csvEscape(String(v))).join(',')).join('\n');
 }
 

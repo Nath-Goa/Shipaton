@@ -322,7 +322,15 @@ export default function TradeScreen() {
             </Card>
           ) : null}
 
-          {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+          {error ? (
+            <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>
+          ) : exceedsAvailable && qty > 0 ? (
+            // The button below is disabled in this state; without a reason
+            // it just looks broken.
+            <Text style={[styles.error, { color: colors.danger }]}>
+              {side === 'buy' ? "That's more than your available cash." : "You don't own that many shares."}
+            </Text>
+          ) : null}
 
           <Button
             label={
