@@ -71,7 +71,7 @@ export default function PlanGoodbyeScreen() {
     // the destination. canDismiss covers a cold deep link with nothing
     // underneath.
     if (router.canDismiss()) router.dismissAll();
-    router.navigate(route);
+    router.navigate(route, { withAnchor: true });
   }
 
   return (

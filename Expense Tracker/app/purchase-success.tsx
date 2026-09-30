@@ -127,7 +127,7 @@ export default function PurchaseSuccessScreen() {
     // canDismiss guards a cold deep link, where nothing sits underneath and
     // POP_TO_TOP would go unhandled.
     if (router.canDismiss()) router.dismissAll();
-    router.navigate(route);
+    router.navigate(route, { withAnchor: true });
   }
 
   function leave(route: Href, next: Leaving) {
@@ -239,7 +239,9 @@ export default function PurchaseSuccessScreen() {
       <View
         style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}
         onLayout={(e) => setFooterHeight(e.nativeEvent.layout.height)}>
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+        {/* Explicit pixel size: with "100%" inside absoluteFill, Android drew
+            the fade short of the footer, ending mid-button in a hard band. */}
+        <Svg style={styles.footerFade} width={width} height={footerHeight}>
           <Defs>
             <LinearGradient id="footerFade" x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0" stopColor="#0E0822" stopOpacity={0} />
@@ -247,7 +249,7 @@ export default function PurchaseSuccessScreen() {
               <Stop offset="1" stopColor="#0E0822" stopOpacity={0.86} />
             </LinearGradient>
           </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#footerFade)" />
+          <Rect x="0" y="0" width={width} height={footerHeight} fill="url(#footerFade)" />
         </Svg>
         <Animated.View entering={FadeInDown.delay(900).duration(520).easing(Easing.out(Easing.cubic))}>
           <Text style={styles.footerHint}>Everything is unlocked. Explore now or whenever you like.</Text>
@@ -556,6 +558,7 @@ const styles = StyleSheet.create({
   },
   activeLabel: { flexShrink: 1, color: '#ffffff', fontSize: 12, fontWeight: '800' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl + spacing.md },
+  footerFade: { position: 'absolute', left: 0, top: 0 },
   footerHint: { color: 'rgba(255,255,255,0.85)', fontSize: 13, textAlign: 'center', marginBottom: spacing.md },
   buttonWrap: { height: BUTTON_HEIGHT },
   halo: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: 999, backgroundColor: '#ffffff' },
