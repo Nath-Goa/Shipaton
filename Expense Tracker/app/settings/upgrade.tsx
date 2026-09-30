@@ -80,10 +80,11 @@ export default function UpgradeScreen() {
   function priceLabel(t: Tier): string {
     if (t === 'free') return TIER_PRICE.free;
     // TEMPORARY (constants/judgeMode.ts). Judges see the regular prices here
-    // so the plan screen reads exactly as it does for a paying user; the
-    // Test Store products behind the RevenueCat paywall are priced at $0, so
-    // RevenueCat's own sheet is where the free checkout shows. Never the live
-    // Test Store price here — that would just print $0.00 on every card.
+    // so the plan screen reads exactly as it does for a paying user. The
+    // Test Store products behind the RevenueCat paywall carry full prices
+    // too (RevenueCat won't accept one below $0.99), and the purchase is
+    // simulated regardless, so the live Test Store price is never fetched
+    // for this screen.
     if (isJudge || !configured) return `From ${TIER_PRICE[t]}`;
     const live = livePrice[t];
     return live ? `From ${live}` : 'See pricing →';

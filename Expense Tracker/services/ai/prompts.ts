@@ -76,8 +76,8 @@ export function buildCompanyIdentificationPrompt(): string {
 // --- Learn: quizzes, pattern detection, narrative challenges ---
 // Shared pedagogy: never assume prior knowledge, explain jargon before using
 // it, celebrate correct answers briefly, redirect (never shame) wrong ones,
-// and never give direct real-money financial advice — this app only ever
-// trades simulated mock stocks.
+// and never give direct real-money financial advice — every trade in this
+// app is paper trading, even though prices are real.
 
 export function buildQuizPrompt(topicLabel: string, difficulty: Difficulty, context?: string): string {
   return [
@@ -117,7 +117,7 @@ export function buildPatternDetectionPrompt(): string {
     'Score each pattern 0-100 for confidence: 80-100 = strong multi-factor confirmation, 60-79 = solid single signal, 40-59 = weak, below 40 = omit it entirely.',
     'Explain every pattern in plain English before naming it, as if teaching a total beginner — never use unexplained jargon.',
     'Never give direct buy/sell financial advice — frame findings as educational observations about what the data shows, not instructions.',
-    'This data is from a fully simulated mock market — treat it exactly as given, never claim it is real.',
+    'The bars are usually real market prices, but can be simulated fallback data when the app is offline — treat them exactly as given, and never claim to know news or events the bars themselves don\'t show.',
     'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
     '{"patterns": [{"name": string, "confidence": number, "signal": string, "reasoning": string, "technicalDetails": string, "learningMoment": string}], "anomalies": [{"type": string, "magnitude": number, "signal": string, "reasoning": string, "possibleCauses": [string]}], "summary": string, "nextActions": [string]}',
     'If nothing meets the 40+ confidence bar, return empty "patterns" and "anomalies" arrays and say so plainly in "summary".',
@@ -143,7 +143,7 @@ export function buildWeeklyRecapAnalysisPrompt(): string {
     "You are a friendly financial-education coach inside an app that combines expense tracking, mock stock trading, savings goals, and learning. You'll be given JSON containing the recap cards the app calculated from the user's last seven days.",
     'Explain one or two useful patterns that are genuinely supported by those cards, then suggest one concrete educational action for the week ahead.',
     'Never invent facts or numbers that are not present in the input. If the recap contains little activity, say that plainly and give a simple next step.',
-    'All portfolio activity and market data in this app are simulated for practice. Never imply that real money was traded or give a direct real-money buy or sell instruction.',
+    'Portfolios and trades in this app are paper trading with no real money, although stock prices come from real market data. Never imply that real money was traded or give a direct real-money buy or sell instruction.',
     'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
     '{"headline": string, "explanation": string, "nextStep": string}',
     'Keep the headline under 8 words, the explanation to 2 short sentences, and the next step to 1 short sentence.',
