@@ -398,7 +398,16 @@ export default function ExpensesScreen() {
               <View>
                 <Card>
                   <Text style={[styles.cardTitle, { color: colors.text }]}>AI spending insight</Text>
-                  {!insight ? (
+                  {!TIER_FEATURES[tier].spendingInsights ? (
+                    <>
+                      <Text style={[styles.insightIntro, { color: colors.text3 }]}>
+                        Pro gives you an AI read on your spending in this range, with one practical tip.
+                      </Text>
+                      <View style={{ marginTop: spacing.md }}>
+                        <Button label="Upgrade to Pro" variant="ghost" onPress={() => upgradeToTier('pro')} />
+                      </View>
+                    </>
+                  ) : !insight ? (
                     <>
                       <Text style={[styles.insightIntro, { color: colors.text3 }]}>
                         Ask the AI for a quick take on your spending in this range.

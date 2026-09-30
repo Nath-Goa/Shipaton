@@ -5,6 +5,7 @@ export type FeatureFlags = {
   forecastBand: boolean;
   liveSentiment: boolean;
   receiptAutoFill: boolean;
+  spendingInsights: boolean; // Expenses' "AI spending insight" card
   adsEnabled: boolean;
   pushAlerts: boolean;
   // Learn tab gates
@@ -25,6 +26,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     forecastBand: false,
     liveSentiment: false,
     receiptAutoFill: false,
+    spendingInsights: false,
     adsEnabled: true,
     pushAlerts: true,
     productScanner: false,
@@ -42,6 +44,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     forecastBand: true,
     liveSentiment: true,
     receiptAutoFill: true,
+    spendingInsights: true,
     adsEnabled: false,
     pushAlerts: true,
     productScanner: true,
@@ -59,6 +62,7 @@ export const TIER_FEATURES: Record<Tier, FeatureFlags> = {
     forecastBand: true,
     liveSentiment: true,
     receiptAutoFill: true,
+    spendingInsights: true,
     adsEnabled: false,
     pushAlerts: true,
     productScanner: true,
