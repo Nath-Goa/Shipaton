@@ -150,7 +150,7 @@ Business logic and third-party integration, deliberately kept out of components/
 | `scanner/` | Camera capture + AI company identification (mirrors `receipts/`'s vision pattern) |
 | `receipts/` | Receipt photo → AI auto-fill for expense entry |
 | `social/` | `supabaseClient.ts`, `friends.ts`, `families.ts`, `duels.ts` — optional accounts feature, Phase 2 |
-| `recap/` | `weeklyRecap.ts` — local-only, no-AI-dependency "Wrapped" deck builder |
+| `recap/` | `weeklyRecap.ts` — local "Wrapped" deck builder and AI-analysis payload |
 | `purchases/` | RevenueCat wiring, incl. `paywallUI.ts` for the judge-mode Test Store flow |
 | `notifications/` | Local-only scheduled notifications (daily check-in, streak-risk, bill due) |
 | `leaderboard/` | Seeded local bot opponents for portfolio ranking |

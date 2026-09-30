@@ -1,6 +1,6 @@
 # Markva — Privacy Policy
 
-_Last updated: 10 September 2026_
+_Last updated: 30 September 2026_
 
 Markva is an educational personal-finance app that combines simulated ("paper") stock trading with an expense tracker. All trading in Markva is simulated. The app does not connect to a real brokerage or a real bank account, does not execute real trades, and never handles real money or real investments.
 
@@ -26,7 +26,7 @@ We do not run a server that receives, stores or backs up any of this. If you uni
 
 Some features work by sending data to outside services. Each one is listed below, with what is sent and why.
 
-**AI features** (Assistant chat, spending insights, receipt scanning, product scanning, quiz and lesson generation, headline explanations)
+**AI features** (Assistant chat, weekly recap analysis, spending insights, receipt scanning, product scanning, quiz and lesson generation, headline explanations)
 When you use an AI feature, the content that feature needs is sent to an AI provider so a response can be generated. Depending on your settings, that provider is Google (Gemini), Anthropic (Claude), OpenAI, or OpenRouter. What is sent may include the message you typed, a summary of the expenses or portfolio the feature is describing, and — for receipt or product scanning — the photo you selected. These providers process the request under their own privacy policies. Markva sends nothing to an AI provider unless you use a feature that requires it.
 
 **Market data** (Twelve Data, Yahoo Finance)

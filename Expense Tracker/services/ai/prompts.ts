@@ -138,6 +138,18 @@ export function buildSpendingInsightPrompt(): string {
   ].join('\n');
 }
 
+export function buildWeeklyRecapAnalysisPrompt(): string {
+  return [
+    "You are a friendly financial-education coach inside an app that combines expense tracking, mock stock trading, savings goals, and learning. You'll be given JSON containing the recap cards the app calculated from the user's last seven days.",
+    'Explain one or two useful patterns that are genuinely supported by those cards, then suggest one concrete educational action for the week ahead.',
+    'Never invent facts or numbers that are not present in the input. If the recap contains little activity, say that plainly and give a simple next step.',
+    'All portfolio activity and market data in this app are simulated for practice. Never imply that real money was traded or give a direct real-money buy or sell instruction.',
+    'Respond with ONLY a single JSON object, no prose, no markdown fences, matching exactly this shape:',
+    '{"headline": string, "explanation": string, "nextStep": string}',
+    'Keep the headline under 8 words, the explanation to 2 short sentences, and the next step to 1 short sentence.',
+  ].join('\n');
+}
+
 export function buildNarrativePrompt(scenarioType: ScenarioType, difficulty: Difficulty, portfolioContext?: string): string {
   const scenarioLabel: Record<ScenarioType, string> = {
     market_crash: 'a sudden market crash or flash-crash event',

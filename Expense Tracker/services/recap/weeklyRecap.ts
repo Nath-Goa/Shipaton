@@ -11,15 +11,13 @@ import { daysAgo } from '@/utils/date';
 import { money, signedMoney, signedPct } from '@/utils/money';
 import { computeNetWorthHistory, summarizePortfolio } from '@/utils/portfolioMath';
 
-// Builds the "Wrapped"-style weekly recap deck entirely from local state —
-// deliberately no AI call in this path. The deck has to render instantly
-// and reliably for a first-ever open with zero history, and an AI round
-// trip (network, a key, shared-quota limits) is exactly the kind of thing
-// that can't be allowed to gate that. Every card below is conditional on
-// having real data except the three guaranteed ones (intro, stock
-// spotlight, outro) — those three alone are enough for a brand-new user
-// with no trades, no expenses, and a day-0 streak to still get a real,
-// non-empty recap.
+// Builds the factual part of the "Wrapped"-style deck synchronously from
+// local state. app/recap.tsx adds a separately-loaded AI analysis card, so a
+// missing key, quota limit, or network failure can never gate these cards.
+// Every card below is conditional on having real data except the three
+// guaranteed ones (intro, stock spotlight, outro) — those three alone are
+// enough for a brand-new user with no trades, no expenses, and a day-0
+// streak to still get a real, non-empty recap.
 
 export type RecapTone = 'accent' | 'success' | 'danger' | 'warning' | 'neutral';
 
@@ -215,4 +213,12 @@ export function buildWeeklyRecapCards(): RecapCard[] {
   });
 
   return cards;
+}
+
+export function buildWeeklyRecapAnalysisPayload(cards: RecapCard[]): string {
+  const highlights = cards
+    .filter((card) => card.key !== 'intro' && card.key !== 'outro')
+    .map(({ eyebrow, title, stat, statSub, body }) => ({ eyebrow, title, stat, statSub, body }));
+
+  return JSON.stringify({ period: 'last 7 days', highlights });
 }

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer } from 'expo-audio';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -10,7 +10,14 @@ import { RecapCardView, toneColors } from '@/components/recap/RecapCardView';
 import { FeedbackPressable as Pressable } from '@/components/ui/FeedbackPressable';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { buildWeeklyRecapCards, type RecapCard } from '@/services/recap/weeklyRecap';
+import { describeAiError } from '@/services/ai/errorMessage';
+import { generateWeeklyRecapAnalysis } from '@/services/ai/insights';
+import {
+  buildWeeklyRecapAnalysisPayload,
+  buildWeeklyRecapCards,
+  type RecapCard,
+} from '@/services/recap/weeklyRecap';
+import { useWeeklyRecapStore } from '@/store/useWeeklyRecapStore';
 
 // A single-screen modal route, same convention as scanner.tsx and
 // settings/upgrade.tsx — no nested _layout, headerShown:false is set on the
@@ -23,6 +30,7 @@ const AUTO_ADVANCE_MS = 15_000;
 // the identical auto-advance transition always feel the same.
 const SLIDE_DURATION_MS = 380;
 const SLIDE_EASING = Easing.out(Easing.cubic);
+const AI_ANALYSIS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function WeeklyRecapScreen() {
   const { colors } = useTheme();
@@ -31,7 +39,48 @@ export default function WeeklyRecapScreen() {
   // Built once per visit, not memoized on any store field — a static deck
   // for the session it's open is exactly what "wrapped" decks are; nothing
   // should reshuffle mid-swipe just because a background poll ticked a price.
-  const [cards] = useState<RecapCard[]>(() => buildWeeklyRecapCards());
+  const [localCards] = useState<RecapCard[]>(() => buildWeeklyRecapCards());
+  const analysis = useWeeklyRecapStore((s) => s.analysis);
+  const generatedAt = useWeeklyRecapStore((s) => s.generatedAt);
+  const setAnalysis = useWeeklyRecapStore((s) => s.setAnalysis);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const requestedAnalysis = useRef(false);
+  const analysisPayload = useMemo(() => buildWeeklyRecapAnalysisPayload(localCards), [localCards]);
+  const analysisCard = useMemo<RecapCard>(() => {
+    if (analysis) {
+      return {
+        key: 'ai-analysis',
+        tone: 'accent',
+        icon: 'sparkles',
+        eyebrow: 'AI ANALYSIS',
+        title: analysis.headline,
+        body: `${analysis.explanation}\n\nTry next: ${analysis.nextStep}`,
+      };
+    }
+    if (analysisError) {
+      return {
+        key: 'ai-analysis',
+        tone: 'neutral',
+        icon: 'cloud-offline-outline',
+        eyebrow: 'AI ANALYSIS',
+        title: 'Your local recap is ready',
+        body: `${analysisError} Every other card was still calculated on your device.`,
+      };
+    }
+    return {
+      key: 'ai-analysis',
+      tone: 'neutral',
+      icon: 'sparkles-outline',
+      eyebrow: 'AI ANALYSIS',
+      title: analysisLoading ? 'Reading your week' : 'Preparing your analysis',
+      body: 'An AI provider is looking for a useful pattern and a practical next step.',
+    };
+  }, [analysis, analysisError, analysisLoading]);
+  const cards = useMemo(
+    () => [...localCards.slice(0, -1), analysisCard, localCards[localCards.length - 1]],
+    [analysisCard, localCards]
+  );
   const [activeIndex, setActiveIndex] = useState(0);
   const [musicEnabled, setMusicEnabled] = useState(true);
   // This short, original instrumental loop was generated for Shipaton, so
@@ -52,6 +101,25 @@ export default function WeeklyRecapScreen() {
   const fillProgress = useSharedValue(0);
 
   const activeTone = useMemo(() => toneColors(colors, cards[activeIndex]?.tone ?? 'accent'), [colors, cards, activeIndex]);
+
+  useEffect(() => {
+    const fresh = analysis && generatedAt && Date.now() - generatedAt < AI_ANALYSIS_MAX_AGE_MS;
+    if (fresh || requestedAnalysis.current) return;
+
+    requestedAnalysis.current = true;
+    let cancelled = false;
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    generateWeeklyRecapAnalysis(analysisPayload).then((result) => {
+      if (cancelled) return;
+      setAnalysisLoading(false);
+      if (result.ok) setAnalysis(result.data);
+      else setAnalysisError(describeAiError(result.error));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [analysis, analysisPayload, generatedAt, setAnalysis]);
 
   useEffect(() => {
     music.loop = true;

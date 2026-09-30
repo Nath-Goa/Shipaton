@@ -31,7 +31,7 @@ Built for the **RevenueCat Shipaton** hackathon (team: Nathan Kumtakar, Arya Kak
 - **Zustand** for all state, `persist` + `createJSONStorage(() => AsyncStorage)` for anything that survives restarts
 - **react-native-reanimated** for animation (spring configs centralized in `constants/animations.ts`), plus a sound/haptic feedback helper (`triggerFeedback(category)`)
 - **RevenueCat** (`react-native-purchases` + `react-native-purchases-ui`) for subscriptions — dev-mode tier switcher when no API key is configured
-- AI: direct HTTP to **Codex, OpenAI, Gemini, and OpenRouter** — no SDK abstraction layer beyond `services/ai/client.ts`
+- AI: direct HTTP to **Claude, OpenAI, Gemini, and OpenRouter** — no SDK abstraction layer beyond `services/ai/client.ts`
 - **Sentry** for crash reporting (no-op without a DSN), **expo-notifications**, **expo-local-authentication** (biometric lock), **expo-store-review**, **expo-sharing** + **react-native-view-shot** (share-as-image), **@react-native-community/datetimepicker**
 - **No automated test suite.** Verification is `tsc --noEmit` + manual/self code review only. Be extra careful with anything load-bearing (recurring-cursor math, date arithmetic, store-selector purity) — nothing will catch a regression automatically.
 
@@ -88,7 +88,7 @@ All persisted stores use AsyncStorage via `persist`. Cross-store calls go throug
 | `useStreakStore` | Daily streak, badge list, pattern/analyst counters |
 | `useQuizStore` | Per-topic progress, spaced-repetition due dates, mastery |
 | `useFlashcardStore` | Flashcard deck progress/history per topic |
-| `useWeeklyRecapStore` | Caches the last AI weekly recap until manually refreshed |
+| `useWeeklyRecapStore` | Caches the latest AI recap analysis for seven days |
 | `useChatStore` | Assistant chat threads (general + per-symbol) |
 | `useAiUsageStore` | Shared daily AI-action counter (only meaningful without a personal key) |
 | `useSettingsStore` | Theme, accent, tier, AI provider/keys, notifications, biometric lock, broken-key flags |

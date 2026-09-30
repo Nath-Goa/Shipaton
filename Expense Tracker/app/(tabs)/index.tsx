@@ -196,9 +196,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Weekly recap — an instant, local "wrapped"-style deck (app/recap.tsx),
-            never gated on an AI call so it's there the very first time
-            someone opens the app, not just after a week of activity. */}
+        {/* Weekly recap — local cards render immediately, then a separately
+            loaded AI card explains the patterns without gating the deck. */}
         <View>
           <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.md }]}>Weekly recap</Text>
           <Pressable onPress={() => router.push('/recap')}>
@@ -209,7 +208,7 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.recapTitle, { color: colors.text }]}>Your week, wrapped</Text>
                 <Text style={[styles.recapBody, { color: colors.text3 }]}>
-                  Your stocks, your money, your streak — swipe through this week's highlights.
+                  Local highlights from your week, plus an AI explanation and next step.
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.text3} />
