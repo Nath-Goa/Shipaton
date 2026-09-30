@@ -39,7 +39,9 @@ export async function setupNotificationChannel(): Promise<void> {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#6366f1',
-      sound: 'default',
+      // No `sound` key: expo-notifications reads any string here as a bundled
+      // file name, so 'default' pointed the channel at a file that doesn't
+      // exist and reminders arrived silent. Omitted means the system sound.
     }).catch(() => {});
   }
 }

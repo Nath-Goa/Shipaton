@@ -101,7 +101,7 @@ export default function BacktestScreen() {
               {ticker?.name ?? symbol} · {horizon}-day calls
             </Text>
             <Text style={[styles.resultSub, { color: colors.text3 }]}>
-              {result.sampleSize} simulated calls across the available mock history
+              {result.sampleSize} simulated calls across the available price history
             </Text>
 
             <View style={styles.statsRow}>
@@ -133,7 +133,7 @@ export default function BacktestScreen() {
 
         <Animated.View entering={FadeInDown.delay(180).springify().damping(16)}>
           <Text style={[styles.disclaimer, { color: colors.text3 }]}>
-            Simulated against this app's mock price history — a replay of the same algorithm the Direction call card
+            Simulated against the price history this app has cached (real market data when it has loaded) — a replay of the same algorithm the Direction call card
             uses, for practice only. Not a guarantee of future accuracy, real or simulated.
           </Text>
         </Animated.View>

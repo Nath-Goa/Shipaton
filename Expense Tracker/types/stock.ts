@@ -31,15 +31,4 @@ export type ForecastBand = {
   high: number;
 };
 
-export type Headline = {
-  title: string;
-  tone: 'positive' | 'negative' | 'neutral';
-};
-
-export type SentimentSignal = {
-  score: number; // -100..100
-  label: 'Bullish' | 'Bearish' | 'Neutral';
-  headlines: Headline[];
-};
-
 export type Range = '1W' | '1M' | '3M' | '1Y';

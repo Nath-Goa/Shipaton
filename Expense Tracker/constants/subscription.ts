@@ -127,7 +127,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
     'Direction call only (up / down / flat)',
     '5 stock detail lookups/day',
     `${AI_FEATURE_DAILY_LIMIT.free} AI actions/day (chat, quizzes, challenges) on the built-in key — unlimited with your own API key`,
-    '24h-delayed sentiment score',
+    'Sentiment score read from real headlines',
     'Expense tracker with photo receipts',
     'Up to 5 saved spending-breakdown charts',
     '8 quick investor calculators',

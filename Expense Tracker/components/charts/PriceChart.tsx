@@ -58,12 +58,15 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
   // anything only computed after it.
   const pathLengthSV = useSharedValue(0);
 
+  // Replays the draw-in only when the series itself changes: a new symbol, a
+  // 1W/1M/3M/1Y switch, or live bars replacing mock ones. Not keyed on the
+  // array reference, because callers re-read history whenever useBarsVersion()
+  // moves, and that moves every time *any* symbol's history lands. On a fresh
+  // install that is dozens of times a minute, and each one restarted the
+  // draw from zero, so the line never finished drawing.
+  const seriesKey = bars.length ? `${bars.length}:${bars[0].date}:${bars[bars.length - 1].date}` : '';
+
   useEffect(() => {
-    // Draws the line left-to-right on every change of `bars` — both the
-    // initial mount AND every 1W/1M/3M/1Y switch, since the caller's
-    // `useMemo(() => getHistory(symbol, range), [symbol, range])` gives a
-    // new array reference in both cases but NOT on the 15s live-quote poll,
-    // so this never replays just because a price ticked.
     if (width === 0) return;
 
     if (reducedMotion) {
@@ -94,7 +97,7 @@ export function PriceChart({ bars, forecast, height = 180, trend, onPointPress }
       REVEAL_DURATION,
       withRepeat(withSequence(withTiming(2.2, { duration: 450 }), withTiming(1, { duration: 450 })), 2, false)
     );
-  }, [bars, width, drawProgress, beaconPulse, beaconOpacity, reducedMotion]);
+  }, [seriesKey, width, drawProgress, beaconPulse, beaconOpacity, reducedMotion]);
 
   const beaconStyle = useAnimatedStyle(() => {
     return {

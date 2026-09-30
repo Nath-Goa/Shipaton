@@ -25,6 +25,9 @@ const REQUEST_SPACING_MS = 180;
 
 const sentimentCache = new Map<string, { at: number; sentiment: NewsSentiment }>();
 const SENTIMENT_TTL_MS = 6 * 60 * 60 * 1000;
+// The prediction card and the stock page's Sentiment card ask for the same
+// symbol as the page opens; one request serves both.
+const scansInFlight = new Map<string, Promise<NewsSentiment | null>>();
 
 function priceAtHorizon(symbol: string, predictionDate: string): number | null {
   const bars = getFullHistory(symbol);
@@ -47,14 +50,21 @@ export function cachedSentiment(symbol: string): NewsSentiment | null {
 }
 
 /** Fetches headlines for one symbol and caches the aggregate sentiment. */
-export async function scanSymbolNews(symbol: string): Promise<NewsSentiment | null> {
+export function scanSymbolNews(symbol: string): Promise<NewsSentiment | null> {
   const cached = cachedSentiment(symbol);
-  if (cached) return cached;
-  const headlines = await fetchHeadlines(symbol);
-  if (headlines.length === 0) return null;
-  const sentiment = aggregateSentiment(headlines);
-  sentimentCache.set(symbol, { at: Date.now(), sentiment });
-  return sentiment;
+  if (cached) return Promise.resolve(cached);
+  const inFlight = scansInFlight.get(symbol);
+  if (inFlight) return inFlight;
+  const scan = fetchHeadlines(symbol)
+    .then((headlines) => {
+      if (headlines.length === 0) return null;
+      const sentiment = aggregateSentiment(headlines);
+      sentimentCache.set(symbol, { at: Date.now(), sentiment });
+      return sentiment;
+    })
+    .finally(() => scansInFlight.delete(symbol));
+  scansInFlight.set(symbol, scan);
+  return scan;
 }
 
 function symbolsToScan(): string[] {

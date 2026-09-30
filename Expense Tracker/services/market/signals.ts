@@ -1,12 +1,10 @@
 import { tickerOf } from '@/constants/tickers';
-import type { DirectionCall, ForecastBand, Headline, PriceBar, SentimentSignal } from '@/types/stock';
-import { todayStr } from '@/utils/date';
-import { hashString, mulberry32 } from '@/utils/prng';
+import type { DirectionCall, ForecastBand, PriceBar } from '@/types/stock';
 import { normalCdf } from '@/utils/stats';
 
-// All signals below are derived client-side from the mock price series —
-// there is no forecasting microservice and no external sentiment API. This
-// keeps the "predict" and "teach" halves of the app fully local/offline.
+// All signals below are derived client-side from the cached price series —
+// there is no forecasting microservice. Sentiment is not here: it is read
+// from real headlines (services/news/sentiment.ts).
 //
 // A move within FLAT_BAND_PCT of unchanged (either direction, over the call's
 // horizon) counts as "flat" — this is the single ground-truth definition of
@@ -150,60 +148,4 @@ export function computeForecastBand(bars: PriceBar[], horizonDays = 7): Forecast
     mid: last,
     high: last * Math.exp(Z_80 * horizonVol),
   };
-}
-
-const POSITIVE_TEMPLATES = [
-  '{name} shares climb as analysts raise price targets',
-  '{name} beats quarterly expectations, guidance raised',
-  'Institutional investors increase stake in {name}',
-  '{name} announces new product line, investors optimistic',
-  "Analysts upgrade {name} to 'Buy' citing strong fundamentals",
-];
-const NEGATIVE_TEMPLATES = [
-  '{name} shares slide on supply-chain concerns',
-  '{name} misses revenue estimates for the quarter',
-  '{name} downgraded by analysts amid slowing growth',
-  '{name} faces regulatory scrutiny over recent practices',
-  'Investors pull back on {name} amid sector-wide weakness',
-];
-const NEUTRAL_TEMPLATES = [
-  '{name} trades sideways ahead of earnings report',
-  '{name} holds steady as market awaits Fed decision',
-  '{name} in-line with sector performance this week',
-  "Analysts maintain a 'Hold' rating on {name}",
-];
-
-function fill(template: string, name: string): string {
-  return template.replace('{name}', name);
-}
-
-export function computeSentiment(symbol: string, bars: PriceBar[], dateKey = todayStr()): SentimentSignal {
-  const name = tickerOf(symbol)?.name ?? symbol;
-  const rand = mulberry32(hashString(`${symbol}:${dateKey}`));
-
-  const last = bars[bars.length - 1].close;
-  const weekAgo = bars[Math.max(0, bars.length - 6)].close;
-  const momentumPct = weekAgo ? ((last - weekAgo) / weekAgo) * 100 : 0;
-
-  // Score leans with recent momentum, plus some day-to-day noise.
-  const noise = (rand() - 0.5) * 40;
-  const score = Math.max(-100, Math.min(100, momentumPct * 9 + noise));
-
-  const label: SentimentSignal['label'] = score > 15 ? 'Bullish' : score < -15 ? 'Bearish' : 'Neutral';
-
-  const pool = score > 15 ? POSITIVE_TEMPLATES : score < -15 ? NEGATIVE_TEMPLATES : NEUTRAL_TEMPLATES;
-  const secondaryPool = score > 15 ? NEUTRAL_TEMPLATES : score < -15 ? NEUTRAL_TEMPLATES : POSITIVE_TEMPLATES;
-
-  const shuffledPool = [...pool].sort(() => rand() - 0.5);
-  const shuffledSecondary = [...secondaryPool].sort(() => rand() - 0.5);
-  const tone: Headline['tone'] = score > 15 ? 'positive' : score < -15 ? 'negative' : 'neutral';
-  const secondaryTone: Headline['tone'] = tone === 'neutral' ? 'positive' : 'neutral';
-
-  const headlines: Headline[] = [
-    { title: fill(shuffledPool[0], name), tone },
-    { title: fill(shuffledPool[1] ?? shuffledPool[0], name), tone },
-    { title: fill(shuffledSecondary[0], name), tone: secondaryTone },
-  ];
-
-  return { score, label, headlines };
 }

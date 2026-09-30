@@ -37,14 +37,16 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { describeAiError } from '@/services/ai/errorMessage';
 import { detectPatterns, explainChartPoint } from '@/services/ai/learn';
-import { computeDirectionCall, computeForecastBand, computeSentiment } from '@/services/market/signals';
+import { computeDirectionCall, computeForecastBand } from '@/services/market/signals';
 import { getFullHistory, getHistory, getQuote } from '@/services/marketData/marketData';
+import { cachedSentiment, scanSymbolNews } from '@/services/predictor/startupScan';
 import { useActivePortfolio, usePortfolioStore } from '@/store/usePortfolioStore';
 import { useQolStore } from '@/store/useQolStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useStockViewStore } from '@/store/useStockViewStore';
 import { useStreakStore } from '@/store/useStreakStore';
 import type { PatternDetectionResult } from '@/types/pattern';
+import type { NewsSentiment } from '@/types/prediction';
 import type { PriceBar, Quote, Range } from '@/types/stock';
 import { formatShortDate } from '@/utils/date';
 import { money, signedMoney, signedPct } from '@/utils/money';
@@ -55,6 +57,12 @@ const RANGE_OPTIONS: { value: Range; label: string }[] = [
   { value: '3M', label: '3M' },
   { value: '1Y', label: '1Y' },
 ];
+
+const SENTIMENT_LABELS: Record<NewsSentiment['label'], string> = {
+  positive: 'Bullish',
+  negative: 'Bearish',
+  neutral: 'Neutral',
+};
 
 export default function StockDetailScreen() {
   const { symbol: rawSymbol } = useLocalSearchParams<{ symbol: string }>();
@@ -146,7 +154,24 @@ export default function StockDetailScreen() {
   const fullHistory = useMemo(() => getFullHistory(symbol), [symbol, barsVersion]);
   const directionCall = useMemo(() => computeDirectionCall(symbol, fullHistory), [symbol, fullHistory]);
   const forecast = useMemo(() => computeForecastBand(fullHistory, 7), [symbol, fullHistory]);
-  const sentiment = useMemo(() => computeSentiment(symbol, fullHistory), [symbol, fullHistory]);
+  // Real Yahoo headlines scored on-device, from the same scan (and the same
+  // request) the prediction card uses. This card used to invent headlines
+  // from templates and random noise.
+  const [sentiment, setSentiment] = useState<NewsSentiment | null>(() => cachedSentiment(symbol));
+  const [newsLoaded, setNewsLoaded] = useState(() => cachedSentiment(symbol) !== null);
+  useEffect(() => {
+    if (!ticker) return;
+    let alive = true;
+    setSentiment(cachedSentiment(symbol));
+    scanSymbolNews(symbol).then((result) => {
+      if (!alive) return;
+      setSentiment(result);
+      setNewsLoaded(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [symbol, ticker]);
 
   const holding = holdings[symbol];
   const watched = watchlist.includes(symbol);
@@ -447,8 +472,8 @@ export default function StockDetailScreen() {
 
         <Animated.View entering={FadeInDown.delay(200).springify().damping(16)}>
           <Text style={[styles.predictorDisclaimer, { color: colors.text3 }]}>
-            The trend summary and price-range forecast are a simulated statistical estimate over this app's mock
-            price history — not real market analysis, and not financial advice. They can be, and often will be,
+            The trend summary and price-range forecast are a simple statistical estimate from recent price
+            history — not real market analysis, and not financial advice. They can be, and often will be,
             wrong. Use them for practice, not real decisions.
           </Text>
         </Animated.View>
@@ -459,19 +484,31 @@ export default function StockDetailScreen() {
             <View style={styles.cardHead}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Sentiment</Text>
               <PillBadge
-                label={features.liveSentiment ? 'Live' : '24h delayed'}
+                label={features.liveSentiment ? 'Live' : 'Score only'}
                 color={features.liveSentiment ? colors.success : colors.text3}
                 backgroundColor={features.liveSentiment ? colors.successSoft : colors.surface2}
               />
             </View>
-            <SentimentGauge score={sentiment.score} />
-            <Text style={[styles.sentimentLabel, { color: colors.text }]}>{sentiment.label}</Text>
+            <SentimentGauge score={sentiment ? sentiment.score * 100 : 0} />
+            <Text style={[styles.sentimentLabel, { color: colors.text }]}>
+              {sentiment ? SENTIMENT_LABELS[sentiment.label] : newsLoaded ? 'No read yet' : 'Reading headlines…'}
+            </Text>
             <View style={{ gap: 6, marginTop: spacing.sm }}>
-              {sentiment.headlines.map((h, i) => (
-                <Text key={i} style={[styles.headline, { color: colors.text2 }]} numberOfLines={2}>
-                  • {h.title}
+              {!sentiment ? (
+                newsLoaded ? (
+                  <Text style={[styles.headline, { color: colors.text3 }]}>No recent headlines for this stock.</Text>
+                ) : null
+              ) : features.liveSentiment ? (
+                sentiment.topHeadlines.map((h) => (
+                  <Text key={h.title} style={[styles.headline, { color: colors.text2 }]} numberOfLines={2}>
+                    • {h.title}
+                  </Text>
+                ))
+              ) : (
+                <Text style={[styles.headline, { color: colors.text3 }]}>
+                  Read from {sentiment.headlineCount} recent headlines. Pro shows the headlines behind the score.
                 </Text>
-              ))}
+              )}
             </View>
           </Card>
         </Animated.View>
