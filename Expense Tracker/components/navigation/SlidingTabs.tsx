@@ -298,13 +298,18 @@ function SlidingTabNavigator({
       return added ? next : prev;
     });
 
-    if (gestureCommitTargetRef.current === index) {
-      // The swipe gesture already put `progress` here itself (see
-      // swipeGesture.onEnd below) — this index change is just React
-      // Navigation catching up, not a tap that needs its own animation.
-      gestureCommitTargetRef.current = null;
-      return;
-    }
+    // The swipe gesture already put `progress` here itself (see
+    // swipeGesture.onEnd below) — this index change is just React
+    // Navigation catching up, not a tap that needs its own animation. The
+    // marker is consumed by ANY index change, not only the matching one:
+    // if something else moved the index first (a tap mid-swipe, or a
+    // dispatch lost to a reload), a leftover marker would make a later tap
+    // on that tab skip its slide, leaving the pill and content behind while
+    // the label highlights. The distance check covers a marker whose
+    // dispatch never landed at all.
+    const committedByGesture = gestureCommitTargetRef.current === index;
+    gestureCommitTargetRef.current = null;
+    if (committedByGesture && Math.abs(progress.value - index) < 1) return;
 
     progress.value = withTiming(index, {
       duration: reducedMotion ? 90 : Math.min(BASE_DURATION_MS + PER_EXTRA_TAB_MS * (distance - 1), MAX_DURATION_MS),
