@@ -15,6 +15,7 @@ import { radius, spacing } from '@/constants/theme';
 import { TIER_FEATURES } from '@/constants/subscription';
 import { TICKERS, tickerOf } from '@/constants/tickers';
 import { trackingFor } from '@/constants/typography';
+import { useBarsVersion } from '@/hooks/useBarsVersion';
 import { useTheme } from '@/hooks/useTheme';
 import { useUpgradeToTier } from '@/hooks/useUpgradeToTier';
 import { runBacktest } from '@/services/market/backtest';
@@ -44,10 +45,18 @@ export default function BacktestScreen() {
     return TICKERS.filter((t) => t.symbol.toLowerCase().includes(q) || t.name.toLowerCase().includes(q));
   }, [query]);
 
-  const result = useMemo(() => runBacktest(symbol, Number(horizon)), [symbol, horizon]);
+  // getFullHistory serves mock bars until the real ones land, so the replay
+  // has to re-run when they do or it grades the mock series. Skipped on
+  // tiers that only see the lock screen.
+  const barsVersion = useBarsVersion();
+  const result = useMemo(
+    () => (features.backtesting ? runBacktest(symbol, Number(horizon)) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- barsVersion is the re-run trigger
+    [symbol, horizon, barsVersion, features.backtesting]
+  );
   const ticker = tickerOf(symbol);
 
-  if (!features.backtesting) {
+  if (!result) {
     return (
       <Screen edges={['left', 'right', 'bottom']}>
         <TopBar title="Backtest" />

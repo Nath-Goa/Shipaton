@@ -154,6 +154,7 @@ export default function StockDetailScreen() {
   const fullHistory = useMemo(() => getFullHistory(symbol), [symbol, barsVersion]);
   const directionCall = useMemo(() => computeDirectionCall(symbol, fullHistory), [symbol, fullHistory]);
   const forecast = useMemo(() => computeForecastBand(fullHistory, 7), [symbol, fullHistory]);
+  const forecast30 = useMemo(() => computeForecastBand(fullHistory, 30), [fullHistory]);
   // Real Yahoo headlines scored on-device, from the same scan (and the same
   // request) the prediction card uses. This card used to invent headlines
   // from templates and random noise.
@@ -455,18 +456,26 @@ export default function StockDetailScreen() {
         {features.forecastBand ? (
           <Animated.View entering={FadeInDown.delay(180).springify().damping(16)}>
             <Card>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>{forecast.horizonDays}-day price-range forecast</Text>
-              <View style={styles.forecastRow}>
-                <ForecastCol label="Low" value={money(forecast.low)} color={colors.danger} />
-                <ForecastCol label="Mid" value={money(forecast.mid)} color={colors.text} />
-                <ForecastCol label="High" value={money(forecast.high)} color={colors.success} />
-              </View>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Price-range forecast</Text>
+              <Text style={[styles.confidence, { color: colors.text3, marginTop: 2 }]}>
+                80% range from recent volatility
+              </Text>
+              {[forecast, forecast30].map((band) => (
+                <View key={band.horizonDays} style={{ marginTop: spacing.md }}>
+                  <Text style={[styles.forecastHorizon, { color: colors.text2 }]}>Next {band.horizonDays} days</Text>
+                  <View style={styles.forecastRow}>
+                    <ForecastCol label="Low" value={money(band.low)} color={colors.danger} />
+                    <ForecastCol label="Mid" value={money(band.mid)} color={colors.text} />
+                    <ForecastCol label="High" value={money(band.high)} color={colors.success} />
+                  </View>
+                </View>
+              ))}
             </Card>
           </Animated.View>
         ) : (
           <LockedCard
             title="Price-range forecast"
-            message="Pro unlocks a 7-day and 30-day forecast band with a confidence interval."
+            message="Pro unlocks 7-day and 30-day price ranges, each an 80% band from recent volatility."
           />
         )}
 
@@ -639,6 +648,7 @@ const styles = StyleSheet.create({
   confidence: { fontSize: 12, letterSpacing: trackingFor(12), marginTop: spacing.sm },
   predictorDisclaimer: { fontSize: 11.5, letterSpacing: trackingFor(11.5), lineHeight: 16, textAlign: 'center', paddingHorizontal: spacing.sm },
   tapHint: { fontSize: 11, letterSpacing: trackingFor(11), textAlign: 'center', marginTop: spacing.sm },
+  forecastHorizon: { fontSize: 12.5, letterSpacing: trackingFor(12.5), fontWeight: '700' },
   forecastRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   forecastCol: { alignItems: 'center', flex: 1 },
   forecastLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: trackingFor(11, { uppercase: true }) },

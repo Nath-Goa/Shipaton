@@ -135,7 +135,7 @@ export default function HomeScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.upsellTitle, { color: colors.text }]}>Unlock full forecasts</Text>
                   <Text style={[styles.upsellBody, { color: colors.text3 }]}>
-                    Upgrade to Pro for price-range forecasts, live sentiment, and an unlimited analyst.
+                    Upgrade to Pro for price-range forecasts, live sentiment, and a much higher daily AI limit.
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.text3} />

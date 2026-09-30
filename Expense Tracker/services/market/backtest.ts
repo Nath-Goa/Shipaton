@@ -2,11 +2,12 @@ import { computeDirectionCall, FLAT_BAND_PCT } from '@/services/market/signals';
 import { getFullHistory } from '@/services/marketData/marketData';
 import type { Direction } from '@/types/stock';
 
-// Max-tier feature: walks the mock price history day by day, re-running the
+// Max-tier feature: walks the cached price history (real bars once they've
+// loaded, mock before that) day by day, re-running the
 // same direction-call algorithm real screens use with only the data that
 // would've been available at that point, then checks it against what
 // actually happened `horizonDays` later. Purely a client-side replay over
-// already-generated mock data — no new data source involved.
+// bars the app already has — no new data source involved.
 //
 // FLAT_BAND_PCT is imported from signals.ts rather than kept as a local
 // copy: it's the ground-truth definition of up/down/flat, and the thing

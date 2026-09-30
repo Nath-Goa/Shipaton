@@ -121,7 +121,7 @@ export const TIER_PRICE: Record<Tier, string> = {
 
 export const TIER_HEADLINE: Record<Tier, string> = {
   free: 'Get started with mock trading and the essentials.',
-  pro: 'Full forecasts, live sentiment, and an unlimited analyst.',
+  pro: 'Full forecasts, live sentiment, and a much higher daily AI limit.',
   max: 'Everything in Pro, plus historical backtesting.',
 };
 
@@ -153,7 +153,7 @@ export const TIER_FEATURE_COPY: Record<Tier, string[]> = {
   max: [
     'Everything in Pro',
     `${AI_FEATURE_DAILY_LIMIT.max} AI actions/day on the built-in key — unlimited with your own API key`,
-    'Historical backtesting — test the direction-call algorithm against past mock data and see its hit rate',
+    'Historical backtesting — test the direction-call algorithm against past price history and see its hit rate',
     // Keep this number in sync with MAX_PORTFOLIOS in store/usePortfolioStore.ts.
     'Up to 5 paper-trading portfolios, so you can run separate strategies side by side',
     'Limit orders — buy or sell automatically once a stock hits your target price',
