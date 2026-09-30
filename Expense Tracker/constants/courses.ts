@@ -853,7 +853,6 @@ export const COURSES: Course[] = [...CORE_COURSES, ...EXPANDED_COURSES]
   .map((course, index) => ({ ...course, order: index + 1 }));
 
 export type LessonPage = {
-  title: string;
   standard: string;
   eli5: string;
   keyTerm?: KeyTerm;
@@ -862,7 +861,6 @@ export type LessonPage = {
 export function lessonPagesFor(course: Course): LessonPage[] {
   const count = Math.max(course.lesson.paragraphs.length, course.lesson.eli5.length, 1);
   return Array.from({ length: count }, (_, index) => ({
-    title: course.lesson.keyTerms[index]?.term ?? `Lesson ${index + 1}`,
     standard: course.lesson.paragraphs[index] ?? course.lesson.paragraphs.at(-1) ?? '',
     eli5: course.lesson.eli5[index] ?? course.lesson.eli5.at(-1) ?? '',
     keyTerm: course.lesson.keyTerms[index],

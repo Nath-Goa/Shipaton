@@ -108,7 +108,7 @@ export default function LessonScreen() {
   const storyParagraph = story?.paragraphs[currentLessonIndex] ?? story?.paragraphs.at(-1) ?? '';
   const speakText = mode === 'story'
     ? story ? `${currentLessonIndex === 0 ? `${story.title}. ` : ''}${storyParagraph}${isLastLesson ? ` ${story.takeaway}` : ''}` : ''
-    : mode === 'visual' ? '' : `${page.title}. ${paragraph} ${page.keyTerm?.def ?? ''}`;
+    : mode === 'visual' ? '' : `${paragraph}${page.keyTerm ? ` Key term: ${page.keyTerm.term}. ${page.keyTerm.def}` : ''}`;
 
   return (
     <Screen edges={['left', 'right', 'bottom']}>
@@ -136,15 +136,15 @@ export default function LessonScreen() {
 
         {mode === 'standard' || mode === 'eli5' ? (
           <>
-            <AppText variant="subtitle" color={colors.text} style={styles.pageTitle}>
-              {page.title}
-            </AppText>
+            {/* No page heading: it was the key term at the same index, which
+                often had nothing to do with the paragraph ("Evidence"). */}
             <AppText variant="body" color={colors.text2} style={styles.paragraph}>
               {paragraph}
             </AppText>
             {page.keyTerm ? (
               <Card style={styles.termCard}>
-                <AppText variant="subtitle" color={colors.text}>{page.keyTerm.term}</AppText>
+                <AppText variant="label" color={colors.accent}>Key term</AppText>
+                <AppText variant="subtitle" color={colors.text} style={{ marginTop: 2 }}>{page.keyTerm.term}</AppText>
                 <AppText variant="caption" color={colors.text3} style={{ marginTop: 2 }}>{page.keyTerm.def}</AppText>
               </Card>
             ) : null}
@@ -241,7 +241,6 @@ const styles = StyleSheet.create({
   lessonProgressLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   lessonNumber: { fontSize: 11.5, fontWeight: '600', letterSpacing: trackingFor(11.5) },
   lessonPercent: { fontSize: 11.5, fontWeight: '700', letterSpacing: trackingFor(11.5) },
-  pageTitle: { marginTop: spacing.xs },
   paragraph: { marginTop: spacing.xs },
   termCard: { gap: 2 },
   center: { alignItems: 'center', paddingVertical: spacing.xl },

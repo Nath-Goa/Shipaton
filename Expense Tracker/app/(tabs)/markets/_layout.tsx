@@ -20,7 +20,8 @@ export default function MarketsLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="[symbol]" />
       <Stack.Screen name="practice" options={{ presentation: 'modal', title: 'Practice Trade' }} />
-      <Stack.Screen name="backtest" options={{ title: 'Backtest' }} />
+      {/* The screen draws its own title (with the Max badge); the header only carries back. */}
+      <Stack.Screen name="backtest" options={{ title: '' }} />
       <Stack.Screen name="arena" options={{ title: '$100k vs AI' }} />
       {/* Portfolio nests here as its own Stack (app/(tabs)/markets/portfolio/_layout.tsx)
           rather than as a sibling bottom tab — Markets and Portfolio are two views of
