@@ -1,29 +1,59 @@
-# Free-tier Supabase projects pause after 7 days without API traffic, which
-# would silently break Friends/Family/Duels for anyone installing the app
-# later. One call a day to the no-op public.keepalive() function (see
-# supabase/schema.sql) keeps the project awake.
+# Free-tier Supabase projects are paused when they don't see "sufficient
+# activity" for 7 days, which would silently break Friends/Family/Duels for
+# anyone installing the app later.
+# One call a day to the no-op public.keepalive() function was NOT enough:
+# it succeeded every day from 2026-09-25 and Supabase still sent a pause
+# warning on 2026-10-11. So this now runs every 4 hours and, besides that
+# function, reads real tables (anon gets an empty, RLS-filtered result, but
+# the query runs) and hits the Auth service.
+# Supabase doesn't publish the threshold, so a pause warning after this
+# change means more is needed, not that the workflow stopped running.
 # SUPABASE_URL / SUPABASE_ANON_KEY are repo Actions secrets (the same public
 # URL + anon key the app ships with).
 name: Supabase keep-alive
 
 on:
   schedule:
-    - cron: '17 6 * * *'
+    - cron: '17 */4 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/supabase-keepalive.yml
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase REST API
+      - name: Exercise the Supabase REST and Auth APIs
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          status=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{}' \
-            "$SUPABASE_URL/rest/v1/rpc/keepalive")
-          echo "HTTP $status"
-          test "$status" = "200"
+          get() {
+            curl -s -o /dev/null -w '%{http_code}' \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL$1"
+          }
+          failed=0
+          for round in 1 2 3; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "$SUPABASE_URL/rest/v1/rpc/keepalive")
+            echo "round $round: rpc/keepalive HTTP $status"
+            [ "$status" = "200" ] || failed=1
+            for path in \
+              '/rest/v1/duels?select=id&limit=1' \
+              '/rest/v1/friendships?select=id&limit=1' \
+              '/rest/v1/app_config?select=*&limit=1' \
+              '/auth/v1/settings'; do
+              status=$(get "$path")
+              echo "round $round: $path HTTP $status"
+              [ "$status" = "200" ] || failed=1
+            done
+            sleep 5
+          done
+          exit $failed
