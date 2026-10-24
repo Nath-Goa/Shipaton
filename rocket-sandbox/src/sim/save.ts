@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
+import * as idb from 'idb-keyval';
 import { SOL, SystemIndex } from './bodies';
 import { Design } from './design';
 import { starById, systemForStar } from './galaxy';
@@ -153,9 +154,8 @@ export interface Store {
   keys(): Promise<string[]>;
 }
 
-/** Lazily binds to IndexedDB through idb-keyval so that node-based tests can import this module. */
+/** Binds to IndexedDB through idb-keyval. The store is only created when called, so node tests can import this module. */
 export async function idbStore(): Promise<Store> {
-  const idb = await import('idb-keyval');
   const store = idb.createStore('orbital-sandbox', 'kv');
   return {
     get: (k) => idb.get(k, store),
