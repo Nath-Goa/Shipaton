@@ -191,7 +191,7 @@ function ascent(w: World, v: Vessel): void {
       const gEff = body.mu / (f.r * f.r) - (vh * vh) / f.r;
       const vCirc = Math.sqrt(body.mu / f.r);
       const dvLeft = vCirc - vh;
-      const vzDes = clamp(0.02 * (target - f.alt), -40, 120) * clamp(dvLeft / 2500, 0, 1);
+      const vzDes = clamp(0.02 * (target - f.alt), -40, 120) * clamp(dvLeft / Math.max(300, 0.3 * vCirc), 0, 1);
       const azCmd = gEff + 0.6 * (vzDes - vz);
       const beta = Math.asin(clamp(azCmd / aT, -0.25, 0.96));
       const dir = hdir.multiplyScalar(Math.cos(beta)).addScaledVector(f.up, Math.sin(beta));
@@ -218,14 +218,12 @@ function finishAscent(w: World, v: Vessel): void {
 
 // ------------------------------------------------------------------ circularise from anywhere
 
-function circularize(w: World, v: Vessel): void {
-  const ap = v.ap!;
+/** One tick of the circularisation routine. Returns true once the orbit is round. */
+function circularizeStep(w: World, v: Vessel, ap: NonNullable<Vessel['ap']>, store: Record<string, number>): boolean {
   const body = w.idx.get(v.body);
   const el = elements(v.pos, v.vel, body.mu);
-  const f = localFrame(w, v);
-  if (!el.bound) { stopAutopilot(w, v, 'Autopilot: orbit is not bound.'); return; }
+  if (!el.bound) { stopAutopilot(w, v, 'Autopilot: orbit is not bound.'); return false; }
   autoStage(w, v);
-  // burn at whichever apsis comes first
   const atApo = el.tAp < el.tPe;
   const tNext = atApo ? el.tAp : el.tPe;
   const rNext = atApo ? el.ra : el.rp;
@@ -233,25 +231,34 @@ function circularize(w: World, v: Vessel): void {
   const vCirc = Math.sqrt(body.mu / rNext);
   const dv = vCirc - vNext;
   const dir = v.vel.clone().normalize().multiplyScalar(Math.sign(dv) || 1);
-  if (!ensureEngines(w, v)) { stopAutopilot(w, v, 'Autopilot: no engine available.'); return; }
+  if (!ensureEngines(w, v)) { stopAutopilot(w, v, 'Autopilot: no engine available.'); return false; }
   const aMax = Math.max(0.5, accelMax(w, v));
-  if (ap.phase === 'start') {
+  const err = Math.abs(el.ra - el.rp);
+  if (err < Math.max(1500, el.a * 0.0015)) { v.throttle = 0; delete store.wakeAt; return true; }
+  if (!store.burning) {
     v.throttle = 0;
     point(v, dir);
     ap.note = `Waiting for ${atApo ? 'apoapsis' : 'periapsis'} (${tNext.toFixed(0)} s)`;
-    if (tNext <= Math.abs(dv) / aMax / 2 + 5) ap.phase = 'burn';
-    if (el.e < 0.003) finish(w, v, 'Orbit is already circular.');
-    return;
+    store.wakeAt = w.t + tNext - Math.abs(dv) / aMax / 2 - 40;
+    if (tNext <= Math.abs(dv) / aMax / 2 + 5) { store.burning = 1; delete store.wakeAt; }
+    return false;
   }
   point(v, dir);
-  const vh = v.vel.length();
-  void vh;
   const aligned = alignment(v, dir) < 8 * DEG;
-  const err = Math.abs(el.ra - el.rp);
   v.throttle = aligned ? clamp(err / (body.radius * 0.05), 0.05, 1) : 0;
   ap.note = `Circularising · ${(err / 1000).toFixed(0)} km spread`;
-  void f;
-  if (err < Math.max(2000, el.a * 0.002)) finish(w, v, `Circular orbit at ${((el.a - body.radius) / 1000).toFixed(0)} km.`);
+  return false;
+}
+
+function circularize(w: World, v: Vessel): void {
+  const ap = v.ap!;
+  if (ap.phase === 'start' && ap.data.burning) ap.phase = 'burn';
+  const done = circularizeStep(w, v, ap, ap.data);
+  if (done) {
+    const body = w.idx.get(v.body);
+    const el = elements(v.pos, v.vel, body.mu);
+    finish(w, v, `Circular orbit at ${((el.a - body.radius) / 1000).toFixed(0)} km.`);
+  }
 }
 
 // ------------------------------------------------------------------ deorbit
@@ -276,10 +283,13 @@ function deorbit(w: World, v: Vessel): void {
     if (w.assists.landing) startAutopilot(w, v, 'land');
     else { v.sas.mode = 'retrograde'; armChutes(v); }
   }
-  void ap;
 }
 
 // ------------------------------------------------------------------ landing
+
+function lowOrbitAltitude(body: ReturnType<World['idx']['get']>): number {
+  return body.terrain ? body.terrain.amplitude * 0.8 + 8000 : 20000;
+}
 
 function land(w: World, v: Vessel): void {
   const ap = v.ap!;
@@ -291,20 +301,20 @@ function land(w: World, v: Vessel): void {
   const vHvec = vrel.clone().addScaledVector(f.up, -vz);
   const vh = vHvec.length();
   const hasAtm = !!body.atmosphere;
-  const radar = radarAltitude(w, v);
+  const radarRaw = radarAltitude(w, v);
+  const radar = Number.isFinite(radarRaw) ? radarRaw : f.alt;
   const gLoc = body.mu / (f.r * f.r);
   const g = Math.max(0.05, gLoc - (vh * vh) / f.r);
   if (v.landed) { finish(w, v, 'Landed.'); return; }
   if (body.gasGiant) { stopAutopilot(w, v, 'Autopilot: gas giants have no surface to land on.'); return; }
-
-  if (ap.phase === 'plan') {
-    ap.phase = 'approach';
-    // legs out early on airless bodies, chutes armed where the air can slow us down
-    if (hasAtm) armChutes(v);
-  }
   const el = elements(v.pos, v.vel, body.mu);
   const inAtm = inAtmosphere(body, f.alt);
   const atmoTop = hasAtm ? atmosphereTop(body) : 0;
+
+  if (ap.phase === 'plan') {
+    ap.phase = 'approach';
+    if (hasAtm) armChutes(v);
+  }
 
   // shed the service stage before the air gets thick, so the heat shield leads
   if (hasAtm && f.alt < atmoTop + 30e3 && !ap.data.sepDone) {
@@ -317,66 +327,79 @@ function land(w: World, v: Vessel): void {
   }
 
   if (ap.phase === 'approach') {
-    // in orbit above the surface: lower periapsis first
-    if (!inAtm && radar > 30000 && el.rp - body.radius > (hasAtm ? atmoTop * 0.4 : 15000)) {
+    const hLow = lowOrbitAltitude(body);
+    const entryPe = hasAtm ? Math.min(35e3, atmoTop * 0.3) : hLow;
+    const peAlt = el.bound ? el.rp - body.radius : -1;
+    const stillHigh = !inAtm && f.alt > (hasAtm ? atmoTop + 5e3 : hLow * 2.5);
+    if (stillHigh && peAlt > entryPe + 3e3) {
+      // lower the periapsis
       autoStage(w, v);
-      if (!ensureEngines(w, v)) { stopAutopilot(w, v, 'Autopilot: no engine for the de-orbit burn.'); return; }
+      if (!ensureEngines(w, v)) {
+        if (hasAtm) { v.throttle = 0; point(v, vrel.lengthSq() > 4 ? vrel.clone().negate() : f.up); ap.note = 'No engine: waiting for the air to catch us'; return; }
+        stopAutopilot(w, v, 'Autopilot: no engine for the de-orbit burn.');
+        return;
+      }
       const retro = v.vel.clone().normalize().negate();
       point(v, retro);
-      const targetPe = hasAtm ? Math.min(35e3, atmoTop * 0.3) : 12e3;
-      const pe = el.rp - body.radius;
-      v.throttle = alignment(v, retro) < 8 * DEG ? clamp((pe - targetPe) / 50e3, 0.05, 1) : 0;
-      ap.note = `De-orbit burn · periapsis ${(pe / 1000).toFixed(0)} km`;
+      v.throttle = alignment(v, retro) < 8 * DEG ? clamp((peAlt - entryPe) / 60e3, 0.04, 1) : 0;
+      ap.note = `De-orbit burn · periapsis ${(peAlt / 1000).toFixed(0)} km → ${(entryPe / 1000).toFixed(0)} km`;
       return;
+    }
+    if (!hasAtm && stillHigh) {
+      // coast down to the periapsis, then round the orbit off at low altitude
+      const spread = el.bound ? el.ra - el.rp : Infinity;
+      if (spread > 6000 + hLow) {
+        if (!ap.data.lowcirc) ap.data.lowcirc = 1;
+      }
+      const done = circularizeStep(w, v, ap, ap.data);
+      if (!done) return;
+      ap.data.burning = 0;
     }
     v.throttle = 0;
     if (hasAtm) {
       if (v.parts.some((p) => p.def.kind === 'chute' && p.chute === 'stowed')) armChutes(v);
-      // shield-first or tail-first, whichever the vessel wants
       point(v, vrel.lengthSq() > 4 ? vrel.clone().negate() : f.up);
       ap.note = inAtm ? 'Entry · riding the air down' : 'Coasting to entry';
       if (inAtm && f.alt < Math.min(atmoTop * 0.5, 40e3) && vrel.length() < 900) ap.phase = 'descent';
-      else if (!inAtm && radar > 30000) return;
-    } else if (radar <= 30000 || el.rp - body.radius <= 15000) {
-      ap.phase = 'descent';
-    } else { point(v, v.vel.clone().negate()); return; }
-    if (ap.phase !== 'descent') return;
+      else return;
+    } else ap.phase = 'descent';
+    delete ap.data.wakeAt;
   }
 
   // ---- descent: acceleration-command guidance
   const aMax = ensureEngines(w, v) ? accelMax(w, v) : 0;
   autoStage(w, v);
   const legs = v.parts.some((p) => p.def.kind === 'leg');
-  if (legs && radar < 400 && v.parts.some((p) => p.def.kind === 'leg' && p.legTarget === 0)) toggleLegs(v);
+  if (legs && radar < 600 && v.parts.some((p) => p.def.kind === 'leg' && p.legTarget === 0)) toggleLegs(v);
   if (hasAtm && f.alt < atmoTop && v.parts.some((p) => p.def.kind === 'chute' && p.chute === 'stowed')) armChutes(v);
 
   const aDec = Math.max(0.3, 0.55 * (aMax - g));
-  const vTouch = 1.4;
-  let vzTarget = -(Math.sqrt(2 * aDec * Math.max(0, radar - 2)) + vTouch);
-  if (radar > 20000) vzTarget = -Math.sqrt(2 * aDec * 20000);
+  const vTouch = 1.2;
+  const braking = vh > 40 && !hasAtm;
+  let vzTarget: number;
+  if (braking) vzTarget = clamp(0.1 * (4000 - radar), -25, 25);
+  else vzTarget = -(Math.sqrt(2 * aDec * Math.max(0, radar - 2)) + vTouch);
   const acmd = new Vector3();
-  // cancel horizontal speed, but only as hard as the vertical budget allows
-  if (vh > 3) {
-    const hCancel = Math.min(vh * 0.8, aMax * 0.85);
+  if (vh > 2.5) {
+    const hCancel = Math.min(vh * 0.8, aMax * 0.9);
     acmd.addScaledVector(vHvec.clone().normalize(), -hCancel);
   }
-  const upNeeded = g + 1.5 * (vzTarget - vz);
+  // while braking we hold altitude (signed correction); in the final descent we only ever push up
+  const sinkExcess = vzTarget - vz; // > 0 when sinking faster than the profile allows
+  const upNeeded = braking ? g + 1.5 * (vzTarget - vz) : sinkExcess > 0 ? g + aDec + 2 * sinkExcess : 0;
   acmd.addScaledVector(f.up, upNeeded);
 
-  // with a chute doing the work, only burn when it is not enough
-  const chuteOpen = v.parts.some((p) => p.def.kind === 'chute' && (p.chute === 'full' || p.chute === 'inflating'));
-  const needBurn = vz < vzTarget + 0.5 || vh > 6 || !chuteOpen;
+  const needBurn = braking || vz < vzTarget + 0.5 || vh > 6;
   const hover = radar < 40 && vh < 2;
   const dir = hover ? f.up.clone() : acmd.clone();
   if (dir.lengthSq() < 1e-6) dir.copy(f.up);
   if (aMax <= 0) {
-    // unpowered: shield first and trust the canopy
     point(v, vrel.lengthSq() > 4 ? vrel.clone().negate() : f.up);
+    v.throttle = 0;
     ap.note = `Gliding down · radar ${radar.toFixed(0)} m`;
     return;
   }
-  // never let the thrust vector tip past 60° from vertical when low
-  if (radar < 3000) {
+  if (radar < 3000 && !braking) {
     const ang = Math.acos(clamp(dir.clone().normalize().dot(f.up), -1, 1));
     if (ang > 60 * DEG) {
       const axis = new Vector3().crossVectors(f.up, dir).normalize();
@@ -386,11 +409,13 @@ function land(w: World, v: Vessel): void {
   point(v, dir);
   const aligned = alignment(v, dir) < 12 * DEG;
   const tcmd = acmd.length() / aMax;
-  if (radar > 20000 || !needBurn) v.throttle = 0;
+  if (!needBurn) v.throttle = 0;
   else if (!aligned) v.throttle = radar < 150 ? 0.4 : 0;
   else v.throttle = clamp(tcmd, 0.0, 1);
-  if (!hasAtm && radar > 6000 && vh < 15 && vz > -8) v.throttle = 0;
-  ap.note = `Powered descent · radar ${radar.toFixed(0)} m · sink ${(-vz).toFixed(1)} m/s`;
+  if (!hasAtm && !braking && radar > 8000 && vz > -8 && vh < 15) v.throttle = 0;
+  ap.note = braking
+    ? `Braking burn · ${vh.toFixed(0)} m/s horizontal`
+    : `Powered descent · radar ${radar.toFixed(0)} m · sink ${(-vz).toFixed(1)} m/s`;
   void G0;
 }
 
@@ -413,7 +438,7 @@ export function planTransfer(w: World, v: Vessel, targetId: string): Plan | null
   const el = elements(v.pos, v.vel, mu);
   const orbitSpan = el.bound ? el.period : 7200;
   const tTransfer = Math.PI * Math.sqrt((aT * aT * aT) / mu);
-  const wantPe = (0.4 * target.radius + 60e3) + target.radius * 0.0;
+  const wantPe = target.radius + 120e3;
   let best: Plan | null = null;
   let bestScore = Infinity;
   const rr = new Vector3();
@@ -452,6 +477,35 @@ export function planTransfer(w: World, v: Vessel, targetId: string): Plan | null
   return best;
 }
 
+
+/** Closest-approach distance (from the target's centre) if the vessel coasts from now, or null if there is no encounter. */
+export function predictEncounterPe(w: World, v: Vessel, targetId: string): number | null {
+  const idx = w.idx;
+  const body = idx.get(v.body);
+  const target = idx.get(targetId);
+  const mu = body.mu;
+  const soi = idx.soi.get(targetId)!;
+  const el = elements(v.pos, v.vel, mu);
+  if (!el.bound && el.e >= 1 && v.pos.dot(v.vel) < 0) return null;
+  const horizon = Math.min(12 * 86400, el.bound ? el.period : 12 * 86400);
+  const rr = new Vector3();
+  const vv = new Vector3();
+  const tp = { pos: new Vector3(), vel: new Vector3() };
+  const steps = 200;
+  for (let s = 1; s <= steps; s++) {
+    const dt = (horizon * s) / steps;
+    keplerStep(v.pos, v.vel, mu, dt, rr, vv);
+    bodyStateRel(idx, targetId, w.t + dt, tp);
+    const rel = rr.clone().sub(tp.pos);
+    if (rel.length() < soi) {
+      const e2 = elements(rel, vv.clone().sub(tp.vel), target.mu);
+      return e2.rp;
+    }
+    if (rr.length() > soi * 0 + (target.orbit!.a * 1.6)) break;
+  }
+  return null;
+}
+
 function transfer(w: World, v: Vessel): void {
   const ap = v.ap!;
   const body = w.idx.get(v.body);
@@ -478,8 +532,10 @@ function transfer(w: World, v: Vessel): void {
         v.throttle = 0;
         point(v, retro);
         ap.note = `Captured soon · insertion burn in ${(tPe - lead).toFixed(0)} s (${dv.toFixed(0)} m/s)`;
+        ap.data.wakeAt = w.t + tPe - lead - 40;
         return;
       }
+      delete ap.data.wakeAt;
       point(v, retro);
       v.throttle = alignment(v, retro) < 8 * DEG ? throttleForDv(Math.abs(el.rp - el.ra) / 2000 + dv * 0.2, aMax) : 0;
       ap.note = 'Insertion burn';
@@ -511,22 +567,31 @@ function transfer(w: World, v: Vessel): void {
     v.throttle = 0;
     const left = ap.data.tBurn - burnTime / 2 - w.t;
     ap.note = `Transfer burn in ${Math.max(0, left).toFixed(0)} s`;
+    ap.data.wakeAt = ap.data.tBurn - burnTime / 2 - 40;
     if (left <= 0) {
+      delete ap.data.wakeAt;
       ap.phase = 'burn';
-      ap.data.v0 = v.vel.length();
-      ap.data.speedGoal = v.vel.length() + ap.data.dv;
     }
     return;
   }
   if (ap.phase === 'burn') {
     if (!ensureEngines(w, v)) { stopAutopilot(w, v, 'Autopilot: out of propellant mid-burn.'); return; }
-    const aMax = Math.max(0.3, accelMax(w, v));
     const dir = v.vel.clone().normalize();
     point(v, dir);
-    const left = ap.data.speedGoal - v.vel.length();
-    v.throttle = alignment(v, dir) < 8 * DEG ? throttleForDv(left, aMax) : 0;
-    ap.note = `Transfer burn · ${Math.max(0, left).toFixed(0)} m/s to go`;
-    if (left <= 0.5) {
+    const aligned = alignment(v, dir) < 8 * DEG;
+    // re-plan continuously: stop as soon as coasting would carry us to a safe flyby
+    ap.data.tick = (ap.data.tick ?? 0) + 1;
+    let pe: number | null | undefined = ap.data.lastPe === undefined ? undefined : ap.data.lastPe;
+    if (ap.data.tick % 8 === 0) {
+      pe = predictEncounterPe(w, v, targetId);
+      ap.data.lastPe = pe ?? -1;
+    }
+    const target = w.idx.get(targetId);
+    const good = pe !== undefined && pe !== null && pe > target.radius * 1.05 && pe < target.radius * 2.6;
+    const overshoot = el.bound && el.ra > target.orbit!.a * 1.25;
+    v.throttle = aligned ? 1 : 0;
+    ap.note = pe && pe > 0 ? `Transfer burn · predicted flyby ${((pe - target.radius) / 1000).toFixed(0)} km` : 'Transfer burn';
+    if (good || overshoot) {
       v.throttle = 0;
       ap.phase = 'cruise';
       note(w, 'Transfer burn complete. Coasting to the target.', 'good');

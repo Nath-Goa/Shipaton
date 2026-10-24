@@ -338,7 +338,7 @@ function controlTorque(v: Vessel, body: BodyDef, alt: number, vel: Vector3, vAir
   // rotation error in the world frame, then body frame
   q2.copy(target).multiply(v2q(v.quat));
   if (q2.w < 0) { q2.x *= -1; q2.y *= -1; q2.z *= -1; q2.w *= -1; }
-  const s = Math.sqrt(1 - q2.w * q2.w);
+  const s = Math.sqrt(Math.max(0, 1 - q2.w * q2.w));
   const ang = 2 * Math.atan2(s, q2.w);
   const e = s < 1e-6 ? v3.set(0, 0, 0) : v3.set(q2.x / s, q2.y / s, q2.z / s).multiplyScalar(ang);
   e.applyQuaternion(v2q(v.quat));
@@ -511,6 +511,11 @@ export function stepVessel(w: World, v: Vessel, dt: number): void {
   if (wl > 12) wv.multiplyScalar(12 / wl);
   q1.set(wv.x * dt * 0.5, wv.y * dt * 0.5, wv.z * dt * 0.5, 1);
   v.quat.multiply(q1).normalize();
+
+  if (!Number.isFinite(v.pos.x + v.pos.y + v.pos.z + v.vel.x + v.vel.y + v.vel.z + v.quat.x + v.quat.w)) {
+    breakUp(w, v, 'numerical failure');
+    return;
+  }
 
   // ---- ground contact
   collide(w, v, body, theta);

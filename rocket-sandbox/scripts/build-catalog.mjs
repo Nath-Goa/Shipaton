@@ -57,6 +57,7 @@ for (const line of lines.slice(1)) {
     Number.isFinite(ci) ? +ci.toFixed(2) : 0.65,
     spect.slice(0, 2),
     +mag.toFixed(2),
+    r[col.hip] ? Number(r[col.hip]) : 0,
   ]);
 }
 stars.sort((a, b) => a[2] * a[2] + a[3] * a[3] + a[4] * a[4] - (b[2] * b[2] + b[3] * b[3] + b[4] * b[4]));
@@ -64,7 +65,7 @@ writeFileSync(
   new URL('../src/data/hyg-subset.json', import.meta.url),
   JSON.stringify({
     source: 'HYG Database v4.1 (astronexus), CC BY-SA 4.0',
-    fields: ['hygId', 'name', 'xLy', 'yLy', 'zLy', 'absMag', 'colorIndex', 'spectral', 'apparentMag'],
+    fields: ['hygId', 'name', 'xLy', 'yLy', 'zLy', 'absMag', 'colorIndex', 'spectral', 'apparentMag', 'hip'],
     frame: 'galactic Cartesian, light-years, Sol at origin, +x toward galactic centre, +z toward north galactic pole',
     stars,
   }),

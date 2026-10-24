@@ -96,7 +96,10 @@ export function checkSoi(w: World, v: Vessel): void {
     v.pos.add(tmpState.pos);
     v.vel.add(tmpState.vel);
     v.body = cur.parent;
-    if (v.id === w.activeId) note(w, `Left ${cur.name}'s sphere of influence — now orbiting ${idx.get(cur.parent).name}.`, 'info');
+    if (v.id === w.activeId) {
+      note(w, `Left ${cur.name}'s sphere of influence — now orbiting ${idx.get(cur.parent).name}.`, 'info');
+      w.warpIndex = Math.min(w.warpIndex, 3);
+    }
     return;
   }
   for (const k of idx.children.get(v.body) ?? []) {
@@ -109,6 +112,7 @@ export function checkSoi(w: World, v: Vessel): void {
       if (v.id === w.activeId) {
         note(w, `Entered ${k.name}'s sphere of influence.`, 'good');
         w.discovered.add(k.id);
+        w.warpIndex = Math.min(w.warpIndex, 3);
       }
       return;
     }
@@ -139,7 +143,9 @@ function railsAttitude(w: World, v: Vessel): void {
     default: break;
   }
   void body;
-  if (aim && v.derived.hasControl) {
+  if (v.ap && v.sas.mode === 'hold') {
+    v.quat.copy(v.sas.hold);
+  } else if (aim && v.derived.hasControl) {
     const axis = new Vector3(0, 1, 0).applyQuaternion(v.quat);
     v.quat.premultiply(new Quaternion().setFromUnitVectors(axis, aim)).normalize();
     v.sas.hold.copy(v.quat);
@@ -212,6 +218,7 @@ export function updateWarpCap(w: World): void {
   const limit = (idx: number, why: string) => { if (idx < cap) { cap = idx; reason = why; } };
   if (w.eva) limit(0, 'Astronaut outside');
   if (!av || av.destroyed) { limit(0, 'No vessel'); w.warpCap = cap; w.warpReason = reason; return; }
+  if (av.ap?.data.wakeAt !== undefined && av.ap.data.wakeAt - w.t < 90) limit(0, 'Autopilot burn imminent');
   for (const v of w.vessels) {
     if (v.destroyed || v.landed) continue;
     const body = w.idx.get(v.body);
@@ -269,6 +276,11 @@ export function advance(w: World, dtReal: number): void {
       chunks++;
       let step = remaining;
       for (const v of w.vessels) {
+        if (v.ap?.data.wakeAt !== undefined) {
+          const left = v.ap.data.wakeAt - w.t;
+          if (left <= 0) { w.warpIndex = 0; return; }
+          step = Math.min(step, Math.max(0.25, left));
+        }
         if (v.destroyed || v.landed) continue;
         const body = w.idx.get(v.body);
         const speed = Math.max(1, v.vel.length());
@@ -289,6 +301,7 @@ function railsChunk(w: World, dt: number): void {
     railsStep(w, v, dt);
   }
   w.t += dt;
+  for (const v of w.vessels) if (!v.destroyed && v.ap) runAutopilot(w, v, dt);
   for (const v of w.vessels) {
     if (v.destroyed) continue;
     if (!v.landed) checkSoi(w, v);
