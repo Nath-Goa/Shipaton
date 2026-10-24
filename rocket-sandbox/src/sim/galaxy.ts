@@ -179,6 +179,27 @@ export function searchStars(query: string, limit = 12): StarRec[] {
   return out;
 }
 
+// ------------------------------------------------------------------ frames
+
+const OBLIQUITY = (23.4392911 * Math.PI) / 180;
+// rows of the galactic -> equatorial rotation (transpose of the equatorial -> galactic matrix used by the catalog build)
+const G2E = [
+  [-0.0548755604, 0.4941094279, -0.867666149],
+  [-0.8734370902, -0.44482963, -0.1980763734],
+  [-0.4838350155, 0.7469822445, 0.4559837762],
+];
+
+/** Converts a galactic-frame direction into the simulator's frame (ecliptic plane = XZ, north = +Y). */
+export function galacticToWorld(x: number, y: number, z: number): [number, number, number] {
+  const ex = G2E[0][0] * x + G2E[0][1] * y + G2E[0][2] * z;
+  const ey = G2E[1][0] * x + G2E[1][1] * y + G2E[1][2] * z;
+  const ez = G2E[2][0] * x + G2E[2][1] * y + G2E[2][2] * z;
+  const xe = ex;
+  const ye = ey * Math.cos(OBLIQUITY) + ez * Math.sin(OBLIQUITY);
+  const ze = -ey * Math.sin(OBLIQUITY) + ez * Math.cos(OBLIQUITY);
+  return [xe, ze, -ye];
+}
+
 // ------------------------------------------------------------------ star physical properties
 
 export function starRGB(ci: number): RGB {

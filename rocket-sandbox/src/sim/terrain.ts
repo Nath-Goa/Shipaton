@@ -104,6 +104,7 @@ export function terrainHeight(body: BodyDef, dir: Vector3, maxOctave = 40): numb
     h += craterField(noise, dir, R, 24, 0.12 * c, T.seed + 2);
     h += craterField(noise, dir, R, 110, 0.14 * c, T.seed + 3);
     if (R < 5e6) h += craterField(noise, dir, R, 520, 0.14 * c, T.seed + 4);
+    if (R < 5e6 && maxOctave > 14) h += craterField(noise, dir, R, 2600, 0.15 * c, T.seed + 5);
   }
   const pad = pads.get(body.id);
   if (pad) {
@@ -137,7 +138,7 @@ export function isOcean(body: BodyDef, dir: Vector3): boolean {
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 /** Surface colour for a vertex. `slope` is 0 (flat) .. 1 (vertical). */
-export function terrainColor(body: BodyDef, dir: Vector3, h: number, slope: number): RGB {
+export function terrainColor(body: BodyDef, dir: Vector3, h: number, slope: number, spacing = Infinity): RGB {
   const T = body.terrain!;
   const P = T.palette;
   const noise = noiseFor(T.seed + 99);
@@ -168,5 +169,19 @@ export function terrainColor(body: BodyDef, dir: Vector3, h: number, slope: numb
   }
   // steep faces expose bare rock
   const rock = mix(P.high, P.low, 0.3);
-  return mix(c, rock, smoothstep(0.25, 0.6, slope) * 0.7);
+  const out = mix(c, rock, smoothstep(0.25, 0.6, slope) * 0.7);
+  // grain: fine albedo noise, only at scales this chunk's vertices can resolve
+  if (spacing < 400) {
+    const R = body.radius;
+    let g = 0;
+    const wl = [400, 90, 22, 6];
+    for (let i = 0; i < wl.length; i++) {
+      if (wl[i] < spacing * 2.4) continue;
+      const k = R / wl[i];
+      g += noise.noise(dir.x * k, dir.y * k, dir.z * k) * (0.5 - i * 0.09);
+    }
+    const f = 1 + 0.2 * g;
+    return [out[0] * f, out[1] * f, out[2] * f];
+  }
+  return out;
 }
