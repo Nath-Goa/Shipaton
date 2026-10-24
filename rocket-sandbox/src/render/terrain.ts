@@ -40,6 +40,8 @@ class Chunk {
   centerDir = new Vector3();
   size = 0;
   angRadius = 0;
+  /** terrain height at the chunk centre, so that LOD distance is measured to the real surface */
+  hCenter = 0;
   lastUsed = 0;
   shown = false;
   constructor(readonly face: number, readonly level: number, readonly i: number, readonly j: number) {}
@@ -121,6 +123,7 @@ export class TerrainTree {
         heights[jj * M + ii] = terrainHeight(body, d, maxOct);
       }
     }
+    c.hCenter = Math.max(heights[(N / 2 + pad) * M + (N / 2 + pad)], body.terrain?.seaLevel ?? -1e9);
     const sea = body.terrain?.seaLevel;
     const V = N + 1;
     const skirt = c.size * 0.04 + 5;
@@ -259,7 +262,7 @@ export class TerrainTree {
   private visit(c: Chunk): void {
     c.lastUsed = this.frame;
     if (this.cull(c)) { this.hideTree(c); return; }
-    const d = tmpB.copy(this.camBF).sub(c.center).length();
+    const d = tmpB.copy(c.centerDir).multiplyScalar(this.body.radius + c.hCenter).sub(this.camBF).length();
     const want = c.level < this.maxLevel && d < c.size * this.quality.splitFactor;
     if (!want) { this.showSelf(c); this.hideChildren(c); return; }
     if (!c.children) {
@@ -268,6 +271,7 @@ export class TerrainTree {
       for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
         const ch = new Chunk(c.face, nl, c.i * 2 + a, c.j * 2 + b);
         this.initChunk(ch);
+        ch.hCenter = c.hCenter;
         c.children.push(ch);
         this.buildQueue.push(ch);
       }
@@ -326,11 +330,26 @@ export class TerrainTree {
     this.rotQ.setFromAxisAngle(new Vector3(0, 1, 0), theta);
     // nearest first
     this.buildQueue.sort((a, b) => tmpA.copy(this.camBF).sub(a.center).lengthSq() - tmpB.copy(this.camBF).sub(b.center).lengthSq());
-    let budget = this.quality.buildPerFrame;
-    while (budget > 0 && this.buildQueue.length) {
-      const c = this.buildQueue.shift()!;
-      if (!c.mesh) this.build(c);
-      budget--;
+    // Build nearest chunks first within a time budget. The first frames after creation get a long budget so that
+    // the ground under a landed vessel is detailed immediately instead of fading in over a second or two.
+    const settling = this.frame <= 2;
+    if (settling) {
+      for (let pass = 0; pass < 60; pass++) {
+        for (const r of this.roots) this.visit(r);
+        if (!this.buildQueue.length) break;
+        while (this.buildQueue.length) {
+          const c = this.buildQueue.shift()!;
+          if (!c.mesh) this.build(c);
+        }
+      }
+    } else {
+      const budgetMs = this.quality.buildPerFrame * 3;
+      const t0 = performance.now();
+      let built = 0;
+      while (this.buildQueue.length && (built === 0 || performance.now() - t0 < budgetMs)) {
+        const c = this.buildQueue.shift()!;
+        if (!c.mesh) { this.build(c); built++; }
+      }
     }
     for (const r of this.roots) this.visit(r);
     if (this.frame % 60 === 0) for (const r of this.roots) this.reap(r, null);

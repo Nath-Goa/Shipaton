@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
 import { Quaternion, Vector3 } from 'three';
 import { SOL } from '../sim/bodies';
 import { Design } from '../sim/design';
@@ -141,7 +142,7 @@ export function Flight({ init, settings, onExit, onEditor }: Props) {
     const quality = pickQuality(settings);
     const gr = new GameRenderer(canvas, quality);
     rendererRef.current = gr;
-    if (location.search.includes('debug')) (window as unknown as { __game: unknown }).__game = { world: () => worldRef.current, gr };
+    if (location.search.includes('debug')) (window as unknown as { __game: unknown }).__game = { world: () => worldRef.current, gr, THREE };
     sound.current.enabled = settings.sound;
     const detach = c.attach();
 
