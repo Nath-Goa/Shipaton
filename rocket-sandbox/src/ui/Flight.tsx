@@ -373,7 +373,7 @@ export function Flight({ init, settings, onExit, onEditor }: Props) {
 
   const tel = hud?.tel;
   return (
-    <div className="flight" onPointerDown={() => sound.current.resume()}>
+    <div className={`flight${touch ? ' touch-mode' : ''}`} onPointerDown={() => sound.current.resume()}>
       <canvas ref={canvasRef} className="game-canvas" />
       {hud && !hidden && (
         <>
@@ -408,18 +408,18 @@ export function Flight({ init, settings, onExit, onEditor }: Props) {
                   <Row k="Altitude" v={fmtDist(tel.alt)} />
                   {Number.isFinite(tel.radar) && tel.radar < 20000 && <Row k="Radar" v={fmtDist(tel.radar)} />}
                   <Row k="Surface speed" v={fmtSpeed(tel.speedSurf)} />
-                  <Row k="Orbital speed" v={fmtSpeed(tel.speedOrb)} />
+                  <Row k="Orbital speed" v={fmtSpeed(tel.speedOrb)} extra />
                   <Row k="Vertical" v={fmtSpeed(tel.vSpeed)} />
                   <Row k="Apoapsis" v={Number.isFinite(tel.apo) ? fmtDist(tel.apo) : 'escape'} />
                   <Row k="Periapsis" v={fmtDist(tel.peri)} />
-                  {tel.bound && tel.alt > 0 && <Row k="Period" v={fmtTime(tel.period)} />}
-                  <Row k="Acceleration" v={`${tel.gLoad.toFixed(2)} g`} />
-                  <Row k="Mass" v={fmtMass(tel.mass)} />
-                  <Row k="TWR" v={tel.twr.toFixed(2)} />
+                  {tel.bound && tel.alt > 0 && <Row k="Period" v={fmtTime(tel.period)} extra />}
+                  <Row k="Acceleration" v={`${tel.gLoad.toFixed(2)} g`} extra />
+                  <Row k="Mass" v={fmtMass(tel.mass)} extra />
+                  <Row k="TWR" v={tel.twr.toFixed(2)} extra />
                   <Row k="Δv left" v={fmtSpeed(tel.dv)} />
-                  {tel.pressure > 1 && <Row k="Pressure" v={fmtPressure(tel.pressure)} />}
-                  {tel.q > 50 && <Row k="Dyn. pressure" v={fmtPressure(tel.q)} />}
-                  {tel.heat > 0.05 && <Row k="Heat" v={`${Math.round(tel.heat * 100)}%`} warn={tel.heat > 0.7} />}
+                  {tel.pressure > 1 && <Row k="Pressure" v={fmtPressure(tel.pressure)} extra />}
+                  {tel.q > 50 && <Row k="Dyn. pressure" v={fmtPressure(tel.q)} extra />}
+                  {tel.heat > 0.05 && <Row k="Heat" v={`${Math.round(tel.heat * 100)}%`} warn={tel.heat > 0.7} extra />}
                   {tel.jumpRange > 0 && <Row k="Jump charge" v={`${tel.jumpCharge.toFixed(1)} / ${tel.jumpRange.toFixed(0)} ly`} />}
                   <div className="bar"><div style={{ width: `${tel.fuelCap > 0 ? (100 * tel.fuel) / tel.fuelCap : 0}%` }} /></div>
                   <div className="dim small">Propellant {fmtMass(tel.fuel)}</div>
@@ -559,8 +559,8 @@ export function Flight({ init, settings, onExit, onEditor }: Props) {
   );
 }
 
-function Row({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
-  return <div className={`trow ${warn ? 'warn' : ''}`}><span>{k}</span><b>{v}</b></div>;
+function Row({ k, v, warn, extra }: { k: string; v: string; warn?: boolean; extra?: boolean }) {
+  return <div className={`trow ${warn ? 'warn' : ''} ${extra ? 'extra' : ''}`}><span>{k}</span><b>{v}</b></div>;
 }
 
 function Help() {
